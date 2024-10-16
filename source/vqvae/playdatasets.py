@@ -17,13 +17,11 @@ simulation_app = app_launcher.app
 import glob
 import numpy as np
 import torch
-from vqvae.datasets.go2_marker import GO2_MARKER_CFG
-import omni.isaac.core.utils.prims as prim_utils
+from source.vqvae.vqvae.datasets.go2_model import GO2_MARKER_CFG
 from omni.isaac.lab.markers import VisualizationMarkers, VisualizationMarkersCfg
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation
 from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg
-from omni.isaac.lab_assets.unitree import UNITREE_GO2_CFG  # isort:skip
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG
 from omni.isaac.lab.controllers import DifferentialIKController, DifferentialIKControllerCfg
 from omni.isaac.lab.utils import configclass

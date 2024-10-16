@@ -17,7 +17,7 @@ class MotionData:
         self.data_names = []
         self.data_length = []
         self.data_time_length = []
-        #最后的100帧为了不超出范围，不会在初始化的时候被载入
+        #最后的121帧为了不超出范围，不会在初始化的时候被载入
         self.motion_bias = 121
         self.time_list = [1. / 30., 1. / 15., 1. / 3., 1.]
         self.load_data()

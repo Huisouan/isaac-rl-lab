@@ -7,12 +7,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from ..modules import ActorCritic
+from ..modules import PMC
 from ..storage import RolloutStorage
 
 
 class PMCPPO:
-    actor_critic: ActorCritic
+    actor_critic: PMC
 
     def __init__(
         self,
@@ -20,7 +20,7 @@ class PMCPPO:
         num_learning_epochs=1,
         num_mini_batches=1,
         clip_param=0.1,
-        gamma=0.998,
+        gamma=0.95,
         lam=0.95,
         value_loss_coef=1.0,
         entropy_coef=0.00,

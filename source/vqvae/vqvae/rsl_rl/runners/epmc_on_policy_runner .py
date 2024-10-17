@@ -11,7 +11,7 @@ from collections import deque
 from torch.utils.tensorboard import SummaryWriter as TensorboardSummaryWriter
 
 from ... import rsl_rl
-from ..pmc_algorithm import PMCPPO as PPO
+from ..ppo_algorithm import PMCPPO as PPO
 from ..env import VecEnv
 from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization, PMC
 from ..utils import store_code_state

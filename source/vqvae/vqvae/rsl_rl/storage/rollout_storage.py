@@ -63,19 +63,42 @@ class RolloutStorage:
         self.step = 0
 
     def add_transitions(self, transition: Transition):
+        # 如果当前步骤数已经超过了每个环境的过渡数，则抛出异常
         if self.step >= self.num_transitions_per_env:
             raise AssertionError("Rollout buffer overflow")
+
+        # 将transition中的观测值复制到self.observations对应步骤的位置
         self.observations[self.step].copy_(transition.observations)
+
+        # 如果self.privileged_observations不为空，则将transition中的critic观测值复制到self.privileged_observations对应步骤的位置
         if self.privileged_observations is not None:
             self.privileged_observations[self.step].copy_(transition.critic_observations)
+
+        # 将transition中的动作复制到self.actions对应步骤的位置
         self.actions[self.step].copy_(transition.actions)
+
+        # 将transition中的奖励复制到self.rewards对应步骤的位置，并调整维度
         self.rewards[self.step].copy_(transition.rewards.view(-1, 1))
+
+        # 将transition中的结束状态复制到self.dones对应步骤的位置，并调整维度
         self.dones[self.step].copy_(transition.dones.view(-1, 1))
+
+        # 将transition中的值复制到self.values对应步骤的位置
         self.values[self.step].copy_(transition.values)
+
+        # 将transition中的动作对数概率复制到self.actions_log_prob对应步骤的位置，并调整维度
         self.actions_log_prob[self.step].copy_(transition.actions_log_prob.view(-1, 1))
+
+        # 将transition中的动作均值复制到self.mu对应步骤的位置
         self.mu[self.step].copy_(transition.action_mean)
+
+        # 将transition中的动作标准差复制到self.sigma对应步骤的位置
         self.sigma[self.step].copy_(transition.action_sigma)
+
+        # 保存transition中的隐藏状态
         self._save_hidden_states(transition.hidden_states)
+
+        # 增加步骤数
         self.step += 1
 
     def _save_hidden_states(self, hidden_states):
@@ -103,19 +126,29 @@ class RolloutStorage:
 
     def compute_returns(self, last_values, gamma, lam):
         advantage = 0
+        # 遍历每一步
         for step in reversed(range(self.num_transitions_per_env)):
+            # 如果当前步是最后一步
             if step == self.num_transitions_per_env - 1:
+                # 下一状态的值等于最后的状态值
                 next_values = last_values
             else:
+                # 否则，下一状态的值从values数组中获取
                 next_values = self.values[step + 1]
+            # 判断当前步是否非终止状态
             next_is_not_terminal = 1.0 - self.dones[step].float()
+            # 计算TD误差
             delta = self.rewards[step] + next_is_not_terminal * gamma * next_values - self.values[step]
+            # 更新advantage
             advantage = delta + next_is_not_terminal * gamma * lam * advantage
+            # 计算当前步的回报
             self.returns[step] = advantage + self.values[step]
 
-        # Compute and normalize the advantages
+        # 计算并标准化advantage
+        # 计算advantage
         self.advantages = self.returns - self.values
-        
+    
+        # 对advantage进行标准化处理
         self.advantages = (self.advantages - self.advantages.mean()) / (self.advantages.std() + 1e-8)
 
     def get_statistics(self):

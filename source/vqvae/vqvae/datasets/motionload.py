@@ -18,7 +18,7 @@ class MotionData:
         self.data_length = []
         self.data_time_length = []
         #最后的121帧为了不超出范围，不会在初始化的时候被载入
-        self.motion_bias = 121
+        self.motion_bias = 122
         self.time_list = [1. / 30., 1. / 15., 1. / 3., 1.]
         self.load_data()
         print('Motion Data Loaded Successfully')
@@ -68,40 +68,31 @@ class MotionData:
         frame = torch.stack([self.data_tensors[i][int(j)] for i,j in zip(random_frame_id,rand_frames)])
         return frame,random_frame_id,rand_frames,datalength
 
-    def get_frame_batch_by_timelist(self, motion_id, frame_num, robot_state) -> torch.Tensor:
-        # 初始化 frame_batch 为一个空的 tensor
-        frame_batch = torch.empty((0, 0))  # 空 tensor
-
-        for x in self.time_list:
-            frame_step_num = int(x // self.frame_duration)
-            frame = self.get_frame_batch(motion_id, frame_num + frame_step_num)
-            
-            # 计算位置误差
-            pos_error = frame[:, :3] - robot_state[:, :3]
-            
-            # 计算旋转误差
-            rot_error = quat_error_magnitude(frame[:, 3:7], robot_state[:, 3:7])
-            
-            # 将 pos_error 转换为 tensor
-            pos_error = pos_error.clone().detach()
-            
-            # 将 rot_error 转换为 tensor
-            rot_error = rot_error.clone().detach()
-            
-            # 拼接 pos_error 和 rot_error
-            frame_part = torch.cat([pos_error, rot_error], dim=1)
-            
-            # 拼接 joint_pos_i
-            joint_pos_i = self.joint_position_w(frame)
-            frame_part = torch.cat([frame_part, joint_pos_i], dim=1)
-            
-            # 累加到 frame_batch
-            if frame_batch.numel() == 0:
-                frame_batch = frame_part
-            else:
-                frame_batch = torch.cat([frame_batch, frame_part], dim=1)
+    def get_frame_batch_by_timelist(self, motion_id, frame_num, robot_state) -> torch.Tensor:  
+        frame_parts = []  
         
-        return frame_batch
+        for x in self.time_list:  
+            frame_step_num = int(x // self.frame_duration)  
+            frame = self.get_frame_batch(motion_id, frame_num + frame_step_num)  
+            
+            # 计算位置误差  
+            pos_error = frame[:, :3] - robot_state[:, :3]  
+            
+            # 计算旋转误差  
+            rot_error = quat_error_magnitude(frame[:, 3:7], robot_state[:, 3:7])  
+            
+            # 拼接 pos_error 和 rot_error  
+            frame_part = torch.cat([pos_error, rot_error], dim=1)  # 确保形状匹配  
+            
+            # 拼接 joint_pos_i  
+            joint_pos_i = self.joint_position_w(frame)  
+            frame_part = torch.cat([frame_part, joint_pos_i], dim=1)  
+            
+            # 累加到 frame_parts  
+            frame_parts.append(frame_part)  
+        
+        # 最后一次性拼接  
+        return torch.cat(frame_parts, dim=1)
     
     def get_frame_batch(self,motion_id,frame_num):
         batch = []

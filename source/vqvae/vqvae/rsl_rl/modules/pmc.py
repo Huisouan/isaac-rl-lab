@@ -7,7 +7,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal
+from torch.distributions import MultivariateNormal
 from torch.nn import RMSNorm
 from ...tasks.utils.wappers.rsl_rl import (
     Z_settings,
@@ -134,7 +134,7 @@ class PMC(nn.Module):
         self.z_e = None
         self.z_q = None
         # disable args validation for speedup
-        Normal.set_default_validate_args = False
+        MultivariateNormal.set_default_validate_args = False
         
         
         print(f"RMS: {self.rms}")
@@ -206,13 +206,8 @@ class PMC(nn.Module):
         #计算输出动作
         mean = self.decoder(decoder_input)
         
-        #Update State Memory
-        #self.state_t_minus2 = self.state_t_minus1
-        #self.state_t_minus1 = self.state_t
+        self.distribution = MultivariateNormal(mean)
         
-        # 使用均值和标准差创建一个正态分布对象
-        # 其中标准差为均值乘以0（即不改变均值）再加上self.std
-        self.distribution = Normal(mean, mean * 0.0 + self.std)
         return mean
     def act(self, observations, **kwargs):
         self.update_distribution(observations)

@@ -15,7 +15,8 @@ from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.sim import SimulationCfg
 from omni.isaac.lab.terrains import TerrainImporterCfg
 from omni.isaac.lab.utils import configclass
-from ....datasets.go2_model import GO2_MARKER_CFG,UNITREE_GO2_CFG
+from ....datasets.go2_model import GO2_MARKER_CFG
+from omni.isaac.lab_assets.unitree import UNITREE_GO2_CFG  # isort: skip
 from omni.isaac.lab.sensors import ContactSensor,ContactSensorCfg
 import math
 import torch
@@ -30,7 +31,7 @@ from omni.isaac.lab.utils.math import quat_rotate,compute_pose_error
 class PMCEnvCfg(DirectRLEnvCfg):
     # env
     episode_length_s = 15.0
-    decimation = 1
+    decimation = 2
     num_actions = 12
     num_observations = 207
     num_states = 0
@@ -41,7 +42,7 @@ class PMCEnvCfg(DirectRLEnvCfg):
     
     
     # simulation
-    sim: SimulationCfg = SimulationCfg(dt=1 / 60, render_interval=decimation)
+    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
     
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
@@ -305,12 +306,14 @@ class PMCEnv(DirectRLEnv):
                 self.sim.render()
             # 在模拟时间步更新缓冲区
             self.scene.update(dt=self.physics_dt)
+            self.pmc_data_frameinplay +=1
             
         # 后处理步骤：
         # -- 更新环境计数器（用于生成课程）
         self.episode_length_buf += 1  # 当前剧集中的步骤（每环境）
         self.common_step_counter += 1  # 总步骤（所有环境共用）
-
+        
+        
         self.reward_buf = self._get_rewards()
         self.reset_terminated[:], self.reset_time_outs[:] = self._get_dones()
         self.reset_buf = self.reset_terminated | self.reset_time_outs
@@ -327,7 +330,7 @@ class PMCEnv(DirectRLEnv):
 
         # 更新观测值
         self.obs_buf = self._get_observations()
-        self.pmc_data_frameinplay +=2
+
         #将数据集更新
         # 添加观测噪声
         # 注意：我们不对状态空间应用噪声（因为它用于批评网络）

@@ -19,7 +19,7 @@ from .cartpole_env import CartpoleEnv, CartpoleEnvCfg
 
 gym.register(
     id="Isaac-Cartpole-pmc-v0",
-    entry_point="source.vqvae.vqvae.tasks.direct.cartpole:CartpoleEnv",
+    entry_point="vqvae.tasks.direct.cartpole:CartpoleEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": CartpoleEnvCfg,

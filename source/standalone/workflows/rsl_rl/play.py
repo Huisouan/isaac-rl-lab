@@ -113,6 +113,8 @@ def main():
     # reset environment
     obs, _ = env.get_observations()
     headers = ['pole_joint_pos', 'pole_joint_vel', 'cart_joint_pos', 'cart_joint_vel']
+    for i in range(13):
+        headers.append('body_state_{}'.format(i))
     with open("cartpole.csv", mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(headers)    
@@ -126,7 +128,10 @@ def main():
                 actions = policy(obs)
                 # env stepping
                 obs, _, _, _ = env.step(actions)
-                writer.writerow(obs[1,:].tolist())                
+                body_state = env.unwrapped.cartpole.data.root_state_w[1,:]
+                body_state[0:2] -= env.unwrapped.scene._default_env_origins[1][0:2]
+                
+                writer.writerow(torch.cat((obs[1,:],body_state),dim = 0).tolist())                
             if args_cli.video:
                 timestep += 1
                 # Exit the play loop after recording one video

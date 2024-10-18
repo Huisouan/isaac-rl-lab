@@ -47,6 +47,7 @@ class RslRlPpoPMCCfg:
     activation: str = MISSING
     """The activation function for the actor and critic networks."""
     
+    State_Dimentions:int = 135
     
 @configclass
 class RslRlPpoActorCriticCfg:

@@ -120,9 +120,6 @@ class MotionData:
         return torch.stack(batch)
         
         
-    def get_frame_by_time(self,motion_id,time):
-        frame_num = time//self.frame_duration
-        
         
     def get_frame_by_header(self, frame, header):
         """

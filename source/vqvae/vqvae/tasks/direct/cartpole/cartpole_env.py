@@ -36,7 +36,7 @@ class CartpoleEnvCfg(DirectRLEnvCfg):
 
     # robot
     robot_cfg: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
-    marker_cfg: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Marker")
+    #marker_cfg: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Marker")
     cart_dof_name = "slider_to_cart"
     pole_dof_name = "cart_to_pole"
 
@@ -82,7 +82,7 @@ class CartpoleEnv(DirectRLEnv):
               
     def _setup_scene(self):
         self.cartpole = Articulation(self.cfg.robot_cfg)
-        self.marker = Articulation(self.cfg.robot_cfg)
+        #self.marker = Articulation(self.cfg.robot_cfg)
         # add ground plane
         spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
         # clone, filter, and replicate
@@ -99,11 +99,6 @@ class CartpoleEnv(DirectRLEnv):
 
     def _apply_action(self) -> None:
         self.cartpole.set_joint_effort_target(self.actions, joint_ids=self._cart_dof_idx)
-        frames = self.motiondata.get_frame_batch(self.pmc_data_selected,self.pmc_data_frameinplay)
-        joint_pos = frames[:, [2,0]]
-        joint_vel =frames[:, [3,1]]
-        
-        self.marker.write_joint_state_to_sim(joint_pos, joint_vel)  
     def _get_observations(self) -> dict:
         self.pmc_data_frameinplay +=1
         obs = torch.cat(
@@ -117,7 +112,7 @@ class CartpoleEnv(DirectRLEnv):
         )
         
         if self.last_observation is None:
-            self.last_observation = obs``
+            self.last_observation = obs
         if self.second_last_observation is None:
             self.second_last_observation = obs
         dataset = self.motiondata.get_frame_batch_by_timelist_cartpole(#64
@@ -177,14 +172,7 @@ class CartpoleEnv(DirectRLEnv):
         joint_vel =frames[:, [3,1]]
         self.cartpole.write_joint_state_to_sim(joint_pos, joint_vel,None, env_ids = env_ids)  
     
-        self.marker.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
-        self.cartpole.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
-        joint_pos = frames[:, [2,0]]
-        joint_vel =frames[:, [3,1]]
-        
-        self.cartpole.write_joint_state_to_sim(joint_pos, joint_vel,None, env_ids = env_ids)  
-        
-        
+
         self.pmc_data_frameinplay[env_ids] = rand_frame.to(device=self.device).to(dtype=torch.float)
         self.pmc_data_selected[env_ids] = data_idx.to(device=self.device).to(dtype=torch.int)
         self.pmc_data_maxtime[env_ids] = data_length.to(device=self.device).to(dtype=torch.float)
@@ -208,5 +196,5 @@ def compute_rewards(
     joint_vel_pole_l2 = torch.exp(-1 * (frame[:,1] - joint_vel_pole) ** 2)
     joint_pos_cart_l2 = torch.exp(-1 * (frame[:,2] - joint_pos_cart) ** 2)
     joint_vel_cart_l2 = torch.exp(-1 * (frame[:,3] - joint_vel_cart) ** 2)
-    reward =  joint_pos_pole_l2 + joint_vel_pole_l2 + 10 * joint_pos_cart_l2 + 10 * joint_vel_cart_l2
+    reward = 5 * joint_pos_pole_l2 + joint_vel_pole_l2 + 5 * joint_pos_cart_l2 + joint_vel_cart_l2
     return reward

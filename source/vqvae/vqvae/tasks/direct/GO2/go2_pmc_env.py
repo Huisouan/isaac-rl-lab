@@ -74,7 +74,7 @@ class PMCEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
         self.action_scale = cfg.action_scale
         
-        self.motiondata = MotionData("source/vqvae/data")
+        self.motiondata = MotionData("source/vqvae/data/go2")
         #初始化数据集采样的时间
         self.pmc_data_frameinplay = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.pmc_data_maxtime = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
@@ -82,10 +82,8 @@ class PMCEnv(DirectRLEnv):
         #记录观察值的缓存
         self.last_observation = None
         self.second_last_observation = None
-        self.observation = None
         
         
-        self.data = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.robot_foot_id = self.robot.find_bodies(['FL_foot','FR_foot','RL_foot','RR_foot'])         
         
     def _setup_scene(self):

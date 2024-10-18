@@ -17,6 +17,7 @@ class MotionData:
         self.data_names = []
         self.data_length = []
         self.data_time_length = []
+        self.data_header = []
         #最后的121帧为了不超出范围，不会在初始化的时候被载入
         self.motion_bias = 122
         self.time_list = [1. / 30., 1. / 15., 1. / 3., 1.]
@@ -32,16 +33,17 @@ class MotionData:
                 self.data_names.append(filename)
                 with open(file_path, newline='') as csvfile:
                     csv_reader = csv.reader(csvfile)
-                    next(csv_reader)  # 跳过表头
+                    header = next(csv_reader)  # 读取表头
+                    self.data_header.append(header)  # 存储表头
                     data = []
                     for row in csv_reader:
                         data.append([float(item) for item in row])
-                        
+                    
                     tensor_data = torch.tensor(data, dtype=torch.float32).to(self.device)
                     self.data_length.append(tensor_data.shape[0])
                     self.data_tensors.append(tensor_data)
-        self.data_length = torch.tensor(self.data_length,dtype=torch.int64).to(self.device)
-        self.data_time_length = torch.tensor(self.data_length*self.frame_duration,dtype=torch.float64).to(self.device)
+        self.data_length = torch.tensor(self.data_length, dtype=torch.int64).to(self.device)
+        self.data_time_length = torch.tensor(self.data_length * self.frame_duration, dtype=torch.float64).to(self.device)
     def get_tensors(self):
         """
         返回加载的所有数据的列表。
@@ -94,6 +96,9 @@ class MotionData:
         # 最后一次性拼接  
         return torch.cat(frame_parts, dim=1)
     
+    
+
+    
     def get_frame_batch(self,motion_id,frame_num):
         batch = []
 
@@ -118,7 +123,23 @@ class MotionData:
     def get_frame_by_time(self,motion_id,time):
         frame_num = time//self.frame_duration
         
-    
+        
+    def get_frame_by_header(self, frame, header):
+        """
+        从给定的二维frame矩阵中，根据header列表返回对应的列。
+        """
+        # 获取frame的表头
+        frame_header = self.headers[0]  # 假设所有文件的表头相同，这里取第一个文件的表头
+        column_indices = [frame_header.index(h) for h in header if h in frame_header]
+        
+        if not column_indices:
+            raise ValueError("None of the provided headers match the frame's headers.")
+        
+        # 选择对应的列
+        selected_columns = frame[:, column_indices]
+        
+        return selected_columns
+        
 
 
     def _get_states_info_by_interpolation(self, frame_data_c: torch.Tensor, frame_data_n: torch.Tensor, 
@@ -365,7 +386,23 @@ class MotionData:
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
     
-
+    
+    
+    def get_frame_batch_by_timelist_cartpole(self,motion_id, frame_num,state)-> torch.Tensor:
+        #此函数仅用于cartpole测试，不适用于其他场景
+        frame_parts = []  
+        
+        for x in self.time_list:  
+            frame_step_num = int(x // self.frame_duration)  
+            frame = self.get_frame_batch(motion_id, frame_num + frame_step_num)  
+            frame = frame -state
+            # 拼接 frame_part  
+            frame_parts.append(frame)  
+        
+        # 最后一次性拼接  
+        return torch.cat(frame_parts, dim=1)
+    
+    
 
 
     

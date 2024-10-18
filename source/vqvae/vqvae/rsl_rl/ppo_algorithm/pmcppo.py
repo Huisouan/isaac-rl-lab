@@ -9,7 +9,7 @@ import torch.optim as optim
 
 from ..modules import PMC
 from ..storage import RolloutStorage
-
+from torchviz import make_dot
 
 class PMCPPO:
     actor_critic: PMC
@@ -130,16 +130,11 @@ class PMCPPO:
             masks_batch,
         ) in generator:
             # 计算当前动作的概率分布
-            self.actor_critic.act(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0], env=env)
-            
+            distribution_action = self.actor_critic.act(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0], env=env)
+            # 评估            
             # 获取当前动作的日志概率
             actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
-            
-            # 评估当前状态的价值
             value_batch = self.actor_critic.evaluate(critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1])
-            
-            
-            
             
             # 获取当前动作的均值和标准差
             mu_batch = self.actor_critic.action_mean

@@ -7,13 +7,13 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import MultivariateNormal
+from torch.distributions import Normal
 from torch.nn import RMSNorm
 from ...tasks.utils.wappers.rsl_rl import (
     Z_settings,
 )
 
-
+from torchviz import make_dot
 
 
 
@@ -30,7 +30,7 @@ class PMC(nn.Module):
         critic_hidden_dims=[256,256],
         activation="lrelu",
         value_activation="tanh",
-        init_noise_std=-2.0,
+        init_noise_std=0.1,
         # 正确的方式是先声明类型，然后创建对象
         z_settings: Z_settings = Z_settings(),  # 将类型注释和对象创建分开
         State_Dimentions = 45*3,
@@ -134,7 +134,7 @@ class PMC(nn.Module):
         self.z_e = None
         self.z_q = None
         # disable args validation for speedup
-        MultivariateNormal.set_default_validate_args = False
+        Normal.set_default_validate_args = False
         
         
         print(f"RMS: {self.rms}")
@@ -205,13 +205,16 @@ class PMC(nn.Module):
         
         #计算输出动作
         mean = self.decoder(decoder_input)
-        
-        self.distribution = MultivariateNormal(mean)
-        
+
+        # 使用均值和标准差创建一个正态分布对象
+        # 其中标准差为均值乘以0（即不改变均值）再加上self.std
+        self.distribution = Normal(mean,self.std)
         return mean
     def act(self, observations, **kwargs):
-        self.update_distribution(observations)
-        
+        mean = self.update_distribution(observations)
+        dot = make_dot(mean, params=dict(list(self.named_parameters())))
+        dot.render('vqvae_actor_critic_update_distribution', format='png', view=True)
+
         return self.distribution.sample()
     
     

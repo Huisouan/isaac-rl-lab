@@ -23,7 +23,7 @@ class UnitreeGo2RoughPMCPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     empirical_normalization = False
     policy = RslRlPpoPMCCfg(
         class_name="PMC",
-        init_noise_std=1.0,
+        init_noise_std=0.1,
         actor_hidden_dims=[256, 256],
         encoder_hidden_dims=[256, 256],
         decoder_hidden_dims=[256, 256],

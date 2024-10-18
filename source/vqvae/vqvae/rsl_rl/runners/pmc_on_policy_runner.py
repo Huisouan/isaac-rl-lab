@@ -222,10 +222,10 @@ class PmcOnPolicyRunner:
                 f"""{'VQVAE loss:':>{pad}} {locs['vqvae_loss']:.4f}\n"""
                 f"""{'perplexity:':>{pad}} {locs['perplexity_loss']:.4f}\n"""
                 f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
-                f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
+                f"""{'Mean action noise std:':>{pad}} {mean_std.item()}\n"""
                 f"""{'learning_rate:':>{pad}} {self.alg.learning_rate}\n"""
-                f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""
-                f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n"""
+                f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer'])}\n"""
+                f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer'])}\n"""
             )
             #   f"""{'Mean reward/step:':>{pad}} {locs['mean_reward']:.2f}\n"""
             #   f"""{'Mean episode length/episode:':>{pad}} {locs['mean_trajectory_length']:.2f}\n""")

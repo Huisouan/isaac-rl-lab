@@ -30,7 +30,7 @@ from omni.isaac.lab.utils.math import quat_rotate,compute_pose_error
 @configclass
 class PMCEnvCfg(DirectRLEnvCfg):
     # env
-    episode_length_s = 15.0
+    episode_length_s =30.0
     decimation = 2
     num_actions = 12
     num_observations = 207

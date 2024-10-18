@@ -9,7 +9,7 @@ import time
 import torch
 from collections import deque
 from torch.utils.tensorboard import SummaryWriter as TensorboardSummaryWriter
-
+import csv
 from ... import rsl_rl
 from ..ppo_algorithm import PMCPPO as PPO
 from ..env import VecEnv
@@ -103,6 +103,8 @@ class PmcOnPolicyRunner:
 
         start_iter = self.current_learning_iteration
         tot_iter = start_iter + num_learning_iterations
+        #建立csv文件记录数据
+        
         for it in range(start_iter, tot_iter):
             start = time.time()
             # Rollout
@@ -217,11 +219,11 @@ class PmcOnPolicyRunner:
                 f"""{'#' * width}\n"""
                 f"""{str.center(width, ' ')}\n\n"""
                 f"""{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs[
-                            'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
-                f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
-                f"""{'VQVAE loss:':>{pad}} {locs['vqvae_loss']:.4f}\n"""
-                f"""{'perplexity:':>{pad}} {locs['perplexity_loss']:.4f}\n"""
-                f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
+                            'collection_time']:.3f}s, learning {locs['learn_time']}s)\n"""
+                f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']}\n"""
+                f"""{'VQVAE loss:':>{pad}} {locs['vqvae_loss']}\n"""
+                f"""{'perplexity:':>{pad}} {locs['perplexity_loss']}\n"""
+                f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']}\n"""
                 f"""{'Mean action noise std:':>{pad}} {mean_std.item()}\n"""
                 f"""{'learning_rate:':>{pad}} {self.alg.learning_rate}\n"""
                 f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer'])}\n"""
@@ -305,3 +307,23 @@ class PmcOnPolicyRunner:
 
     def add_git_repo_to_log(self, repo_file_path):
         self.git_status_repos.append(repo_file_path)
+
+
+    def open_csv(self):
+        # 确保日志目录存在
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
+
+        # 打开CSV文件
+        self.file = open(self.csv_file_path, mode='w', newline='')
+        self.csvwriter = csv.writer(self.file)
+
+    def write_csv_data(self, data):
+        if self.writer:
+            self.csvwriter.writerow(data)
+
+    def close_csv(self):
+        if self.file:
+            self.file.close()
+            self.file = None
+            self.csvwriterwriter = None

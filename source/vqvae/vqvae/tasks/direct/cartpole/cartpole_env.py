@@ -25,7 +25,8 @@ from ....datasets.motionload import MotionData
 class CartpoleEnvCfg(DirectRLEnvCfg):
     # env
     decimation = 2
-    episode_length_s = 5.0
+    #重置最大时长
+    episode_length_s = 30
     action_scale = 100.0  # [N]
     num_actions = 1
     num_observations = 100
@@ -41,7 +42,7 @@ class CartpoleEnvCfg(DirectRLEnvCfg):
     pole_dof_name = "cart_to_pole"
 
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=512, env_spacing=4.0, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=2048, env_spacing=4.0, replicate_physics=True)
 
     # reset
     max_cart_pos = 3.0  # the cart is reset if it exceeds that position [m]
@@ -196,5 +197,6 @@ def compute_rewards(
     joint_vel_pole_l2 = torch.exp(-1 * (frame[:,1] - joint_vel_pole) ** 2)
     joint_pos_cart_l2 = torch.exp(-1 * (frame[:,2] - joint_pos_cart) ** 2)
     joint_vel_cart_l2 = torch.exp(-1 * (frame[:,3] - joint_vel_cart) ** 2)
-    reward = 5 * joint_pos_pole_l2 + joint_vel_pole_l2 + 5 * joint_pos_cart_l2 + joint_vel_cart_l2
+    reward = 10 * joint_pos_pole_l2 + joint_vel_pole_l2 + joint_pos_cart_l2 + joint_vel_cart_l2
+    
     return reward

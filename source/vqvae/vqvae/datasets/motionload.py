@@ -1,8 +1,19 @@
+"""
+_summary_
+    用于读取数据集的class，将数据导入并插帧求速度。
+    
+    
+"""
+
+
+
+
+
 import os
 import csv
 import torch
 #from omni.isaac.lab.utils.math import *
-#from omni.isaac.lab.utils.math import axis_angle_from_quat ,quat_from_angle_axis,quat_error_magnitude
+from omni.isaac.lab.utils.math import axis_angle_from_quat ,quat_from_angle_axis,quat_error_magnitude
 class MotionData:
     def __init__(self, data_dir,frame_duration = 1/120):
         """
@@ -13,6 +24,16 @@ class MotionData:
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.data_dir = data_dir
         self.frame_duration = frame_duration
+        
+        self.data_spaces = {#定义data的顺序和数量
+            'root_state':13,
+            'joint_pos': 12,
+            'joint_vel': 12,
+            'foot_pos':12,
+            'foot_vel':24,
+        }
+        self.calculate_cumulative_indices()  #初始化data的顺序  
+        
         self.data_tensors = []
         self.data_names = []
         self.data_length = []
@@ -23,6 +44,7 @@ class MotionData:
         self.time_list = [1. / 30., 1. / 15., 1. / 3., 1.]
         self.load_data()
         print('Motion Data Loaded Successfully')
+        
     def load_data(self):
         """
         从指定目录加载所有CSV文件，并将每个文件转换为一个不包含表头的二维Tensor。
@@ -44,18 +66,36 @@ class MotionData:
                     self.data_tensors.append(tensor_data)
         self.data_length = torch.tensor(self.data_length, dtype=torch.int64).to(self.device)
         self.data_time_length = torch.tensor(self.data_length * self.frame_duration, dtype=torch.float64).to(self.device)
-    def get_tensors(self):
-        """
-        返回加载的所有数据的列表。
-        
-        :return: 包含所有CSV文件数据的二维Tensor列表
-        """
-        return self.data_tensors
 
-    def get_frames(self,motion_id,frame_num):
-        return self.data_tensors[motion_id][frame_num]
+    def calculate_cumulative_indices(self):
+        # 计算累计索引
+        # 初始化累计索引字典
+        self.cumulative_indices = {}
+        # 初始化累计索引值
+        cumulative_index = 0
+        # 遍历数据空间字典
+        for key, value in self.data_spaces.items():
+            # 计算当前键的累计索引范围，并添加到累计索引字典中
+            # key: 字典键
+            # cumulative_index: 当前累计索引起始值
+            # cumulative_index + value: 当前累计索引结束值
+            self.cumulative_indices[key] = (cumulative_index, cumulative_index + value)
+            # 更新累计索引值
+            cumulative_index += value
+
+    def calculate_velocity(self,data):
+        velocity = torch.diff(data,dim=0)/self.frame_duration
+        velocity = torch.cat([velocity,torch.zeros_like(velocity[-1:]).unsqueeze(0)],dim=0)
+        return velocity
+
+
+
     
     def get_random_frame_batch(self,batch_size):
+        """
+        从数据集中获取随即的一批数据，记录下随机的帧数和对应的motion_id以及数据的长度。
+        用于环境的初始化中。
+        """
         random_frame_id = torch.randint(0,len(self.data_tensors),size=(batch_size,)).to(self.device)
         random_frame_index = torch.rand((1,len(random_frame_id)))[0].to(self.device)
         datalength = self.data_length[random_frame_id]-self.motion_bias
@@ -70,7 +110,9 @@ class MotionData:
         frame = torch.stack([self.data_tensors[i][int(j)] for i,j in zip(random_frame_id,rand_frames)])
         return frame,random_frame_id,rand_frames,datalength
 
+
     def get_frame_batch_by_timelist(self, motion_id, frame_num, robot_state) -> torch.Tensor:  
+        #按照timelist提供的时间提取4帧动作数据，如下[root_pos_error,root_rot_error,joint_pos]
         frame_parts = []  
         
         for x in self.time_list:  
@@ -100,6 +142,17 @@ class MotionData:
 
     
     def get_frame_batch(self,motion_id,frame_num):
+        """
+        根据给定的motion_id和frame_num获取一批帧数据。
+        
+        Args:
+            motion_id (list of int): motion的ID列表。
+            frame_num (list of float): 对应motion的帧编号列表。
+        
+        Returns:
+            torch.Tensor: 一个堆叠的张量，包含所有指定motion和帧的数据。
+        
+        """
         batch = []
 
         # 遍历 motion_id 和 frame_num
@@ -158,6 +211,7 @@ class MotionData:
                                                             self.frame_duration, free_joint)  
             
             return base_pos, base_orn, base_lin_vel, base_ang_vel, joint_pos, joint_vel
+    
     @staticmethod
     def base_orn_interpolation(base_orn_c, base_orn_n, frac):
         """
@@ -220,7 +274,6 @@ class MotionData:
 
         该方法用于根据当前和下一个时刻的四元数姿态，计算物体的角速度。
         它通过计算两个姿态之间的旋转矢量来实现这一点，然后基于旋转轴和旋转角度计算角速度。
-
         参数:
         - base_orn_c: 当前时刻的四元数姿态，形状为 (batch_size, 4)。
         - base_orn_n: 下一个时刻的四元数姿态，形状为 (batch_size, 4)。
@@ -231,6 +284,7 @@ class MotionData:
         """
         # 计算两个姿态之间的相对旋转矢量
         rotvec = quat_error_magnitude(base_orn_c, base_orn_n)
+        
         # 计算旋转角度
         angle = torch.norm(rotvec, dim=-1, keepdim=True)
 
@@ -273,17 +327,6 @@ class MotionData:
 
         joint_vel = (joint_pos_n - joint_pos_c) / delta_t
 
-        # 如果不是自由关节，则添加轮子数据
-        if not free_joint:
-            # 定义添加轮子数据的函数
-            def _add_wheel(data: torch.Tensor) -> torch.Tensor:
-                zeros = torch.zeros((data.shape[0], 1), dtype=data.dtype, device=data.device)
-                return torch.cat([data[:, :3], zeros, data[:, 3:6], zeros, data[:, 6:9], zeros, data[:, 9:12], zeros], dim=1)
-
-            # 对关节位置和速度添加轮子数据
-            joint_pos = _add_wheel(joint_pos)
-            joint_vel = _add_wheel(joint_vel)
-
         # 返回插值后的关节位置和速度
         return joint_pos, joint_vel     
         
@@ -307,83 +350,102 @@ class MotionData:
         base_pos = base_pos_c + frac * (base_pos_n - base_pos_c)
         
         return base_pos   
+    
+    
+    
+    def get_frames(self,motion_id,frame_num):
+        """
+        读取数据tensor，返回一个frame
+        """
+        return self.data_tensors[motion_id][frame_num]    
+    
+    #############################PROPERTY############################
+    
+
+    @property    
+    def get_tensors(self):
+        """
+        返回加载的所有数据的列表。
         
-    @staticmethod
-    def root_state_w(frame: torch.Tensor) -> torch.Tensor:
+        :return: 包含所有CSV文件数据的二维Tensor列表
+        """
+        return self.data_tensors    
+    
+    def root_state_w(self, frame: torch.Tensor) -> torch.Tensor:
         """
         提取根状态向量。
         
         :param frame: 一维或二维张量
         :return: 根状态向量
         """
+        start, end = self.cumulative_indices['root_state']
         if frame.dim() == 1:
-            return frame[:13]
+            return frame[start:end]
         elif frame.dim() == 2:
-            return frame[:, :13]
+            return frame[:, start:end]
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
 
-    @staticmethod
-    def joint_position_w(frame: torch.Tensor) -> torch.Tensor:
+    def joint_position_w(self, frame: torch.Tensor) -> torch.Tensor:
         """
         提取关节位置向量。
         
         :param frame: 一维或二维张量
         :return: 关节位置向量
         """
+        start, end = self.cumulative_indices['joint_pos']
         if frame.dim() == 1:
-            return frame[13:25]
+            return frame[start:end]
         elif frame.dim() == 2:
-            return frame[:, 13:25]
+            return frame[:, start:end]
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
 
-    @staticmethod
-    def joint_velocity_w(frame: torch.Tensor) -> torch.Tensor:
+    def joint_velocity_w(self, frame: torch.Tensor) -> torch.Tensor:
         """
         提取关节速度向量。
         
         :param frame: 一维或二维张量
         :return: 关节速度向量
         """
+        start, end = self.cumulative_indices['joint_vel']
         if frame.dim() == 1:
-            return frame[25:37]
+            return frame[start:end]
         elif frame.dim() == 2:
-            return frame[:, 25:37]
+            return frame[:, start:end]
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
 
-    @staticmethod
-    def toe_position_w(frame: torch.Tensor) -> torch.Tensor:
+    def foot_position_w(self, frame: torch.Tensor) -> torch.Tensor:
         """
         提取脚趾位置向量。
         
         :param frame: 一维或二维张量
         :return: 脚趾位置向量
         """
+        start, end = self.cumulative_indices['foot_pos']
         if frame.dim() == 1:
-            return frame[37:49]
+            return frame[start:end]
         elif frame.dim() == 2:
-            return frame[:, 37:49]
+            return frame[:, start:end]
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
 
-    @staticmethod
-    def toe_velocity_w(frame: torch.Tensor) -> torch.Tensor:
+    def foot_velocity_w(self, frame: torch.Tensor) -> torch.Tensor:
         """
         提取脚趾速度向量。
         
         :param frame: 一维或二维张量
         :return: 脚趾速度向量
         """
+        start, end = self.cumulative_indices['foot_vel']
         if frame.dim() == 1:
-            return frame[49:]
+            return frame[start:end]
         elif frame.dim() == 2:
-            return frame[:, 49:]
+            return frame[:, start:end]
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
-    
-    
+
     
     def get_frame_batch_by_timelist_cartpole(self,motion_id, frame_num,state)-> torch.Tensor:
         #此函数仅用于cartpole测试，不适用于其他场景
@@ -400,10 +462,8 @@ class MotionData:
         return torch.cat(frame_parts, dim=1)
     
     
+#######################MATH##############################################
 
-
-    
-    
 @torch.jit.script
 def axis_angle_from_quat(quat: torch.Tensor, eps: float = 1.0e-6) -> torch.Tensor:
     """Convert rotations given as quaternions to axis/angle.
@@ -437,13 +497,13 @@ def axis_angle_from_quat(quat: torch.Tensor, eps: float = 1.0e-6) -> torch.Tenso
 
 @torch.jit.script
 def quat_conjugate(q: torch.Tensor) -> torch.Tensor:
-    """Computes the conjugate of a quaternion.
+    """计算四元数的共轭。
 
-    Args:
-        q: The quaternion orientation in (w, x, y, z). Shape is (..., 4).
+    参数:
+        q: 四元数的方向，表示为 (w, x, y, z)。形状为 (..., 4)。
 
-    Returns:
-        The conjugate quaternion in (w, x, y, z). Shape is (..., 4).
+    返回:
+        四元数的共轭，表示为 (w, x, y, z)。形状为 (..., 4)。
     """
     shape = q.shape
     q = q.reshape(-1, 4)
@@ -451,17 +511,17 @@ def quat_conjugate(q: torch.Tensor) -> torch.Tensor:
 
 @torch.jit.script
 def quat_mul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
-    """Multiply two quaternions together.
+    """将两个四元数相乘。
 
-    Args:
-        q1: The first quaternion in (w, x, y, z). Shape is (..., 4).
-        q2: The second quaternion in (w, x, y, z). Shape is (..., 4).
+    参数:
+        q1: 第一个四元数，表示为 (w, x, y, z)。形状为 (..., 4)。
+        q2: 第二个四元数，表示为 (w, x, y, z)。形状为 (..., 4)。
 
-    Returns:
-        The product of the two quaternions in (w, x, y, z). Shape is (..., 4).
+    返回:
+        两个四元数的乘积，表示为 (w, x, y, z)。形状为 (..., 4)。
 
-    Raises:
-        ValueError: Input shapes of ``q1`` and ``q2`` are not matching.
+    异常:
+        ValueError: 输入 `q1` 和 `q2` 的形状不匹配。
     """
     # check input is correct
     if q1.shape != q2.shape:

@@ -4,7 +4,7 @@
 
 ## Installation
 
-本人只在Ubuntu24.04上进行验证安装
+本人只在Ubuntu24.04上进行验证安装，但win上面的安装应当是大同小异的。
 
 安装可以参考
 [https://isaac-sim.github.io/IsaacLab/source/setup/installation/index.html](https://isaac-sim.github.io/IsaacLab/source/setup/installation/index.html)
@@ -60,6 +60,26 @@ isaaclab.bat --install :: or "isaaclab.bat -i"
 
 安装完之后会有一个用于eula，直接yes就可以
 
+### ！下载模型数据到本地使用！
+
+由于nvidia的usd模型都是在neclus服务器上面的，因此每次我们要使用一个模型的时候，都会从nvidia的服务器上下载，这非常耗费时间，因此我们可以选择将模型寻址的路径改成本地。
+
+首先我们需要将asset下载下来，我们可以到nvidia-omniverse官网来下载omniverse-launcher[官网入口](https://www.nvidia.cn/omniverse/)
+有win和linux两个版本的，根据自己情况下载就行。
+安装好之后就是这个页面：
+![1729590467093](images/README/1729590467093.png)
+
+资产的下载和安装可以按照这个说明来进行下载：
+[https://docs-prod.omniverse.nvidia.com/isaacsim/latest/installation/install_faq.html#isaac-sim-setup-nucleus-add-assets-mount](https://docs-prod.omniverse.nvidia.com/isaacsim/latest/installation/install_faq.html#isaac-sim-setup-nucleus-add-assets-mount)
+
+在资产下载好之后，寻找到
+
+```
+source/extensions/omni.isaac.lab/omni/isaac/lab/utils/assets.py
+```
+
+这个文件，把里面的NUCLEUS_ASSET_ROOT_DIR 改成本地的文件夹路径，就可以实现本地的文件寻址
+
 ## How to use
 
 ### train
@@ -90,8 +110,6 @@ source/vqvae/playdatasets.py
 ```
 
 来播放一下目前有的数据集
-
-
 
 ### PPO算法以及网络loss计算的位置：
 

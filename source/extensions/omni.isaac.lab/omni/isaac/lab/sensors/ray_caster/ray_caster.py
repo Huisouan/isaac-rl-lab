@@ -31,19 +31,14 @@ if TYPE_CHECKING:
 
 
 class RayCaster(SensorBase):
-    """A ray-casting sensor.
+    """射线投射传感器。
 
-    The ray-caster uses a set of rays to detect collisions with meshes in the scene. The rays are
-    defined in the sensor's local coordinate frame. The sensor can be configured to ray-cast against
-    a set of meshes with a given ray pattern.
+    射线投射器使用一组射线来检测场景中与网格的碰撞。这些射线在传感器的局部坐标系中定义。传感器可以配置为使用给定的射线模式对一组网格进行射线投射。
 
-    The meshes are parsed from the list of primitive paths provided in the configuration. These are then
-    converted to warp meshes and stored in the `warp_meshes` list. The ray-caster then ray-casts against
-    these warp meshes using the ray pattern provided in the configuration.
+    网格从配置中提供的原始路径列表中解析出来，然后转换为 Warp 网格并存储在 `warp_meshes` 列表中。射线投射器使用配置中提供的射线模式对这些 Warp 网格进行射线投射。
 
     .. note::
-        Currently, only static meshes are supported. Extending the warp mesh to support dynamic meshes
-        is a work in progress.
+        目前，仅支持静态网格。扩展 Warp 网格以支持动态网格正在进行中。
     """
 
     cfg: RayCasterCfg

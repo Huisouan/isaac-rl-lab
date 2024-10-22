@@ -266,5 +266,182 @@ class EPMCEnv(DirectRLEnv):
 
         # 返回观测值、奖励、重置信号和额外信息
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras
+    import torch
 
+@torch.jit.script
+def _compute_common_reward(
+    base_pos: list, 
+    base_lin_vel: list, 
+    base_orn: list, 
+    target_pos: torch.Tensor, 
+    total_spd: float, 
+    max_spd: float, 
+    last_pos_diff_len: float, 
+    max_steps: int, 
+    reward_rotation: float, 
+    reward_dist: float
+) :
+    """
+    计算共同奖励，包括速度奖励、旋转奖励和距离奖励。
 
+    :param base_pos: 当前位置列表 [x, y, z]。
+    :param base_lin_vel: 当前线速度列表 [vx, vy, vz]。
+    :param base_orn: 当前姿态四元数列表 [x, y, z, w]。
+    :param target_pos: 目标位置的张量。
+    :param total_spd: 当前累计的速度。
+    :param max_spd: 当前最大速度。
+    :param last_pos_diff_len: 上一次的位置差长度。
+    :param max_steps: 最大步数。
+    :param reward_rotation: 当前旋转奖励。
+    :param reward_dist: 当前距离奖励。
+    :return: 计算后的奖励值，更新后的总速度，最大速度，当前位置差长度，更新后的旋转奖励，更新后的距离奖励。
+    """
+
+    # 速度奖励
+    current_position = torch.tensor(base_pos, dtype=torch.float32)  # 当前位置
+    current_vel = torch.tensor(base_lin_vel, dtype=torch.float32)  # 当前线速度
+    global_pos_diff = (target_pos - current_position)[:2]  # 全局位置差（x, y方向）
+    global_pos_diff_direction = global_pos_diff / torch.norm(global_pos_diff)  # 全局位置差的方向
+    spd = torch.abs(current_vel[0] * global_pos_diff_direction[0] + current_vel[1] * global_pos_diff_direction[1])  # 当前速度在目标方向上的投影
+    total_spd += spd.item()  # 更新累计速度
+    if spd.item() > max_spd:
+        max_spd = spd.item()  # 更新最大速度
+    reward_vel = torch.exp(-torch.abs(spd - 5.0) * 0.5)  # 速度奖励，鼓励速度接近5.0
+
+    # 旋转奖励
+    base_orn_tensor = torch.tensor(base_orn, dtype=torch.float32)  # 当前姿态四元数
+    r_reach = torch.quaternion.as_rotation_matrix(torch.quaternion.quaternion(base_orn_tensor[0], base_orn_tensor[1], base_orn_tensor[2], base_orn_tensor[3]))  # 四元数转换为旋转矩阵
+    yaw_reach = torch.atan2(r_reach[1, 0], r_reach[0, 0])  # 计算偏航角
+    reward_rotation_current = torch.exp((torch.cos(yaw_reach) * global_pos_diff_direction[0] +
+                                         torch.sin(yaw_reach) * global_pos_diff_direction[1] - 1.0) * 2.0)  # 旋转奖励，鼓励机器人朝向目标方向
+
+    # 距离奖励
+    pos_diff_len = torch.norm(global_pos_diff).item()  # 当前位置差的长度
+    reward_dist_current = (pos_diff_len - last_pos_diff_len) * 100  # 距离奖励，鼓励靠近目标位置
+    last_pos_diff_len = pos_diff_len  # 更新上一次的位置差长度
+
+    # 综合奖励
+    reward = reward_vel * 0.0 + reward_rotation_current  # 综合速度和旋转奖励
+    reward -= reward_dist_current  # 减去距离奖励
+    reward /= float(max_steps)  # 归一化奖励
+
+    # 更新各部分奖励
+    reward_rotation += reward_rotation_current.item() / float(max_steps)  # 更新旋转奖励
+    reward_dist -= reward_dist_current / float(max_steps)  # 更新距离奖励
+
+    return reward.item(), total_spd, max_spd, last_pos_diff_len, reward_rotation, reward_dist  # 返回计算后的奖励值和其他更新后的参数
+
+@torch.jit.script
+def _compute_joystick_reward(
+    base_pos: list, 
+    base_lin_vel: list, 
+    base_orn: list, 
+    target_pos: torch.Tensor, 
+    total_spd: float, 
+    max_spd: float, 
+    target_spd: float, 
+    max_steps: int, 
+    reward_rotation: float, 
+    reward_vel: float
+):
+    """
+    计算操纵杆奖励，包括速度奖励和旋转奖励。
+
+    :param base_pos: 当前位置列表 [x, y, z]。
+    :param base_lin_vel: 当前线速度列表 [vx, vy, vz]。
+    :param base_orn: 当前姿态四元数列表 [x, y, z, w]。
+    :param target_pos: 目标位置的张量。
+    :param total_spd: 当前累计的速度。
+    :param max_spd: 当前最大速度。
+    :param target_spd: 目标速度。
+    :param max_steps: 最大步数。
+    :param reward_rotation: 当前旋转奖励。
+    :param reward_vel: 当前速度奖励。
+    :return: 计算后的奖励值，更新后的总速度，最大速度，更新后的旋转奖励，更新后的速度奖励。
+    """
+
+    # 速度奖励
+    current_position = torch.tensor(base_pos, dtype=torch.float32)  # 当前位置
+    current_vel = torch.tensor(base_lin_vel, dtype=torch.float32)  # 当前线速度
+    global_pos_diff = (target_pos - current_position)[:2]  # 全局位置差（x, y方向）
+    global_pos_diff_direction = global_pos_diff / torch.norm(global_pos_diff)  # 全局位置差的方向
+    spd = torch.abs(current_vel[0] * global_pos_diff_direction[0] + current_vel[1] * global_pos_diff_direction[1])  # 当前速度在目标方向上的投影
+    total_spd += spd.item()  # 更新累计速度
+    if spd.item() > max_spd:
+        max_spd = spd.item()  # 更新最大速度
+    reward_vel_current = torch.exp(-torch.abs(spd - target_spd))  # 速度奖励，鼓励速度接近目标速度
+
+    # 旋转奖励
+    base_orn_tensor = torch.tensor(base_orn, dtype=torch.float32)  # 当前姿态四元数
+    r_reach = torch.quaternion.as_rotation_matrix(torch.quaternion.quaternion(base_orn_tensor[0], base_orn_tensor[1], base_orn_tensor[2], base_orn_tensor[3]))  # 四元数转换为旋转矩阵
+    yaw_reach = torch.atan2(r_reach[1, 0], r_reach[0, 0])  # 计算偏航角
+    reward_rotation_current = torch.exp((torch.cos(yaw_reach) * global_pos_diff_direction[0] +
+                                         torch.sin(yaw_reach) * global_pos_diff_direction[1] - 1.0) * 5.0)  # 旋转奖励，鼓励机器人朝向目标方向
+
+    # 综合奖励
+    reward = reward_vel_current * reward_rotation_current  # 综合速度和旋转奖励
+    reward /= float(max_steps)  # 归一化奖励
+
+    # 更新各部分奖励
+    reward_rotation += reward_rotation_current.item() / float(max_steps)  # 更新旋转奖励
+    reward_vel += reward_vel_current.item() / float(max_steps)  # 更新速度奖励
+
+    return reward.item(), total_spd, max_spd, reward_rotation, reward_vel  # 返回计算后的奖励值和其他更新后的参数
+
+@torch.jit.script
+def _compute_avg_spd_reward(states_info: dict, target_pos: torch.Tensor, total_spd: float, max_spd: float, target_spd: float, max_steps: int, init_pos_diff_len: float, last_pos_diff_len: float, counter: int, episodic_reward: dict, done_dict: dict) -> float:
+    # 获取当前位置
+    current_position = torch.tensor(states_info['base_pos'], dtype=torch.float32)
+    # 获取当前速度
+    current_vel = torch.tensor(states_info['base_lin_vel'], dtype=torch.float32)
+    # 计算全局位置差
+    global_pos_diff = (target_pos - current_position)[:2]
+    # 计算全局位置差的方向
+    global_pos_diff_direction = global_pos_diff / torch.norm(global_pos_diff)
+    # 计算速度分量
+    spd = torch.abs(current_vel[0] * global_pos_diff_direction[0] + current_vel[1] * global_pos_diff_direction[1])
+    # 累加总速度
+    total_spd += spd.item()
+    # 更新最大速度
+    if spd.item() > max_spd:
+        max_spd = spd.item()
+
+    # 旋转奖励
+    base_orn = torch.tensor(states_info["base_orn"], dtype=torch.float32)
+    r_reach = torch.quaternion.as_rotation_matrix(torch.quaternion.quaternion(base_orn[0], base_orn[1], base_orn[2], base_orn[3]))
+    yaw_reach = torch.atan2(r_reach[1, 0], r_reach[0, 0])
+    # 计算旋转奖励
+    reward_rotation = torch.exp((torch.cos(yaw_reach) * global_pos_diff_direction[0] +
+                                 torch.sin(yaw_reach) * global_pos_diff_direction[1] - 1.0) * 5.0)
+
+    # 距离奖励
+    pos_diff_len = torch.norm(global_pos_diff).item()
+    if init_pos_diff_len is not None:
+        reward_dist = (pos_diff_len - last_pos_diff_len) / init_pos_diff_len
+    else:
+        reward_dist = 0.0
+    last_pos_diff_len = pos_diff_len
+
+    # 缩放旋转奖励
+    scaled_reward_rotation = reward_rotation.item() / float(max_steps) * 0.1
+    # 缩放距离奖励
+    scaled_reward_dist = - reward_dist * 0.1
+    # 计算总奖励
+    reward = scaled_reward_rotation * 2.0 + scaled_reward_dist
+    # 累加奖励
+    episodic_reward['reward_rotation'] += scaled_reward_rotation * 2.0
+    episodic_reward['reward_dist'] += scaled_reward_dist
+
+    # 判断是否完成任务
+    done_cond = done_dict['done_reach']
+    if done_cond:
+        # 计算平均速度
+        avg_spd = total_spd / counter
+        # 计算平均速度奖励
+        reward_avg_spd = torch.exp(-torch.abs(avg_spd - target_spd)).item()
+        # 累加总奖励
+        reward += reward_avg_spd
+        # 累加奖励
+        episodic_reward['reward_avg_spd'] += reward_avg_spd
+
+    return reward, total_spd, max_spd, last_pos_diff_len, counter, episodic_reward

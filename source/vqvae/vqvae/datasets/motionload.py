@@ -14,7 +14,7 @@ _summary_
     - 计算数据字段的累计索引。
 
 4. `calculate_velocity(self, data)`:
-    - 计算数据的速度。
+    - 计算数据的速度。这是一个废弃函数
 
 5. `get_random_frame_batch(self, batch_size)`:
     - 从数据集中随机获取一批数据。

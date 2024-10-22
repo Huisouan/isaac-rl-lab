@@ -159,6 +159,7 @@ class MotionData:
             cumulative_index += value
 
     def calculate_velocity(self,data):
+        #废弃函数，不要用
         velocity = torch.diff(data,dim=0)/self.frame_duration
         velocity = torch.cat([velocity,torch.zeros_like(velocity[-1:]).unsqueeze(0)],dim=0)
         return velocity

@@ -1,12 +1,87 @@
 """
 _summary_
-    用于读取数据集的class，将数据导入并插帧求速度。
-    
-    
+    用于读取数据集的类，将数据导入并插帧求速度。
+
+函数总结：
+1. `__init__(self, data_dir, frame_duration=1/120)`:
+    - 初始化方法，设置数据目录和帧持续时间。
+    - 加载数据并计算累计索引。
+
+2. `load_data(self)`:
+    - 从指定目录加载所有CSV文件，并将每个文件转换为一个不包含表头的二维Tensor。
+
+3. `calculate_cumulative_indices(self)`:
+    - 计算数据字段的累计索引。
+
+4. `calculate_velocity(self, data)`:
+    - 计算数据的速度。
+
+5. `get_random_frame_batch(self, batch_size)`:
+    - 从数据集中随机获取一批数据。
+
+6. `get_frame_batch_by_timelist(self, motion_id, frame_num, robot_state)`:
+    - 根据时间列表提取多帧动作数据，并计算位置和旋转误差。
+
+7. `get_frame_batch(self, motion_id, frame_num)`:
+    - 根据给定的motion_id和frame_num获取一批帧数据。
+
+8. `get_frame_by_header(self, frame, header)`:
+    - 从给定的二维frame矩阵中，根据header列表返回对应的列。
+
+9. `_get_states_info_by_interpolation(self, frame_data_c, frame_data_n, frame_frac, free_joint=True, interpolation=True)`:
+    - 通过插值计算状态信息。
+
+10. `base_orn_interpolation(base_orn_c, base_orn_n, frac)`:
+    - 对给定的四元数进行插值计算。
+
+11. `base_lin_vel_interpolation(base_pos_c, base_pos_n, delta_t)`:
+    - 计算基础线性速度的插值。
+
+12. `base_ang_vel_interpolation(base_orn_c, base_orn_n, delta_t)`:
+    - 计算基础角速度插值。
+
+13. `joint_interpolation(joint_pos_c, joint_pos_n, frac, delta_t, free_joint=True)`:
+    - 实现关节空间的插值计算。
+
+14. `base_pos_interpolation(base_pos_c, base_pos_n, frac)`:
+    - 对给定的基础位置进行插值计算。
+
+15. `get_frames(self, motion_id, frame_num)`:
+    - 读取数据tensor，返回一个frame。
+
+16. `get_tensors(self)`:
+    - 返回加载的所有数据的列表。
+
+17. `root_state_w(self, frame)`:
+    - 提取根状态向量。
+
+18. `joint_position_w(self, frame)`:
+    - 提取关节位置向量。
+
+19. `joint_velocity_w(self, frame)`:
+    - 提取关节速度向量。
+
+20. `foot_position_w(self, frame)`:
+    - 提取脚趾位置向量。
+
+21. `foot_velocity_w(self, frame)`:
+    - 提取脚趾速度向量。
+
+22. `get_frame_batch_by_timelist_cartpole(self, motion_id, frame_num, state)`:
+    - 仅用于cartpole测试，不适用于其他场景。
+
+23. `axis_angle_from_quat(quat, eps=1.0e-6)`:
+    - 将四元数转换为轴角表示。
+
+24. `quat_conjugate(q)`:
+    - 计算四元数的共轭。
+
+25. `quat_mul(q1, q2)`:
+    - 将两个四元数相乘。
+
+26. `quat_error_magnitude(q1, q2)`:
+    - 计算两个四元数之间的旋转差异。
 """
-
-
-
 
 
 import os

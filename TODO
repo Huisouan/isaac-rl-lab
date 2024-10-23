@@ -1,0 +1,2 @@
+1.修改source\vqvae\vqvae\datasets\motionload.py文件，在载入数据的时候对数据的平滑度进行检查，排除数据里面的毛刺（极大跳变值），以及超出机器人机械限制的数据
+2.

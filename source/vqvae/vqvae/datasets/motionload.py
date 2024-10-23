@@ -181,17 +181,18 @@ class MotionData:
             joint_pos_next = torch.roll(joint_pos, shifts=-1, dims=0)
             joint_vel =  (joint_pos - joint_pos_next) / self.frame_duration
             
-            # 设置最后一帧的速度为0
+            # 设置最后一帧的速度为0,我们在实际使用数据集的时候并不会用到这一帧，这里只是为了让tensor的形状保持相同
             base_lin_vel[-1] = 0.0
             base_ang_vel[-1] = 0.0
             joint_vel[-1] = 0.0
             
-            data_tensors[:,7:10] = base_lin_vel
-            data_tensors[10:13] = base_ang_vel
+            root_state[:,7:10] = base_lin_vel
+            root_state[10:13] = base_ang_vel
             
+            frame = self.write_root_state(frame)
+            frame = self.write_joint_velocity(frame)
             
-            
-            recal_data = torch.cat([])
+            self.data_tensors_recalibrated.append(frame)
 
 
     

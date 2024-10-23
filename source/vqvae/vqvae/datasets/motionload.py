@@ -158,11 +158,19 @@ class MotionData:
             # 更新累计索引值
             cumulative_index += value
 
-    def calculate_velocity(self,data):
-        #废弃函数，不要用
-        velocity = torch.diff(data,dim=0)/self.frame_duration
-        velocity = torch.cat([velocity,torch.zeros_like(velocity[-1:]).unsqueeze(0)],dim=0)
-        return velocity
+    def re_calculate_velocity(self):
+        #矫正数据集中的速度
+        #Root state [pos, quat, lin_vel, ang_vel] in simulation world frame. Shape is (num_instances, 13)
+        for data_tensors in self.data_tensors:
+                        # 插值计算基本线性速度
+            base_lin_vel = self.base_lin_vel_interpolation(data_tensors[:, 0:3], data_tensors[:, 0:3], self.frame_duration)            
+            
+            base_ang_vel = self.base_ang_vel_interpolation(data_tensors[:, 3:7], data_tensors[:, 3:7], self.frame_duration)
+            # 插值计算基本角速度
+            joint_pos, joint_vel = self.joint_interpolation(data_tensors[:, 7:], data_tensors[:, 7:],
+                                                            self.frame_duration)  
+
+        
 
 
 
@@ -289,14 +297,14 @@ class MotionData:
             return base_pos, base_orn, base_lin_vel, base_ang_vel, joint_pos, joint_vel
     
     @staticmethod
-    def base_orn_interpolation(base_orn_c, base_orn_n, frac):
+    def base_orn_interpolation(base_orn_c: torch.Tensor, base_orn_n: torch.Tensor, frac: torch.Tensor) -> torch.Tensor:
         """
         对给定的四元数进行插值计算。
 
         参数:
         base_orn_c (torch.Tensor): 当前的四元数张量，形状为(batch_size, 4)。
         base_orn_n (torch.Tensor): 下一个的四元数张量，形状为(batch_size, 4)。
-        frac (torch.Tensor): 插值比例因子张量，形状为(batch_size,)。
+        frac (torch.Tensor): 插值比例因子张量，形状为(batch_size,) 或 (batch_size, 1)。
 
         返回:
         torch.Tensor: 插值后的四元数张量，形状为(batch_size, 4)。
@@ -306,7 +314,8 @@ class MotionData:
         axis_angle_n = axis_angle_from_quat(base_orn_n)
 
         # 确保 frac 是形状为 (batch_size, 1) 的张量
-        frac = frac.view(-1, 1)
+        if frac.dim() == 1:
+            frac = frac.unsqueeze(1)
 
         # 对轴角进行线性插值
         axis_angle_interp = axis_angle_c + frac * (axis_angle_n - axis_angle_c)
@@ -317,7 +326,7 @@ class MotionData:
         return base_orn
 
     @staticmethod
-    def base_lin_vel_interpolation(base_pos_c: torch.Tensor, base_pos_n: torch.Tensor, delta_t) -> torch.Tensor:
+    def base_lin_vel_interpolation(base_pos_c: torch.Tensor, base_pos_n: torch.Tensor, delta_t: torch.Tensor) -> torch.Tensor:
         """
         计算基础线性速度的插值
         
@@ -336,7 +345,10 @@ class MotionData:
         pos_diff = base_pos_n - base_pos_c
 
         # 确保 delta_t 是形状为 (batch_size, 1) 的张量
-        delta_t = delta_t.view(-1, 1)
+        if delta_t.dim() == 0:
+            delta_t = delta_t.unsqueeze(0).unsqueeze(1)
+        elif delta_t.dim() == 1:
+            delta_t = delta_t.unsqueeze(1)
 
         # 计算线速度
         base_lin_vel = pos_diff / delta_t
@@ -344,7 +356,7 @@ class MotionData:
         return base_lin_vel
 
     @staticmethod
-    def base_ang_vel_interpolation(base_orn_c: torch.Tensor, base_orn_n: torch.Tensor, delta_t) -> torch.Tensor:
+    def base_ang_vel_interpolation(base_orn_c: torch.Tensor, base_orn_n: torch.Tensor, delta_t: torch.Tensor) -> torch.Tensor:
         """
         计算基础角速度插值。
 
@@ -368,7 +380,10 @@ class MotionData:
         axis = rotvec / (angle + 1e-8)
 
         # 将 delta_t 转换为形状为 (batch_size, 1) 的张量
-        delta_t = delta_t.view(-1, 1)
+        if delta_t.dim() == 0:
+            delta_t = delta_t.unsqueeze(0).unsqueeze(1)
+        elif delta_t.dim() == 1:
+            delta_t = delta_t.unsqueeze(1)
 
         # 计算角速度
         base_ang_vel = axis * (angle / delta_t)
@@ -376,7 +391,7 @@ class MotionData:
         return base_ang_vel
 
     @staticmethod
-    def joint_interpolation(joint_pos_c: torch.Tensor, joint_pos_n: torch.Tensor, frac: float, delta_t, free_joint: bool = True) -> (torch.Tensor, torch.Tensor):
+    def joint_interpolation(joint_pos_c: torch.Tensor, joint_pos_n: torch.Tensor, frac: torch.Tensor, delta_t: torch.Tensor, free_joint: bool = True) -> (torch.Tensor, torch.Tensor):
         """
         实现关节空间的插值计算。
 
@@ -386,7 +401,7 @@ class MotionData:
         参数:
         - joint_pos_c: 当前的关节位置，形状为 (batch_size, n_joints)。
         - joint_pos_n: 目标的关节位置，形状为 (batch_size, n_joints)。
-        - frac: 插值因子，用于混合当前位置和目标位置。
+        - frac: 插值因子，用于混合当前位置和目标位置，形状为 (batch_size,) 或 (batch_size, 1)。
         - delta_t: 时间差，用于计算关节速度，形状为 (batch_size,) 或标量。
         - free_joint: 布尔值，指示是否为自由关节。
 
@@ -395,38 +410,46 @@ class MotionData:
         - joint_vel: 计算得到的关节速度，形状为 (batch_size, n_joints)。
         """
 
+        # 确保 frac 是形状为 (batch_size, 1) 的张量
+        if frac.dim() == 1:
+            frac = frac.unsqueeze(1)
+
         # 计算插值后的关节位置
         joint_pos = joint_pos_c + frac * (joint_pos_n - joint_pos_c)
 
-        # 计算关节速度
-        delta_t = delta_t.view(-1, 1)
+        # 确保 delta_t 是形状为 (batch_size, 1) 的张量
+        if delta_t.dim() == 0:
+            delta_t = delta_t.unsqueeze(0).unsqueeze(1)
+        elif delta_t.dim() == 1:
+            delta_t = delta_t.unsqueeze(1)
 
+        # 计算关节速度
         joint_vel = (joint_pos_n - joint_pos_c) / delta_t
 
         # 返回插值后的关节位置和速度
         return joint_pos, joint_vel     
-        
+
     @staticmethod
-    def base_pos_interpolation(base_pos_c, base_pos_n, frac):
+    def base_pos_interpolation(base_pos_c: torch.Tensor, base_pos_n: torch.Tensor, frac: torch.Tensor) -> torch.Tensor:
         """
         对给定的基础位置进行插值计算。
 
         参数:
         base_pos_c (torch.Tensor): 当前的基础位置张量，形状为(batch_size, 3)。
         base_pos_n (torch.Tensor): 下一个的基础位置张量，形状为(batch_size, 3)。
-        frac (torch.Tensor): 每一行的比例因子张量，形状为(batch_size,)。
+        frac (torch.Tensor): 每一行的比例因子张量，形状为(batch_size,) 或 (batch_size, 1)。
 
         返回:
         torch.Tensor: 插值后的位置张量，形状为(batch_size, 3)。
         """
-        # 将frac扩展为(batch_size, 1)，以便能够进行广播
-        frac = frac.view(-1, 1)
+        # 确保 frac 是形状为 (batch_size, 1) 的张量
+        if frac.dim() == 1:
+            frac = frac.unsqueeze(1)
 
         # 计算插值后的基础位置
         base_pos = base_pos_c + frac * (base_pos_n - base_pos_c)
         
         return base_pos   
-    
     
     
     def get_frames(self,motion_id,frame_num):

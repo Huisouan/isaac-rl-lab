@@ -11,3 +11,4 @@
 4.source\vqvae\vqvae\rsl_rl\ppo_algorithm\epmcppo.py
     调整ppo算法损失值,去除量化损失。
 
+5.利用nvidia提供的官方强化学习实例自己制作一批数据集，用于测试网络。

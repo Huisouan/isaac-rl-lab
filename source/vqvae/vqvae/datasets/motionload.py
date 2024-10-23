@@ -568,6 +568,19 @@ class MotionData:
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
 
+    def get_frame_batch_by_timelist_cartpole(self,motion_id, frame_num,state)-> torch.Tensor:
+        #此函数仅用于cartpole测试，不适用于其他场景
+        frame_parts = []  
+        
+        for x in self.time_list:  
+            frame_step_num = int(x // self.frame_duration)  
+            frame = self.get_frame_batch(motion_id, frame_num + frame_step_num)  
+            frame = frame -state
+            # 拼接 frame_part  
+            frame_parts.append(frame)  
+        
+        # 最后一次性拼接  
+        return torch.cat(frame_parts, dim=1)
 
     ############WRITE#########  
 
@@ -656,22 +669,7 @@ class MotionData:
             raise ValueError('Input tensor must be either one or two dimensional.')
         return frame
 
-    
-    def get_frame_batch_by_timelist_cartpole(self,motion_id, frame_num,state)-> torch.Tensor:
-        #此函数仅用于cartpole测试，不适用于其他场景
-        frame_parts = []  
-        
-        for x in self.time_list:  
-            frame_step_num = int(x // self.frame_duration)  
-            frame = self.get_frame_batch(motion_id, frame_num + frame_step_num)  
-            frame = frame -state
-            # 拼接 frame_part  
-            frame_parts.append(frame)  
-        
-        # 最后一次性拼接  
-        return torch.cat(frame_parts, dim=1)
-    
-    
+
 #######################MATH##############################################
 
 @torch.jit.script

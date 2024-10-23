@@ -4,7 +4,8 @@
 
 ## Installation
 
-本人只在Ubuntu24.04上进行验证安装，但win上面的安装应当是大同小异的。
+- [ ] Windows11
+- [ ] Ubuntu22.04/24.04
 
 安装可以参考
 [https://isaac-sim.github.io/IsaacLab/source/setup/installation/index.html](https://isaac-sim.github.io/IsaacLab/source/setup/installation/index.html)
@@ -45,8 +46,6 @@ git clone git@github.com:Huisouan/isaac-lab-vqvae.git
 cd isaac-lab-vqvae
 ```
 
-
-
 如果你是ubuntu系统，安装如下
 
 ```
@@ -62,9 +61,12 @@ isaaclab.bat --install :: or "isaaclab.bat -i"
 
 安装完之后会有一个用于eula，直接yes就可以
 
-#### fix for windows vscode
-如果你的包在vscode里面全是黄的，请参考以下方法，把`source\extensions`里面的三个文件夹包含在`python.analysis.extraPaths`里面就可以了
+### ！fix for windows vscode！
+
+1.如果你的包在vscode里面全是黄的，请参考以下方法，把`source\extensions`里面的三个文件夹包含在`python.analysis.extraPaths`里面就可以了
 [vscode—fix](https://blog.csdn.net/qq_54047406/article/details/129836107#:~:text=%E5%BD%93VSCode%E6%97%A0%E6%B3%95%E8%AF%86%E5%88%AB%E5%B7%B2%E5%AE%89%E8%A3%85%E7%9A%84Python%E5%8C%85%E6%97%B6%EF%BC%8C%E5%8F%AF%E4%BB%A5%E9%80%9A%E8%BF%87%E6%8C%89F1%E9%94%AE%EF%BC%8C%E6%90%9C%E7%B4%A2%E5%B9%B6%E8%AE%BE%E7%BD%AEpython.analysis.extraPaths%EF%BC%8C%E6%B7%BB%E5%8A%A0%E5%8C%85%E7%9A%84%E8%B7%AF%E5%BE%84%EF%BC%88%E9%80%9A%E5%B8%B8%E6%98%AFPython%E7%9A%84site-packages%E7%9B%AE%E5%BD%95%EF%BC%89%E6%9D%A5%E8%A7%A3%E5%86%B3%E3%80%82,%E5%9C%A8Ubuntu%E7%B3%BB%E7%BB%9F%E4%B8%AD%EF%BC%8C%E5%8F%AF%E4%BB%A5%E9%80%9A%E8%BF%87%E6%89%93%E5%8D%B0%E5%8C%85%E7%9A%84__file__%E5%B1%9E%E6%80%A7%E6%9D%A5%E7%A1%AE%E5%AE%9A%E8%B7%AF%E5%BE%84%EF%BC%8C%E5%B9%B6%E7%A1%AE%E4%BF%9D%E8%B7%AF%E5%BE%84%E6%9C%AB%E5%B0%BE%E6%B7%BB%E5%8A%A0%2F%E3%80%82)
+
+2.如果你使用的windows是默认gbk编码的，那么在运行的时候很可能会认不出Utf-8的编码，这时候就需要到Windows的地区与语言设置里面，把编码格式改成Utf-8的。[教程入口](https://zhuafan.blog.csdn.net/article/details/133924884?spm=1001.2101.3001.6650.2&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-2-133924884-blog-107132272.235%5Ev43%5Econtrol&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-2-133924884-blog-107132272.235%5Ev43%5Econtrol)
 
 ### ！下载模型数据到本地使用！
 
@@ -85,6 +87,9 @@ source/extensions/omni.isaac.lab/omni/isaac/lab/utils/assets.py
 ```
 
 这个文件，把里面的NUCLEUS_ASSET_ROOT_DIR 改成本地的文件夹路径，就可以实现本地的文件寻址
+
+
+
 
 ## How to use
 

@@ -268,7 +268,7 @@ class EPMCEnv(DirectRLEnv):
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras
     import torch
 
-@torch.jit.script
+#@torch.jit.script
 def _compute_common_reward(
     base_pos: list, 
     base_lin_vel: list, 
@@ -331,7 +331,7 @@ def _compute_common_reward(
 
     return reward.item(), total_spd, max_spd, last_pos_diff_len, reward_rotation, reward_dist  # 返回计算后的奖励值和其他更新后的参数
 
-@torch.jit.script
+#@torch.jit.script
 def _compute_joystick_reward(
     base_pos: list, 
     base_lin_vel: list, 
@@ -388,7 +388,7 @@ def _compute_joystick_reward(
 
     return reward.item(), total_spd, max_spd, reward_rotation, reward_vel  # 返回计算后的奖励值和其他更新后的参数
 
-@torch.jit.script
+#@torch.jit.script
 def _compute_avg_spd_reward(states_info: dict, target_pos: torch.Tensor, total_spd: float, max_spd: float, target_spd: float, max_steps: int, init_pos_diff_len: float, last_pos_diff_len: float, counter: int, episodic_reward: dict, done_dict: dict) -> float:
     # 获取当前位置
     current_position = torch.tensor(states_info['base_pos'], dtype=torch.float32)

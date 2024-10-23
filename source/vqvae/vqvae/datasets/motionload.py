@@ -110,6 +110,7 @@ class MotionData:
         self.calculate_cumulative_indices()  #初始化data的顺序  
         
         self.data_tensors = []
+        self.data_tensors_recalibrated = []
         self.data_names = []
         self.data_length = []
         self.data_time_length = []
@@ -159,19 +160,38 @@ class MotionData:
             cumulative_index += value
 
     def re_calculate_velocity(self):
-        #矫正数据集中的速度
-        #Root state [pos, quat, lin_vel, ang_vel] in simulation world frame. Shape is (num_instances, 13)
+        # 矫正数据集中的速度
+        # Root state [pos, quat, lin_vel, ang_vel] in simulation world frame. Shape is (num_instances, 13)
         for data_tensors in self.data_tensors:
-                        # 插值计算基本线性速度
-            base_lin_vel = self.base_lin_vel_interpolation(data_tensors[:, 0:3], data_tensors[:, 0:3], self.frame_duration)            
+            # 插值计算基本线性速度
+            root_state = self.root_state_w(data_tensors)
+            joint_pos = self.joint_position_w(data_tensors)
             
-            base_ang_vel = self.base_ang_vel_interpolation(data_tensors[:, 3:7], data_tensors[:, 3:7], self.frame_duration)
-            # 插值计算基本角速度
-            joint_pos, joint_vel = self.joint_interpolation(data_tensors[:, 7:], data_tensors[:, 7:],
-                                                            self.frame_duration)  
-
-        
-
+            # 获取当前帧和下一帧的数据
+            num_instances = root_state.shape[0]
+            root_state_next = torch.roll(root_state, shifts=-1, dims=0)
+            
+            # 计算线速度
+            base_lin_vel = self.base_lin_vel_interpolation(root_state[:, 0:3], root_state_next[:, 0:3], self.frame_duration)
+            
+            # 计算角速度
+            base_ang_vel = self.base_ang_vel_interpolation(root_state[:, 3:7], root_state_next[:, 3:7], self.frame_duration)
+            
+            # 插值计算关节速度
+            joint_pos_next = torch.roll(joint_pos, shifts=-1, dims=0)
+            joint_vel =  (joint_pos - joint_pos_next) / self.frame_duration
+            
+            # 设置最后一帧的速度为0
+            base_lin_vel[-1] = 0.0
+            base_ang_vel[-1] = 0.0
+            joint_vel[-1] = 0.0
+            
+            data_tensors[:,7:10] = base_lin_vel
+            data_tensors[10:13] = base_ang_vel
+            
+            
+            
+            recal_data = torch.cat([])
 
 
     
@@ -470,6 +490,8 @@ class MotionData:
         """
         return self.data_tensors    
     
+     ############READ######### 
+    
     def root_state_w(self, frame: torch.Tensor) -> torch.Tensor:
         """
         提取根状态向量。
@@ -544,6 +566,94 @@ class MotionData:
             return frame[:, start:end]
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
+
+
+    ############WRITE#########  
+
+    def write_root_state(self, frame: torch.Tensor, root_state: torch.Tensor) -> torch.Tensor:
+        """
+        将根状态向量写入帧中。
+        
+        :param frame: 一维或二维张量
+        :param root_state: 根状态向量
+        :return: 经过改写的帧
+        """
+        start, end = self.cumulative_indices['root_state']
+        if frame.dim() == 1:
+            frame[start:end] = root_state
+        elif frame.dim() == 2:
+            frame[:, start:end] = root_state
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+        return frame
+
+    def write_joint_position(self, frame: torch.Tensor, joint_pos: torch.Tensor) -> torch.Tensor:
+        """
+        将关节位置向量写入帧中。
+        
+        :param frame: 一维或二维张量
+        :param joint_pos: 关节位置向量
+        :return: 经过改写的帧
+        """
+        start, end = self.cumulative_indices['joint_pos']
+        if frame.dim() == 1:
+            frame[start:end] = joint_pos
+        elif frame.dim() == 2:
+            frame[:, start:end] = joint_pos
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+        return frame
+
+    def write_joint_velocity(self, frame: torch.Tensor, joint_vel: torch.Tensor) -> torch.Tensor:
+        """
+        将关节速度向量写入帧中。
+        
+        :param frame: 一维或二维张量
+        :param joint_vel: 关节速度向量
+        :return: 经过改写的帧
+        """
+        start, end = self.cumulative_indices['joint_vel']
+        if frame.dim() == 1:
+            frame[start:end] = joint_vel
+        elif frame.dim() == 2:
+            frame[:, start:end] = joint_vel
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+        return frame
+
+    def write_foot_position(self, frame: torch.Tensor, foot_pos: torch.Tensor) -> torch.Tensor:
+        """
+        将脚趾位置向量写入帧中。
+        
+        :param frame: 一维或二维张量
+        :param foot_pos: 脚趾位置向量
+        :return: 经过改写的帧
+        """
+        start, end = self.cumulative_indices['foot_pos']
+        if frame.dim() == 1:
+            frame[start:end] = foot_pos
+        elif frame.dim() == 2:
+            frame[:, start:end] = foot_pos
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+        return frame
+
+    def write_foot_velocity(self, frame: torch.Tensor, foot_vel: torch.Tensor) -> torch.Tensor:
+        """
+        将脚趾速度向量写入帧中。
+        
+        :param frame: 一维或二维张量
+        :param foot_vel: 脚趾速度向量
+        :return: 经过改写的帧
+        """
+        start, end = self.cumulative_indices['foot_vel']
+        if frame.dim() == 1:
+            frame[start:end] = foot_vel
+        elif frame.dim() == 2:
+            frame[:, start:end] = foot_vel
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+        return frame
 
     
     def get_frame_batch_by_timelist_cartpole(self,motion_id, frame_num,state)-> torch.Tensor:

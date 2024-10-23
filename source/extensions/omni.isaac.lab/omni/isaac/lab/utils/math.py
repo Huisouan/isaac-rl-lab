@@ -872,21 +872,20 @@ def compute_pose_error(
 def apply_delta_pose(
     source_pos: torch.Tensor, source_rot: torch.Tensor, delta_pose: torch.Tensor, eps: float = 1.0e-6
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Applies delta pose transformation on source pose.
+    """将增量位姿变换应用于源位姿。
 
-    The first three elements of `delta_pose` are interpreted as cartesian position displacement.
-    The remaining three elements of `delta_pose` are interpreted as orientation displacement
-    in the angle-axis format.
+    `delta_pose` 的前三个元素被解释为笛卡尔坐标位移。
+    `delta_pose` 的后三个元素被解释为角度-轴格式的姿态位移。
 
-    Args:
-        source_pos: Position of source frame. Shape is (N, 3).
-        source_rot: Quaternion orientation of source frame in (w, x, y, z). Shape is (N, 4)..
-        delta_pose: Position and orientation displacements. Shape is (N, 6).
-        eps: The tolerance to consider orientation displacement as zero. Defaults to 1.0e-6.
+    参数:
+        source_pos: 源坐标系的位置。形状为 (N, 3)。
+        source_rot: 源坐标系的四元数姿态，格式为 (w, x, y, z)。形状为 (N, 4)。
+        delta_pose: 位置和姿态位移。形状为 (N, 6)。
+        eps: 将姿态位移视为零的容差。默认值为 1.0e-6。
 
-    Returns:
-        A tuple containing the displaced position and orientation frames.
-        Shape of the tensors are (N, 3) and (N, 4) respectively.
+    返回:
+        包含位移后的位置和姿态坐标系的元组。
+        张量的形状分别为 (N, 3) 和 (N, 4)。
     """
     # number of poses given
     num_poses = source_pos.shape[0]

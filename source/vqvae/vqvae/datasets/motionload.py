@@ -213,7 +213,9 @@ class MotionData:
         random_frame_id = torch.randint(0,len(self.original_data_tensors),size=(batch_size,)).to(self.device)
         random_frame_index = torch.rand((1,len(random_frame_id)))[0].to(self.device)
         datalength = self.data_length[random_frame_id]-self.motion_bias
-        rand_frames = datalength*random_frame_index
+        rand_frames = torch.floor(datalength*random_frame_index)
+        
+        
         #####################################################################################
         # 保存随机帧的索引的第二方法
         self.random_frame_id = random_frame_id
@@ -683,25 +685,25 @@ class MotionData:
 
 @torch.jit.script
 def axis_angle_from_quat(quat: torch.Tensor, eps: float = 1.0e-6) -> torch.Tensor:
-    """Convert rotations given as quaternions to axis/angle.
+    """将四元数表示的旋转转换为轴角表示。
 
-    Args:
-        quat: The quaternion orientation in (w, x, y, z). Shape is (..., 4).
-        eps: The tolerance for Taylor approximation. Defaults to 1.0e-6.
+    参数:
+        quat: 四元数的方向，表示为 (w, x, y, z)。形状为 (..., 4)。
+        eps: 泰勒近似的容差。默认值为 1.0e-6。
 
-    Returns:
-        Rotations given as a vector in axis angle form. Shape is (..., 3).
-        The vector's magnitude is the angle turned anti-clockwise in radians around the vector's direction.
+    返回:
+        以轴角形式表示的旋转。形状为 (..., 3)。
+        向量的大小表示绕向量方向逆时针旋转的角度（以弧度为单位）。
 
-    Reference:
+    参考:
         https://github.com/facebookresearch/pytorch3d/blob/main/pytorch3d/transforms/rotation_conversions.py#L526-L554
     """
-    # Modified to take in quat as [q_w, q_x, q_y, q_z]
-    # Quaternion is [q_w, q_x, q_y, q_z] = [cos(theta/2), n_x * sin(theta/2), n_y * sin(theta/2), n_z * sin(theta/2)]
-    # Axis-angle is [a_x, a_y, a_z] = [theta * n_x, theta * n_y, theta * n_z]
-    # Thus, axis-angle is [q_x, q_y, q_z] / (sin(theta/2) / theta)
-    # When theta = 0, (sin(theta/2) / theta) is undefined
-    # However, as theta --> 0, we can use the Taylor approximation 1/2 - theta^2 / 48
+    # 修改为接受四元数 [q_w, q_x, q_y, q_z]
+    # 四元数 [q_w, q_x, q_y, q_z] = [cos(theta/2), n_x * sin(theta/2), n_y * sin(theta/2), n_z * sin(theta/2)]
+    # 轴角表示 [a_x, a_y, a_z] = [theta * n_x, theta * n_y, theta * n_z]
+    # 因此，轴角表示为 [q_x, q_y, q_z] / (sin(theta/2) / theta)
+    # 当 theta = 0 时，(sin(theta/2) / theta) 是未定义的
+    # 但是，当 theta 趋近于 0 时，可以使用泰勒近似 1/2 - theta^2 / 48
     quat = quat * (1.0 - 2.0 * (quat[..., 0:1] < 0.0))
     mag = torch.linalg.norm(quat[..., 1:], dim=-1)
     half_angle = torch.atan2(mag, quat[..., 0])

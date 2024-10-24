@@ -38,7 +38,7 @@ if args_cli.video:
     
     
 ################################set headless mode############################################
-setattr(args_cli, 'headless', True)
+#setattr(args_cli, 'headless', True)
 ################################set headless mode############################################
 
 # clear out sys.argv for Hydra

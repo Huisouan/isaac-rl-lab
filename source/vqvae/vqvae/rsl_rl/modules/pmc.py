@@ -30,7 +30,7 @@ class PMC(nn.Module):
         critic_hidden_dims=[256,256],
         activation="lrelu",
         value_activation="tanh",
-        init_noise_std=0.1,
+        init_noise_std=1,
         # 正确的方式是先声明类型，然后创建对象
         z_settings: Z_settings = Z_settings(),  # 将类型注释和对象创建分开
         State_Dimentions = 45*3,

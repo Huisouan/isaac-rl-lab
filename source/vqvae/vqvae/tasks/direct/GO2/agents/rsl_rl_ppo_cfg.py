@@ -29,13 +29,14 @@ class UnitreeGo2RoughPMCPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         decoder_hidden_dims=[256, 256],
         critic_hidden_dims=[256, 256],
         activation="relu",
+        State_Dimentions = 45*3
         
     )
     z_settings = Z_settings(
-            z_length = 32,
+            z_length = 64,
             num_embeddings = 256,
             norm_z = False,
-            bot_neck_z_embed_size = 32,
+            bot_neck_z_embed_size = 64,
             bot_neck_prop_embed_size = 64,
     )
     algorithm = RslRlPpoAlgorithmCfg(

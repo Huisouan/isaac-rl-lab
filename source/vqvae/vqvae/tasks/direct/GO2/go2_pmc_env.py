@@ -59,7 +59,7 @@ class PMCEnvCfg(DirectRLEnvCfg):
     )
     
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=256, env_spacing=5.0, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=512, env_spacing=5.0, replicate_physics=True)
 
     # robot
     robot: ArticulationCfg = UNITREE_GO2_CFG.replace(prim_path="/World/envs/env_.*/Robot")
@@ -113,7 +113,6 @@ class PMCEnv(DirectRLEnv):
         #self._pd_control()
         #self.robot.set_joint_effort_target(self.pdaction) 
         self.robot.set_joint_position_target(self.actions)
-        #self.robot.set_joint_position_target(self.actions)
         #update marker
         frame = self.motiondata.get_frame_batch(self.pmc_data_selected,self.pmc_data_frameinplay)
         rootstate = self.motiondata.root_state_w(frame)
@@ -178,14 +177,12 @@ class PMCEnv(DirectRLEnv):
         joint_vel = self.motiondata.joint_velocity_w(reference_frame)   
         
         #foot_position
-        foot_positions = self.motiondata.toe_position_w(reference_frame)
+        foot_positions = self.motiondata.foot_position_w(reference_frame)
         foot_positions[:,0:2] += self.scene.env_origins[:, :2]
         foot_positions[:,3:5] += self.scene.env_origins[:, :2]
         foot_positions[:,6:8] += self.scene.env_origins[:, :2]
         foot_positions[:,9:11] += self.scene.env_origins[:, :2]
                 
-        foot_velocities = self.motiondata.toe_velocity_w(reference_frame)
-        
         
         root_pos_error,root_quat_error = compute_pose_error(
             self.robot.data.root_pos_w, self.robot.data.root_quat_w, root_pos, root_orn
@@ -202,13 +199,11 @@ class PMCEnv(DirectRLEnv):
             root_pos_error = root_pos_error,
             root_quat_error = root_quat_error,
             foot_positions=foot_positions,
-            foot_velocities=foot_velocities,
             robot_joint_pos = self.robot.data.joint_pos, 
             robot_joint_vel= self.robot.data.joint_vel,
             robot_root_lin_vel_w= self.robot.data.root_lin_vel_w,
             robot_root_ang_vel_w = self.robot.data.root_ang_vel_w,
             robot_foot_positions = self.robot.data.body_pos_w[:,self.robot_foot_id[0],:].view(self.num_envs,-1),      
-            robot_foot_velocities = self.robot.data.body_vel_w[:,self.robot_foot_id[0],:].view(self.num_envs,-1) ,            
         )
         self.root_position_reward = root_position_reward
         self.tracking_position_key_body_reward = tracking_position_key_body_reward
@@ -218,7 +213,7 @@ class PMCEnv(DirectRLEnv):
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         
         #threshold for reward threshold
-        root_threshold = 0.00001
+        root_threshold = 0.0000001
         run_out_of_data = self.pmc_data_frameinplay >= self.pmc_data_maxtime
         time_out = self.episode_length_buf >= self.max_episode_length - 1
         outrangeroot = self.root_position_reward<root_threshold
@@ -347,7 +342,6 @@ def compute_rewards(
             joint_pos,
             joint_vel,
             foot_positions,
-            foot_velocities,
             robot_joint_pos,
             robot_joint_vel,
             root_pos_error,
@@ -355,7 +349,6 @@ def compute_rewards(
             robot_root_lin_vel_w,
             robot_root_ang_vel_w,
             robot_foot_positions,
-            robot_foot_velocities,
             ):
     # clamp joint pos to limits
     """
@@ -399,7 +392,7 @@ def compute_rewards(
 
     root_velocity_reward = 0.1 * torch.exp(
         -2 * torch.sum((robot_root_lin_vel_w - lin_vel) ** 2, dim=1)
-        -0.2 * torch.sum((robot_root_ang_vel_w - ang_vel) ** 2, dim=1)
+        -0.1 * torch.sum((robot_root_ang_vel_w - ang_vel) ** 2, dim=1)
     )
     
     return (joint_angle_reward,

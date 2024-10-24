@@ -179,7 +179,7 @@ class AMPEnv(DirectRLEnv):
         joint_vel = self.motiondata.joint_velocity_w(reference_frame)   
         
         #foot_position
-        foot_positions = self.motiondata.toe_position_w(reference_frame)
+        foot_positions = self.motiondata.foot_position_w(reference_frame)
         foot_positions[:,0:2] += self.scene.env_origins[:, :2]
         foot_positions[:,3:5] += self.scene.env_origins[:, :2]
         foot_positions[:,6:8] += self.scene.env_origins[:, :2]

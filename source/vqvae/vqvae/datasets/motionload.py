@@ -90,7 +90,7 @@ import torch
 #from omni.isaac.lab.utils.math import *
 #from omni.isaac.lab.utils.math import axis_angle_from_quat ,quat_from_angle_axis,quat_error_magnitude
 class MotionData:
-    def __init__(self, data_dir,frame_duration = 1/120):
+    def __init__(self, data_dir,frame_duration = 1/120,datatype="isaaclab"):
         """
         初始化方法，设置数据目录。
         
@@ -99,14 +99,15 @@ class MotionData:
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.data_dir = data_dir
         self.frame_duration = torch.tensor(frame_duration).to(self.device)
-        
-        self.data_spaces = {#定义data的顺序和数量
-            'root_state':13,
-            'joint_pos': 12,
-            'joint_vel': 12,
-            'foot_pos':12,
-            'foot_vel':24,
-        }
+        self.datatype = datatype#TODO 此处定义了数据的类型，如果后面需要从其他的仿真平台导入数据，则根据这个类型来选择不同的数据格式转换函数
+        if self.datatype == "isaaclab":
+            self.data_spaces = {
+                'root_state': 13,
+                'joint_pos': 12,
+                'joint_vel': 12,
+                'foot_pos': 12,
+                'foot_vel': 24,
+            }
         self.calculate_cumulative_indices()  #初始化data的顺序  
         
         self.original_data_tensors = []

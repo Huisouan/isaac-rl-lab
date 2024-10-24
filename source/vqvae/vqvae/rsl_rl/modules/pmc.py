@@ -138,13 +138,13 @@ class PMC(nn.Module):
         
         
         print(f"RMS: {self.rms}")
-        print(f"Encoder MLP: {self.encoder}")
+        print(f"Encoder : {self.encoder}")
         print(f"Codebook: {self.codebook}")
         print(f"Observation Embedding: {self.observation_embd}")
         print(f"Z Embedding: {self.z_embd}")
-        print(f"Decoder MLP: {self.decoder}")
-        print(f"Critic MLP: {self.critic}")
-        print(f"Action Noise: {self.std}")
+        print(f"Decoder : {self.decoder}")
+        
+        
         print(f"Critic: {self.critic}")
         # seems that we get better performance without init
         # self.init_memory_weights(self.memory_a, 0.001, 0.)
@@ -209,6 +209,7 @@ class PMC(nn.Module):
         # 使用均值和标准差创建一个正态分布对象
         # 其中标准差为均值乘以0（即不改变均值）再加上self.std
         self.distribution = Normal(mean,self.std)
+        #print(f"Distribution: {self.distribution}")
         return mean
     def act(self, observations, **kwargs):
         mean = self.update_distribution(observations)

@@ -131,7 +131,7 @@ def main():
                 body_state = env.unwrapped.cartpole.data.root_state_w[1,:]
                 body_state[0:2] -= env.unwrapped.scene._default_env_origins[1][0:2]
                 
-                writer.writerow(torch.cat((obs[1,:],body_state),dim = 0).tolist())                
+                writer.writerow(obs[0].tolist())               
             if args_cli.video:
                 timestep += 1
                 # Exit the play loop after recording one video

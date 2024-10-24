@@ -120,7 +120,7 @@ class MotionData:
         self.motion_bias = 122
         self.time_list = [1. / 30., 1. / 15., 1. / 3., 1.]
         self.load_data()
-        self.re_calculate_velocity()
+        #self.re_calculate_velocity()
         print('Motion Data Loaded Successfully')
         
     def load_data(self):

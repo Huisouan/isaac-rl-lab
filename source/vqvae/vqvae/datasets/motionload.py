@@ -13,8 +13,8 @@ _summary_
 3. `calculate_cumulative_indices(self)`:
     - 计算数据字段的累计索引。
 
-4. `calculate_velocity(self, data)`:
-    - 计算数据的速度。这是一个废弃函数
+4.  re_calculate_velocity(self):
+        # 矫正数据集中的速度
 
 5. `get_random_frame_batch(self, batch_size)`:
     - 从数据集中随机获取一批数据。
@@ -88,7 +88,7 @@ import os
 import csv
 import torch
 #from omni.isaac.lab.utils.math import *
-from omni.isaac.lab.utils.math import axis_angle_from_quat ,quat_from_angle_axis,quat_error_magnitude
+#from omni.isaac.lab.utils.math import axis_angle_from_quat ,quat_from_angle_axis,quat_error_magnitude
 class MotionData:
     def __init__(self, data_dir,frame_duration = 1/120):
         """
@@ -98,7 +98,7 @@ class MotionData:
         """
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.data_dir = data_dir
-        self.frame_duration = frame_duration
+        self.frame_duration = torch.tensor(frame_duration).to(self.device)
         
         self.data_spaces = {#定义data的顺序和数量
             'root_state':13,
@@ -109,8 +109,8 @@ class MotionData:
         }
         self.calculate_cumulative_indices()  #初始化data的顺序  
         
+        self.original_data_tensors = []
         self.data_tensors = []
-        self.data_tensors_recalibrated = []
         self.data_names = []
         self.data_length = []
         self.data_time_length = []
@@ -119,6 +119,7 @@ class MotionData:
         self.motion_bias = 122
         self.time_list = [1. / 30., 1. / 15., 1. / 3., 1.]
         self.load_data()
+        self.re_calculate_velocity()
         print('Motion Data Loaded Successfully')
         
     def load_data(self):
@@ -139,7 +140,7 @@ class MotionData:
                     
                     tensor_data = torch.tensor(data, dtype=torch.float32).to(self.device)
                     self.data_length.append(tensor_data.shape[0])
-                    self.data_tensors.append(tensor_data)
+                    self.original_data_tensors.append(tensor_data)
         self.data_length = torch.tensor(self.data_length, dtype=torch.int64).to(self.device)
         self.data_time_length = torch.tensor(self.data_length * self.frame_duration, dtype=torch.float64).to(self.device)
 
@@ -162,10 +163,12 @@ class MotionData:
     def re_calculate_velocity(self):
         # 矫正数据集中的速度
         # Root state [pos, quat, lin_vel, ang_vel] in simulation world frame. Shape is (num_instances, 13)
-        for data_tensors in self.data_tensors:
+        self.data_tensors = []  # 清空已校正的数据列表
+
+        for original_data_tensors in self.original_data_tensors:
             # 插值计算基本线性速度
-            root_state = self.root_state_w(data_tensors)
-            joint_pos = self.joint_position_w(data_tensors)
+            root_state = self.root_state_w(original_data_tensors)
+            joint_pos = self.joint_position_w(original_data_tensors)
             
             # 获取当前帧和下一帧的数据
             num_instances = root_state.shape[0]
@@ -179,20 +182,25 @@ class MotionData:
             
             # 插值计算关节速度
             joint_pos_next = torch.roll(joint_pos, shifts=-1, dims=0)
-            joint_vel =  (joint_pos - joint_pos_next) / self.frame_duration
+            joint_vel = (joint_pos_next - joint_pos) / self.frame_duration
             
             # 设置最后一帧的速度为0,我们在实际使用数据集的时候并不会用到这一帧，这里只是为了让tensor的形状保持相同
             base_lin_vel[-1] = 0.0
             base_ang_vel[-1] = 0.0
             joint_vel[-1] = 0.0
             
-            root_state[:,7:10] = base_lin_vel
-            root_state[10:13] = base_ang_vel
+            # 创建一个新的张量副本
+            new_tensor = original_data_tensors.clone()
             
-            frame = self.write_root_state(frame)
-            frame = self.write_joint_velocity(frame)
+            # 更新根状态的速度信息
+            new_tensor[:, 7:10] = base_lin_vel
+            new_tensor[:, 10:13] = base_ang_vel
             
-            self.data_tensors_recalibrated.append(frame)
+            # 更新关节速度信息
+            new_tensor = self.write_joint_velocity(new_tensor, joint_vel)
+            
+            # 将校正后的张量添加到列表中
+            self.data_tensors.append(new_tensor)
 
 
     
@@ -201,7 +209,7 @@ class MotionData:
         从数据集中获取随即的一批数据，记录下随机的帧数和对应的motion_id以及数据的长度。
         用于环境的初始化中。
         """
-        random_frame_id = torch.randint(0,len(self.data_tensors),size=(batch_size,)).to(self.device)
+        random_frame_id = torch.randint(0,len(self.original_data_tensors),size=(batch_size,)).to(self.device)
         random_frame_index = torch.rand((1,len(random_frame_id)))[0].to(self.device)
         datalength = self.data_length[random_frame_id]-self.motion_bias
         rand_frames = datalength*random_frame_index
@@ -212,7 +220,7 @@ class MotionData:
         self.datalength = datalength
         #####################################################################################
 
-        frame = torch.stack([self.data_tensors[i][int(j)] for i,j in zip(random_frame_id,rand_frames)])
+        frame = torch.stack([self.original_data_tensors[i][int(j)] for i,j in zip(random_frame_id,rand_frames)])
         return frame,random_frame_id,rand_frames,datalength
 
 
@@ -266,13 +274,13 @@ class MotionData:
             index = int(j)
 
             # 检查索引是否越界
-            if index >= len(self.data_tensors[i]):
+            if index >= len(self.original_data_tensors[i]):
                 index -= 1
-                print(f"Warning: Index {index} is out of bounds for motion {i} with length {len(self.data_tensors[i])}.")
+                print(f"Warning: Index {index} is out of bounds for motion {i} with length {len(self.original_data_tensors[i])}.")
                 continue
 
             # 添加合法索引的数据到 batch
-            batch.append(self.data_tensors[i][index])
+            batch.append(self.original_data_tensors[i][index])
 
         # 返回堆叠后的张量
         return torch.stack(batch)
@@ -477,7 +485,7 @@ class MotionData:
         """
         读取数据tensor，返回一个frame
         """
-        return self.data_tensors[motion_id][frame_num]    
+        return self.original_data_tensors[motion_id][frame_num]    
     
     #############################PROPERTY############################
     
@@ -489,7 +497,7 @@ class MotionData:
         
         :return: 包含所有CSV文件数据的二维Tensor列表
         """
-        return self.data_tensors    
+        return self.original_data_tensors    
     
      ############READ######### 
     
@@ -770,4 +778,4 @@ def quat_error_magnitude(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
     return axis_angle_from_quat(quat_diff)
     
     
-    
+

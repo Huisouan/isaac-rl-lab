@@ -28,7 +28,7 @@ from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.utils.math import subtract_frame_transforms
-folder_path = "source/vqvae/data"
+folder_path = "source/vqvae/data/go2"
 from vqvae.datasets.motionload import MotionData
 from omni.isaac.lab.utils.math import quat_rotate
 from vqvae.utils import PMC_UTILS_DIR
@@ -191,7 +191,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot = scene["robot"]
         env_ids = torch.tensor([0], device='cuda')
         
-        data = MotionData("source/vqvae/data")
+        data = MotionData("source/vqvae/data/go2")
         dt = 1/120
 
         for traj_idx in range(len(data.data_length)):

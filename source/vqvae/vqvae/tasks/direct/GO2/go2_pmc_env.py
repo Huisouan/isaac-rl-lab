@@ -75,11 +75,11 @@ class PMCEnv(DirectRLEnv):
         self.action_scale = cfg.action_scale
         
         self.motiondata = MotionData("source/vqvae/data/go2")
-        #初始化数据集采样的时间
+        #init data index
         self.pmc_data_frameinplay = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.pmc_data_maxtime = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.pmc_data_selected = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.int)
-        #记录观察值的缓存
+        #recore history observation
         self.last_observation = None
         self.second_last_observation = None
         
@@ -138,7 +138,7 @@ class PMCEnv(DirectRLEnv):
             ),
             dim=-1,
         )
-        #在第一次调用时，初始化last_observation和second_last_observation
+        #init last_observation and second_last_observation
         if self.last_observation is None:
             self.last_observation = obs
         if self.second_last_observation is None:
@@ -147,22 +147,22 @@ class PMCEnv(DirectRLEnv):
         robot_state = self.robot.data.root_state_w
         robot_state[:, :2] = robot_state[:, :2] - self.scene.env_origins[:, :2]
         
-        # 获取数据集
+        # 获取数据集get dataset
         dataset = self.motiondata.get_frame_batch_by_timelist(#72
             self.pmc_data_selected,
             self.pmc_data_frameinplay,
             robot_state
         )
         observation = torch.cat([self.last_observation,self.second_last_observation,obs,dataset], dim=1)
-        # 将数据集和当前状态拼接起来，作为观察值
+        # concat data and obs as observation
         observations = {"policy": observation}
-        # 更新last_observation和second_last_observation
+        # update last_observation and second_last_observation
         self.second_last_observation = self.last_observation
         self.last_observation = obs
     
         return observations
 
-    def _get_rewards(self) -> torch.Tensor:#经过验证
+    def _get_rewards(self) -> torch.Tensor:
 
         reference_frame = self.motiondata.get_frame_batch(
         self.pmc_data_selected, 
@@ -174,7 +174,6 @@ class PMCEnv(DirectRLEnv):
         root_pos = root_state[:, :3] 
 
         root_orn = root_state[:, 3:7]
-        # 基础速度
         # base velocities
         lin_vel = root_state[:,7:10]
         ang_vel = root_state[:,10:13]
@@ -242,7 +241,6 @@ class PMCEnv(DirectRLEnv):
         joint_pos = self.motiondata.joint_position_w(frames)
         joint_vel = self.motiondata.joint_velocity_w(frames)
         
-        # 将值设置到物理仿真中
         # set into the physics simulation
         self.robot.write_root_state_to_sim(root_state,env_ids=env_ids)
         # set into the physics simulation
@@ -370,22 +368,7 @@ def compute_rewards(
     joint_vel_limits = data.soft_joint_vel_limits
     joint_vel = joint_vel.clamp_(-joint_vel_limits, joint_vel_limits)   
     """
-    # 将所有张量转换为64位浮点数
-    """
-    robot_joint_pos = robot_joint_pos.to(torch.float64)
-    joint_pos = joint_pos.to(torch.float64)
-    robot_joint_vel = robot_joint_vel.to(torch.float64)
-    joint_vel = joint_vel.to(torch.float64)
-    robot_foot_positions = robot_foot_positions.to(torch.float64)
-    foot_positions = foot_positions.to(torch.float64)
-    root_pos_error = root_pos_error.to(torch.float64)
-    root_quat_error = root_quat_error.to(torch.float64)
-    robot_root_lin_vel_w = robot_root_lin_vel_w.to(torch.float64)
-    lin_vel = lin_vel.to(torch.float64)
-    robot_root_ang_vel_w = robot_root_ang_vel_w.to(torch.float64)
-    ang_vel = ang_vel.to(torch.float64)
-    """
-    # 使用64位浮点数进行计算
+
     joint_angle_reward = 0.6 * torch.exp(-1 * torch.sum((robot_joint_pos - joint_pos) ** 2, dim=1))
     joint_vel_sum = -0.1 * torch.sum((robot_joint_vel - joint_vel) ** 2, dim=1)
     joint_velocity_reward = 0.1 * torch.exp(joint_vel_sum)
@@ -396,9 +379,9 @@ def compute_rewards(
     root_pos_error_sum = torch.sum(root_pos_error ** 2, dim=1)
     root_quat_error_sum = torch.sum(root_quat_error ** 2, dim=1)
 
-    # 计算指数部分
+
     exp_part = -20 * root_pos_error_sum - 10 * root_quat_error_sum
-    # 计算最终结果
+
     root_position_reward = 0.15 * torch.exp(exp_part)
 
     root_velocity_reward = 0.1 * torch.exp(

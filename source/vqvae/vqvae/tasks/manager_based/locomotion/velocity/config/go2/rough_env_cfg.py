@@ -55,6 +55,9 @@ class UnitreeGo2RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.track_lin_vel_xy_exp.weight = 1.5
         self.rewards.track_ang_vel_z_exp.weight = 0.75
         self.rewards.dof_acc_l2.weight = -2.5e-7
+        
+        
+        
 
         # terminations
         self.terminations.base_contact.params["sensor_cfg"].body_names = "base"

@@ -22,7 +22,7 @@ parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="Isaac-Cartpole-Direct-v0", help="Name of the task.")
+parser.add_argument("--task", type=str, default="Isaac-Velocity-Flat-Unitree-Go2-v0", help="Name of the task.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -112,7 +112,7 @@ def main():
 
     # reset environment
     obs, _ = env.get_observations()
-    headers = ['pole_joint_pos', 'pole_joint_vel', 'cart_joint_pos', 'cart_joint_vel']
+    headers = []
     for i in range(13):
         headers.append('body_state_{}'.format(i))
     with open("cartpole.csv", mode='w', newline='') as file:
@@ -128,10 +128,7 @@ def main():
                 actions = policy(obs)
                 # env stepping
                 obs, _, _, _ = env.step(actions)
-                body_state = env.unwrapped.cartpole.data.root_state_w[1,:]
-                body_state[0:2] -= env.unwrapped.scene._default_env_origins[1][0:2]
-                
-                writer.writerow(obs[0].tolist())               
+         
             if args_cli.video:
                 timestep += 1
                 # Exit the play loop after recording one video

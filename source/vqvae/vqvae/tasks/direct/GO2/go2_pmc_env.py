@@ -120,20 +120,15 @@ class PMCEnv(DirectRLEnv):
         self.marker.write_root_state_to_sim(rootstate)
         self.marker.write_joint_state_to_sim(self.motiondata.joint_position_w(frame),self.motiondata.joint_velocity_w(frame))
         
-    def _get_observations(self) -> dict:
-        
-        joint_state = self.robot.data.root_state_w 
-        orit = self.robot.data.root_state_w[:, 3:7]
-        matrix = matrix_from_quat(orit)
-        z_vector = matrix[:,2,:]
-        
+    def _get_observations(self) -> dict:      
         obs = torch.cat(#45 in total
             (
                 
                 self.robot.data.joint_pos,#12
                 self.robot.data.joint_vel,#12
-                joint_state[:,7:],#6,include[lin_vel， ang_vel]
-                z_vector,#3
+                self.robot.data.root_lin_vel_b,
+                self.robot.data.root_ang_vel_b,
+                self.robot.data.projected_gravity_b,
                 self.actions,#12
             ),
             dim=-1,

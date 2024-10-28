@@ -5,7 +5,7 @@
 
 from omni.isaac.lab.utils import configclass
 
-from source.vqvae.vqvae.tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
+from ...velocity_env_cfg import LocomotionVelocityRoughEnvCfg
 
 ##
 # Pre-defined configs

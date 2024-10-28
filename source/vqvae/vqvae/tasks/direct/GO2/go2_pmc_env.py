@@ -147,7 +147,7 @@ class PMCEnv(DirectRLEnv):
             self.pmc_data_frameinplay,
             robot_state
         )
-        observation = torch.cat([self.last_observation,self.second_last_observation,obs,dataset], dim=1)
+        observation = torch.cat([obs,dataset], dim=1)
         # concat data and obs as observation
         observations = {"policy": observation}
         # update last_observation and second_last_observation

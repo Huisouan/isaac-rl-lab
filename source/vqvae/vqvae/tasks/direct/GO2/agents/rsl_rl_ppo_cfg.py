@@ -29,7 +29,7 @@ class UnitreeGo2RoughPMCPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         decoder_hidden_dims=[256, 256],
         critic_hidden_dims=[256, 256],
         activation="relu",
-        State_Dimentions = 45*3
+        State_Dimentions = 45
         
     )
     z_settings = Z_settings(

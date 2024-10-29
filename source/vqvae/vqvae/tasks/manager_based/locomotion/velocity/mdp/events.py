@@ -14,4 +14,4 @@ def reset_amp(
     env_ids: torch.Tensor,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ):
-    
+    return 0

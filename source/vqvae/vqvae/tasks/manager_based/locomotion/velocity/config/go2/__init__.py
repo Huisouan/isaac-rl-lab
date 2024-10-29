@@ -10,7 +10,7 @@ from . import agents, flat_env_cfg, rough_env_cfg
 ##
 # Register Gym environments.
 ##
-
+"""
 gym.register(
     id="Isaac-Velocity-Flat-Unitree-Go2-v0",
     entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
@@ -31,3 +31,4 @@ gym.register(
     },
 )
 
+"""

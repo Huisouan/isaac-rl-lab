@@ -63,6 +63,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
         self._save_intermediate = config.get('save_intermediate', False)
 
         net_config = self._build_net_config()
+        #是文件中的Modlsclass的实例，其网络是对应的builder class的实例。
         self.model = self.network.build(net_config)
         self.model.to(self.ppo_device)
         self.states = None
@@ -108,79 +109,82 @@ class CommonAgent(a2c_continuous.A2CAgent):
         return
 
     def train(self):
-        self.init_tensors()
-        self.last_mean_rewards = -100500
-        start_time = time.time()
-        total_time = 0
-        rep_count = 0
-        self.frame = 0
-        self.obs = self.env_reset()
-        self.curr_frames = self.batch_size_envs
-        
-        model_output_file = os.path.join(self.nn_dir, self.config['name'])
-        
-        if self.multi_gpu:
-            self.hvd.setup_algo(self)
+        """
+        训练主循环，负责初始化张量、更新模型、记录统计信息等。
+        """
+        self.init_tensors()  # 初始化张量
+        self.last_mean_rewards = -100500  # 初始化最后的平均奖励
+        start_time = time.time()  # 记录开始时间
+        total_time = 0  # 初始化总时间
+        rep_count = 0  # 初始化重复计数
+        self.frame = 0  # 初始化帧数
+        self.obs = self.env_reset()  # 重置环境并获取初始观测
+        self.curr_frames = self.batch_size_envs  # 设置当前帧数为环境批次大小
 
-        self._init_train()
+        model_output_file = os.path.join(self.nn_dir, self.config['name'])  # 设置模型输出文件路径
 
-        while True:
-            epoch_num = self.update_epoch()
-            train_info = self.train_epoch()
+        if self.multi_gpu:  # 如果使用多 GPU
+            self.hvd.setup_algo(self)  # 设置 Horovod
 
-            sum_time = train_info['total_time']
-            total_time += sum_time
-            frame = self.frame
-            if self.multi_gpu:
-                self.hvd.sync_stats(self)
+        self._init_train()  # 初始化训练
 
-            if self.rank == 0:
-                scaled_time = sum_time
-                scaled_play_time = train_info['play_time']
-                curr_frames = self.curr_frames
-                self.frame += curr_frames
-                if self.print_stats:
-                    fps_step = curr_frames / scaled_play_time
-                    fps_total = curr_frames / scaled_time
-                    print(f'fps step: {fps_step:.1f} fps total: {fps_total:.1f}')
+        while True:  # 主训练循环
+            epoch_num = self.update_epoch()  # 更新当前轮次
+            train_info = self.train_epoch()  # 训练一个轮次并获取训练信息
 
-                self.writer.add_scalar('performance/total_fps', curr_frames / scaled_time, frame)
-                self.writer.add_scalar('performance/step_fps', curr_frames / scaled_play_time, frame)
-                self.writer.add_scalar('info/epochs', epoch_num, frame)
-                self._log_train_info(train_info, frame)
+            sum_time = train_info['total_time']  # 获取总时间
+            total_time += sum_time  # 累加总时间
+            frame = self.frame  # 当前帧数
+            if self.multi_gpu:  # 如果使用多 GPU
+                self.hvd.sync_stats(self)  # 同步统计信息
 
-                self.algo_observer.after_print_stats(frame, epoch_num, total_time)
-                
-                if self.game_rewards.current_size > 0:
-                    mean_rewards = self._get_mean_rewards()
-                    mean_lengths = self.game_lengths.get_mean()
+            if self.rank == 0:  # 如果是主进程
+                scaled_time = sum_time  # 缩放时间
+                scaled_play_time = train_info['play_time']  # 缩放播放时间
+                curr_frames = self.curr_frames  # 当前帧数
+                self.frame += curr_frames  # 累加帧数
+                if self.print_stats:  # 如果需要打印统计信息
+                    fps_step = curr_frames / scaled_play_time  # 计算每秒步骤帧数
+                    fps_total = curr_frames / scaled_time  # 计算总帧数
+                    print(f'fps step: {fps_step:.1f} fps total: {fps_total:.1f}')  # 打印帧率
 
-                    for i in range(self.value_size):
-                        self.writer.add_scalar('rewards{0}/frame'.format(i), mean_rewards[i], frame)
-                        self.writer.add_scalar('rewards{0}/iter'.format(i), mean_rewards[i], epoch_num)
-                        self.writer.add_scalar('rewards{0}/time'.format(i), mean_rewards[i], total_time)
+                self.writer.add_scalar('performance/total_fps', curr_frames / scaled_time, frame)  # 记录总帧率
+                self.writer.add_scalar('performance/step_fps', curr_frames / scaled_play_time, frame)  # 记录步骤帧率
+                self.writer.add_scalar('info/epochs', epoch_num, frame)  # 记录轮次信息
+                self._log_train_info(train_info, frame)  # 记录训练信息
 
-                    self.writer.add_scalar('episode_lengths/frame', mean_lengths, frame)
-                    self.writer.add_scalar('episode_lengths/iter', mean_lengths, epoch_num)
+                self.algo_observer.after_print_stats(frame, epoch_num, total_time)  # 观察者处理打印后的统计信息
 
-                    if self.has_self_play_config:
-                        self.self_play_manager.update(self)
+                if self.game_rewards.current_size > 0:  # 如果有游戏奖励
+                    mean_rewards = self._get_mean_rewards()  # 获取平均奖励
+                    mean_lengths = self.game_lengths.get_mean()  # 获取平均长度
 
-                if self.save_freq > 0:
-                    if (epoch_num % self.save_freq == 0):
-                        self.save(model_output_file)
+                    for i in range(self.value_size):  # 遍历价值大小
+                        self.writer.add_scalar('rewards{0}/frame'.format(i), mean_rewards[i], frame)  # 记录每帧奖励
+                        self.writer.add_scalar('rewards{0}/iter'.format(i), mean_rewards[i], epoch_num)  # 记录每轮奖励
+                        self.writer.add_scalar('rewards{0}/time'.format(i), mean_rewards[i], total_time)  # 记录每时间奖励
 
-                        if (self._save_intermediate):
-                            int_model_output_file = model_output_file + '_' + str(epoch_num).zfill(8)
-                            self.save(int_model_output_file)
+                    self.writer.add_scalar('episode_lengths/frame', mean_lengths, frame)  # 记录每帧长度
+                    self.writer.add_scalar('episode_lengths/iter', mean_lengths, epoch_num)  # 记录每轮长度
 
-                if epoch_num > self.max_epochs:
-                    self.save(model_output_file)
-                    print('MAX EPOCHS NUM!')
-                    return self.last_mean_rewards, epoch_num
+                    if self.has_self_play_config:  # 如果有自我对弈配置
+                        self.self_play_manager.update(self)  # 更新自我对弈管理器
 
-                update_time = 0
-        return
+                if self.save_freq > 0:  # 如果有保存频率
+                    if (epoch_num % self.save_freq == 0):  # 每隔一定轮次保存模型
+                        self.save(model_output_file)  # 保存模型
+
+                        if (self._save_intermediate):  # 如果需要保存中间模型
+                            int_model_output_file = model_output_file + '_' + str(epoch_num).zfill(8)  # 生成中间模型文件名
+                            self.save(int_model_output_file)  # 保存中间模型
+
+                if epoch_num > self.max_epochs:  # 如果超过最大轮次
+                    self.save(model_output_file)  # 保存最终模型
+                    print('MAX EPOCHS NUM!')  # 打印提示信息
+                    return self.last_mean_rewards, epoch_num  # 返回最后的平均奖励和轮次
+
+                update_time = 0  # 初始化更新时间
+        return  # 结束训练
 
     def set_full_state_weights(self, weights):
         self.set_weights(weights)
@@ -198,141 +202,146 @@ class CommonAgent(a2c_continuous.A2CAgent):
         return
 
     def train_epoch(self):
-        play_time_start = time.time()
-        with torch.no_grad():
-            if self.is_rnn:
-                batch_dict = self.play_steps_rnn()
+        """
+        训练一个轮次，包括数据收集、模型更新和统计信息记录。
+        """
+        play_time_start = time.time()  # 记录数据收集开始时间
+        with torch.no_grad():  # 不计算梯度
+            if self.is_rnn:  # 如果使用 RNN
+                batch_dict = self.play_steps_rnn()  # 收集 RNN 数据
             else:
-                batch_dict = self.play_steps() 
+                batch_dict = self.play_steps()  # 收集普通数据
 
-        play_time_end = time.time()
-        update_time_start = time.time()
-        rnn_masks = batch_dict.get('rnn_masks', None)
-        
-        self.set_train()
+        play_time_end = time.time()  # 记录数据收集结束时间
+        update_time_start = time.time()  # 记录模型更新开始时间
+        rnn_masks = batch_dict.get('rnn_masks', None)  # 获取 RNN 掩码
 
-        self.curr_frames = batch_dict.pop('played_frames')
-        self.prepare_dataset(batch_dict)
-        self.algo_observer.after_steps()
+        self.set_train()  # 设置模型为训练模式
 
-        if self.has_central_value:
-            self.train_central_value()
+        self.curr_frames = batch_dict.pop('played_frames')  # 获取并移除已播放的帧数
+        self.prepare_dataset(batch_dict)  # 准备数据集
+        self.algo_observer.after_steps()  # 观察者处理步骤后操作
 
-        train_info = None
+        if self.has_central_value:  # 如果有中心值
+            self.train_central_value()  # 训练中心值
 
-        if self.is_rnn:
-            frames_mask_ratio = rnn_masks.sum().item() / (rnn_masks.nelement())
-            print(frames_mask_ratio)
+        train_info = None  # 初始化训练信息
 
-        for _ in range(0, self.mini_epochs_num):
-            ep_kls = []
-            for i in range(len(self.dataset)):
-                curr_train_info = self.train_actor_critic(self.dataset[i])
-                
-                if self.schedule_type == 'legacy':  
-                    if self.multi_gpu:
-                        curr_train_info['kl'] = self.hvd.average_value(curr_train_info['kl'], 'ep_kls')
-                    self.last_lr, self.entropy_coef = self.scheduler.update(self.last_lr, self.entropy_coef, self.epoch_num, 0, curr_train_info['kl'].item())
-                    self.update_lr(self.last_lr)
+        if self.is_rnn:  # 如果使用 RNN
+            frames_mask_ratio = rnn_masks.sum().item() / (rnn_masks.nelement())  # 计算掩码比率
+            print(frames_mask_ratio)  # 打印掩码比率
 
-                if (train_info is None):
-                    train_info = dict()
+        for _ in range(0, self.mini_epochs_num):  # 进行多个小轮次训练
+            ep_kls = []  # 初始化 KL 散度列表
+            for i in range(len(self.dataset)):  # 遍历数据集
+                curr_train_info = self.train_actor_critic(self.dataset[i])  # 训练 actor-critic 模型
+
+                if self.schedule_type == 'legacy':  # 如果使用旧的学习率调度
+                    if self.multi_gpu:  # 如果使用多 GPU
+                        curr_train_info['kl'] = self.hvd.average_value(curr_train_info['kl'], 'ep_kls')  # 平均 KL 散度
+                    self.last_lr, self.entropy_coef = self.scheduler.update(self.last_lr, self.entropy_coef, self.epoch_num, 0, curr_train_info['kl'].item())  # 更新学习率和熵系数
+                    self.update_lr(self.last_lr)  # 更新学习率
+
+                if (train_info is None):  # 如果训练信息为空
+                    train_info = dict()  # 初始化训练信息字典
                     for k, v in curr_train_info.items():
-                        train_info[k] = [v]
+                        train_info[k] = [v]  # 添加当前训练信息
                 else:
                     for k, v in curr_train_info.items():
-                        train_info[k].append(v)
-            
-            av_kls = torch_ext.mean_list(train_info['kl'])
+                        train_info[k].append(v)  # 累加当前训练信息
 
-            if self.schedule_type == 'standard':
-                if self.multi_gpu:
-                    av_kls = self.hvd.average_value(av_kls, 'ep_kls')
-                self.last_lr, self.entropy_coef = self.scheduler.update(self.last_lr, self.entropy_coef, self.epoch_num, 0, av_kls.item())
-                self.update_lr(self.last_lr)
+            av_kls = torch_ext.mean_list(train_info['kl'])  # 计算平均 KL 散度
 
-        if self.schedule_type == 'standard_epoch':
-            if self.multi_gpu:
-                av_kls = self.hvd.average_value(torch_ext.mean_list(kls), 'ep_kls')
-            self.last_lr, self.entropy_coef = self.scheduler.update(self.last_lr, self.entropy_coef, self.epoch_num, 0, av_kls.item())
-            self.update_lr(self.last_lr)
+            if self.schedule_type == 'standard':  # 如果使用标准学习率调度
+                if self.multi_gpu:  # 如果使用多 GPU
+                    av_kls = self.hvd.average_value(av_kls, 'ep_kls')  # 平均 KL 散度
+                self.last_lr, self.entropy_coef = self.scheduler.update(self.last_lr, self.entropy_coef, self.epoch_num, 0, av_kls.item())  # 更新学习率和熵系数
+                self.update_lr(self.last_lr)  # 更新学习率
 
-        update_time_end = time.time()
-        play_time = play_time_end - play_time_start
-        update_time = update_time_end - update_time_start
-        total_time = update_time_end - play_time_start
+        if self.schedule_type == 'standard_epoch':  # 如果使用标准轮次学习率调度
+            if self.multi_gpu:  # 如果使用多 GPU
+                av_kls = self.hvd.average_value(torch_ext.mean_list(kls), 'ep_kls')  # 平均 KL 散度
+            self.last_lr, self.entropy_coef = self.scheduler.update(self.last_lr, self.entropy_coef, self.epoch_num, 0, av_kls.item())  # 更新学习率和熵系数
+            self.update_lr(self.last_lr)  # 更新学习率
 
-        train_info['play_time'] = play_time
-        train_info['update_time'] = update_time
-        train_info['total_time'] = total_time
-        self._record_train_batch_info(batch_dict, train_info)
+        update_time_end = time.time()  # 记录模型更新结束时间
+        play_time = play_time_end - play_time_start  # 计算数据收集时间
+        update_time = update_time_end - update_time_start  # 计算模型更新时间
+        total_time = update_time_end - play_time_start  # 计算总时间
 
-        return train_info
+        train_info['play_time'] = play_time  # 添加数据收集时间到训练信息
+        train_info['update_time'] = update_time  # 添加模型更新时间到训练信息
+        train_info['total_time'] = total_time  # 添加总时间到训练信息
+        self._record_train_batch_info(batch_dict, train_info)  # 记录训练批次信息
+
+        return train_info  # 返回训练信息
 
     def play_steps(self):
-        self.set_eval()
+        """
+        收集一个轮次的数据，包括与环境交互、存储经验、计算奖励等。
+        """
+        self.set_eval()  # 设置模型为评估模式
         
-        epinfos = []
-        done_indices = []
-        update_list = self.update_list
+        epinfos = []  # 初始化 episode 信息列表
+        done_indices = []  # 初始化完成索引列表
+        update_list = self.update_list  # 获取需要更新的数据项列表
 
-        for n in range(self.horizon_length):
-            self.obs = self.env_reset(done_indices)
-            self.experience_buffer.update_data('obses', n, self.obs['obs'])
+        for n in range(self.horizon_length):  # 遍历地平线长度
+            self.obs = self.env_reset(done_indices)  # 重置环境并获取新的观测
+            self.experience_buffer.update_data('obses', n, self.obs['obs'])  # 更新经验缓冲区中的观测数据
 
-            if self.use_action_masks:
-                masks = self.vec_env.get_action_masks()
-                res_dict = self.get_masked_action_values(self.obs, masks)
+            if self.use_action_masks:  # 如果使用动作掩码
+                masks = self.vec_env.get_action_masks()  # 获取动作掩码
+                res_dict = self.get_masked_action_values(self.obs, masks)  # 获取带有掩码的动作值
             else:
-                res_dict = self.get_action_values(self.obs)
+                res_dict = self.get_action_values(self.obs)  # 获取动作值
 
-            for k in update_list:
-                self.experience_buffer.update_data(k, n, res_dict[k]) 
+            for k in update_list:  # 遍历需要更新的数据项
+                self.experience_buffer.update_data(k, n, res_dict[k])  # 更新经验缓冲区中的数据
 
-            if self.has_central_value:
-                self.experience_buffer.update_data('states', n, self.obs['states'])
+            if self.has_central_value:  # 如果有中心值
+                self.experience_buffer.update_data('states', n, self.obs['states'])  # 更新状态数据
 
-            self.obs, rewards, self.dones, infos = self.env_step(res_dict['actions'])
-            shaped_rewards = self.rewards_shaper(rewards)
-            self.experience_buffer.update_data('rewards', n, shaped_rewards)
-            self.experience_buffer.update_data('next_obses', n, self.obs['obs'])
-            self.experience_buffer.update_data('dones', n, self.dones)
+            self.obs, rewards, self.dones, infos = self.env_step(res_dict['actions'])  # 与环境交互，获取新的观测、奖励、完成标志和信息
+            shaped_rewards = self.rewards_shaper(rewards)  # 调整形奖励
+            self.experience_buffer.update_data('rewards', n, shaped_rewards)  # 更新经验缓冲区中的奖励数据
+            self.experience_buffer.update_data('next_obses', n, self.obs['obs'])  # 更新经验缓冲区中的下一个观测数据
+            self.experience_buffer.update_data('dones', n, self.dones)  # 更新经验缓冲区中的完成标志数据
 
-            terminated = infos['terminate'].float()
-            terminated = terminated.unsqueeze(-1)
-            next_vals = self._eval_critic(self.obs)
-            next_vals *= (1.0 - terminated)
-            self.experience_buffer.update_data('next_values', n, next_vals)
+            terminated = infos['terminate'].float()  # 获取终止标志
+            terminated = terminated.unsqueeze(-1)  # 增加维度
+            next_vals = self._eval_critic(self.obs)  # 评估下一个状态的价值
+            next_vals *= (1.0 - terminated)  # 乘以未终止的标志
+            self.experience_buffer.update_data('next_values', n, next_vals)  # 更新经验缓冲区中的下一个价值数据
 
-            self.current_rewards += rewards
-            self.current_lengths += 1
-            all_done_indices = self.dones.nonzero(as_tuple=False)
-            done_indices = all_done_indices[::self.num_agents]
-  
-            self.game_rewards.update(self.current_rewards[done_indices])
-            self.game_lengths.update(self.current_lengths[done_indices])
-            self.algo_observer.process_infos(infos, done_indices)
+            self.current_rewards += rewards  # 累加当前奖励
+            self.current_lengths += 1  # 累加当前长度
+            all_done_indices = self.dones.nonzero(as_tuple=False)  # 获取所有完成的索引
+            done_indices = all_done_indices[::self.num_agents]  # 获取每个代理的完成索引
 
-            not_dones = 1.0 - self.dones.float()
+            self.game_rewards.update(self.current_rewards[done_indices])  # 更新游戏奖励
+            self.game_lengths.update(self.current_lengths[done_indices])  # 更新游戏长度
+            self.algo_observer.process_infos(infos, done_indices)  # 处理信息
 
-            self.current_rewards = self.current_rewards * not_dones.unsqueeze(1)
-            self.current_lengths = self.current_lengths * not_dones
+            not_dones = 1.0 - self.dones.float()  # 获取未完成的标志
+            self.current_rewards = self.current_rewards * not_dones.unsqueeze(1)  # 重置当前奖励
+            self.current_lengths = self.current_lengths * not_dones  # 重置当前长度
 
-            done_indices = done_indices[:, 0]
+            done_indices = done_indices[:, 0]  # 获取完成索引的第一列
 
-        mb_fdones = self.experience_buffer.tensor_dict['dones'].float()
-        mb_values = self.experience_buffer.tensor_dict['values']
-        mb_next_values = self.experience_buffer.tensor_dict['next_values']
-        mb_rewards = self.experience_buffer.tensor_dict['rewards']
+        mb_fdones = self.experience_buffer.tensor_dict['dones'].float()  # 获取完成标志的浮点表示
+        mb_values = self.experience_buffer.tensor_dict['values']  # 获取价值数据
+        mb_next_values = self.experience_buffer.tensor_dict['next_values']  # 获取下一个价值数据
+        mb_rewards = self.experience_buffer.tensor_dict['rewards']  # 获取奖励数据
         
-        mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
-        mb_returns = mb_advs + mb_values
+        mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)  # 计算优势值
+        mb_returns = mb_advs + mb_values  # 计算返回值
 
-        batch_dict = self.experience_buffer.get_transformed_list(a2c_common.swap_and_flatten01, self.tensor_list)
-        batch_dict['returns'] = a2c_common.swap_and_flatten01(mb_returns)
-        batch_dict['played_frames'] = self.batch_size
+        batch_dict = self.experience_buffer.get_transformed_list(a2c_common.swap_and_flatten01, self.tensor_list)  # 获取转换后的批次数据
+        batch_dict['returns'] = a2c_common.swap_and_flatten01(mb_returns)  # 添加返回值到批次数据
+        batch_dict['played_frames'] = self.batch_size  # 添加已播放的帧数到批次数据
 
-        return batch_dict
+        return batch_dict  # 返回批次数据
 
     def prepare_dataset(self, batch_dict):
         obses = batch_dict['obses']

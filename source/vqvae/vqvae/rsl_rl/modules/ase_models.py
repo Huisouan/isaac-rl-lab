@@ -26,7 +26,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from learning import amp_models
+import amp_models
 
 class ModelASEContinuous(amp_models.ModelAMPContinuous):
     def __init__(self, network):
@@ -40,7 +40,7 @@ class ModelASEContinuous(amp_models.ModelAMPContinuous):
             print(name)
         return ModelASEContinuous.Network(net)
 
-    class Network(amp_models.ModelAMPContinuous.Network):
+    class Network(amp_models.ModelAMPContinuous.Network):#这个类base是一个nnmodel
         def __init__(self, a2c_network):
             super().__init__(a2c_network)
             return

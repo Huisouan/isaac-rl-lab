@@ -44,7 +44,118 @@ class AMPBuilder(network_builder.A2CBuilder):
     class Network(network_builder.A2CBuilder.Network):
         def __init__(self, params, **kwargs):
             # 调用父类的初始化方法
-            super().__init__(params, **kwargs)
+            nn.Module.__init__(self, **kwargs)
+            actions_num = kwargs.pop('actions_num')
+            input_shape = kwargs.pop('input_shape')
+            self.value_size = kwargs.pop('value_size', 1)
+            self.num_seqs = num_seqs = kwargs.pop('num_seqs', 1)
+
+            self.load(params)
+            self.actor_cnn = nn.Sequential()
+            self.critic_cnn = nn.Sequential()
+            self.actor_mlp = nn.Sequential()
+            self.critic_mlp = nn.Sequential()
+            
+            if self.has_cnn:
+                if self.permute_input:
+                    input_shape = torch_ext.shape_whc_to_cwh(input_shape)
+                cnn_args = {
+                    'ctype' : self.cnn['type'], 
+                    'input_shape' : input_shape, 
+                    'convs' :self.cnn['convs'], 
+                    'activation' : self.cnn['activation'], 
+                    'norm_func_name' : self.normalization,
+                }
+                self.actor_cnn = self._build_conv(**cnn_args)
+
+                if self.separate:
+                    self.critic_cnn = self._build_conv( **cnn_args)
+
+            mlp_input_shape = self._calc_input_size(input_shape, self.actor_cnn)
+
+            in_mlp_shape = mlp_input_shape
+            if len(self.units) == 0:
+                out_size = mlp_input_shape
+            else:
+                out_size = self.units[-1]
+
+            if self.has_rnn:
+                if not self.is_rnn_before_mlp:
+                    rnn_in_size = out_size
+                    out_size = self.rnn_units
+                    if self.rnn_concat_input:
+                        rnn_in_size += in_mlp_shape
+                else:
+                    rnn_in_size =  in_mlp_shape
+                    in_mlp_shape = self.rnn_units
+
+                if self.separate:
+                    self.a_rnn = self._build_rnn(self.rnn_name, rnn_in_size, self.rnn_units, self.rnn_layers)
+                    self.c_rnn = self._build_rnn(self.rnn_name, rnn_in_size, self.rnn_units, self.rnn_layers)
+                    if self.rnn_ln:
+                        self.a_layer_norm = torch.nn.LayerNorm(self.rnn_units)
+                        self.c_layer_norm = torch.nn.LayerNorm(self.rnn_units)
+                else:
+                    self.rnn = self._build_rnn(self.rnn_name, rnn_in_size, self.rnn_units, self.rnn_layers)
+                    if self.rnn_ln:
+                        self.layer_norm = torch.nn.LayerNorm(self.rnn_units)
+
+            mlp_args = {
+                'input_size' : in_mlp_shape, 
+                'units' : self.units, 
+                'activation' : self.activation, 
+                'norm_func_name' : self.normalization,
+                'dense_func' : torch.nn.Linear,
+                'd2rl' : self.is_d2rl,
+                'norm_only_first_layer' : self.norm_only_first_layer
+            }
+            self.actor_mlp = self._build_mlp(**mlp_args)
+            if self.separate:
+                self.critic_mlp = self._build_mlp(**mlp_args)
+
+            self.value = self._build_value_layer(out_size, self.value_size)
+            self.value_act = self.activations_factory.create(self.value_activation)
+
+            if self.is_discrete:
+                self.logits = torch.nn.Linear(out_size, actions_num)
+            '''
+                for multidiscrete actions num is a tuple
+            '''
+            if self.is_multi_discrete:
+                self.logits = torch.nn.ModuleList([torch.nn.Linear(out_size, num) for num in actions_num])
+            if self.is_continuous:
+                self.mu = torch.nn.Linear(out_size, actions_num)
+                self.mu_act = self.activations_factory.create(self.space_config['mu_activation']) 
+                mu_init = self.init_factory.create(**self.space_config['mu_init'])
+                self.sigma_act = self.activations_factory.create(self.space_config['sigma_activation']) 
+                sigma_init = self.init_factory.create(**self.space_config['sigma_init'])
+
+                if self.fixed_sigma:
+                    self.sigma = nn.Parameter(torch.zeros(actions_num, requires_grad=True, dtype=torch.float32), requires_grad=True)
+                else:
+                    self.sigma = torch.nn.Linear(out_size, actions_num)
+
+            mlp_init = self.init_factory.create(**self.initializer)
+            if self.has_cnn:
+                cnn_init = self.init_factory.create(**self.cnn['initializer'])
+
+            for m in self.modules():         
+                if isinstance(m, nn.Conv2d) or isinstance(m, nn.Conv1d):
+                    cnn_init(m.weight)
+                    if getattr(m, "bias", None) is not None:
+                        torch.nn.init.zeros_(m.bias)
+                if isinstance(m, nn.Linear):
+                    mlp_init(m.weight)
+                    if getattr(m, "bias", None) is not None:
+                        torch.nn.init.zeros_(m.bias)    
+
+            if self.is_continuous:
+                mu_init(self.mu.weight)
+                if self.fixed_sigma:
+                    sigma_init(self.sigma)
+                else:
+                    sigma_init(self.sigma.weight)  
+
 
             # 如果是连续动作空间
             if self.is_continuous:
@@ -207,3 +318,4 @@ class AMPBuilder(network_builder.A2CBuilder):
         # 构建网络
         net = AMPBuilder.Network(self.params, **kwargs)
         return net
+    

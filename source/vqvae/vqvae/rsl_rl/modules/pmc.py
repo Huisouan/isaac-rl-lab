@@ -13,7 +13,6 @@ from ...tasks.utils.wappers.rsl_rl import (
     Z_settings,
 )
 
-from torchviz import make_dot
 
 
 
@@ -213,8 +212,6 @@ class PMC(nn.Module):
         return mean
     def act(self, observations, **kwargs):
         mean = self.update_distribution(observations)
-        #dot = make_dot(mean, params=dict(list(self.named_parameters())))
-        #dot.render('vqvae_actor_critic_update_distribution', format='png', view=True)
 
         return self.distribution.sample()
     
@@ -252,3 +249,4 @@ def get_activation(act_name):
     else:
         print("invalid activation function!")
         return None
+

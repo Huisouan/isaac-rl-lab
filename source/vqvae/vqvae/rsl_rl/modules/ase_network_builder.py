@@ -35,7 +35,7 @@ import torch.nn as nn
 import numpy as np
 import enum
 
-from learning import amp_network_builder
+import amp_network_builder
 
 ENC_LOGIT_INIT_SCALE = 0.1
 
@@ -87,10 +87,19 @@ class ASEBuilder(amp_network_builder.AMPBuilder):
                     self.sigma = nn.Parameter(torch.zeros(actions_num, requires_grad=True, dtype=torch.float32), requires_grad=True)  # 可学习的标准差
                 else:
                     self.sigma = torch.nn.Linear(actor_out_size, actions_num)  # 动态标准差
+            
+            if self.is_continuous:
+                mu_init(self.mu.weight)  # 初始化均值层权重
+                if self.space_config['fixed_sigma']:
+                    sigma_init(self.sigma)  # 初始化固定标准差
+                else:
+                    sigma_init(self.sigma.weight)  # 初始化动态标准差权重
+
 
             mlp_init = self.init_factory.create(**self.initializer)  # MLP初始化器
             if self.has_cnn:#没有cnn
                 cnn_init = self.init_factory.create(**self.cnn['initializer'])  # CNN初始化器
+
 
             for m in self.modules():         
                 if isinstance(m, nn.Conv2d) or isinstance(m, nn.Conv1d):
@@ -105,12 +114,7 @@ class ASEBuilder(amp_network_builder.AMPBuilder):
             self.actor_mlp.init_params()  # 初始化演员MLP参数
             self.critic_mlp.init_params()  # 初始化评论家MLP参数
 
-            if self.is_continuous:
-                mu_init(self.mu.weight)  # 初始化均值层权重
-                if self.space_config['fixed_sigma']:
-                    sigma_init(self.sigma)  # 初始化固定标准差
-                else:
-                    sigma_init(self.sigma.weight)  # 初始化动态标准差权重
+
 
             self._build_disc(amp_input_shape)  # 构建判别器
             self._build_enc(amp_input_shape)  # 构建编码器

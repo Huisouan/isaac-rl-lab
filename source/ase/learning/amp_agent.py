@@ -207,9 +207,22 @@ class AMPAgent(common_agent.CommonAgent):
         return
 
     def train_epoch(self):
+        """
+        执行一个训练周期的操作。
+
+        该方法主要包括：
+        - 收集环境交互数据
+        - 更新模型参数
+        - 调整学习率和熵系数
+
+        Returns:
+            train_info (dict): 训练过程中的信息，包括时间消耗等
+        """
+        # 记录开始时间
         play_time_start = time.time()
 
         with torch.no_grad():
+            # 根据是否使用RNN选择不同的数据收集方式
             if self.is_rnn:
                 batch_dict = self.play_steps_rnn()
             else:
@@ -219,31 +232,38 @@ class AMPAgent(common_agent.CommonAgent):
         update_time_start = time.time()
         rnn_masks = batch_dict.get('rnn_masks', None)
         
+        # 更新AMP演示数据
         self._update_amp_demos()
         num_obs_samples = batch_dict['amp_obs'].shape[0]
         amp_obs_demo = self._amp_obs_demo_buffer.sample(num_obs_samples)['amp_obs']
         batch_dict['amp_obs_demo'] = amp_obs_demo
 
+        # 如果重放缓冲区为空，则使用当前观察作为回放缓冲区数据
         if (self._amp_replay_buffer.get_total_count() == 0):
             batch_dict['amp_obs_replay'] = batch_dict['amp_obs']
         else:
             batch_dict['amp_obs_replay'] = self._amp_replay_buffer.sample(num_obs_samples)['amp_obs']
 
+        # 设置模型为训练模式
         self.set_train()
 
+        # 更新当前帧数并准备数据集
         self.curr_frames = batch_dict.pop('played_frames')
         self.prepare_dataset(batch_dict)
         self.algo_observer.after_steps()
 
+        # 如果有中心价值网络，则训练中心价值网络
         if self.has_central_value:
             self.train_central_value()
 
         train_info = None
 
+        # 对于RNN模型，计算掩码比例
         if self.is_rnn:
             frames_mask_ratio = rnn_masks.sum().item() / (rnn_masks.nelement())
             print(frames_mask_ratio)
 
+        # 进行多个小批量训练
         for _ in range(0, self.mini_epochs_num):
             ep_kls = []
             for i in range(len(self.dataset)):
@@ -282,8 +302,10 @@ class AMPAgent(common_agent.CommonAgent):
         update_time = update_time_end - update_time_start
         total_time = update_time_end - play_time_start
 
+        # 存储AMP观察数据到重放缓冲区
         self._store_replay_amp_obs(batch_dict['amp_obs'])
 
+        # 记录训练信息
         train_info['play_time'] = play_time
         train_info['update_time'] = update_time
         train_info['total_time'] = total_time

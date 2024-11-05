@@ -14,12 +14,12 @@ class SpaceCfg:
     fixed_sigma:bool = True
     learn_sigma:bool = False
 
-class ASECfg:
-    # 获取ASE潜在形状
+class AMPCfg:
+    # 获取AMP潜在形状
     ase_latent_shape:int = 64
 
-class ASENetcfg:
-    name:str = 'ase'
+class AMPNetcfg:
+    name:str = 'amp'
     separate_disc:bool = True
     
     Spacecfg:SpaceCfg = SpaceCfg

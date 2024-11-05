@@ -10,27 +10,21 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.nn import RMSNorm
 from ...tasks.utils.wappers.rsl_rl import (
-    ASECfg,ASENetcfg,
+    ASECfg,ASENetcfg,AMPCfg,AMPNetcfg
 )
 
 
-
+DISC_LOGIT_INIT_SCALE = 1.0
+ENC_LOGIT_INIT_SCALE = 0.1
 class AMPNet(nn.Module):
     is_recurrent = False
-
+    
     def __init__(
         self,
         mlp_input_num,
         num_actions,
-        mlp_hidden_dims=[1024, 1024, 512],
-
-        activation="relu",
-        value_activation="tanh",
-        init_noise_std=1,
-        # 正确的方式是先声明类型，然后创建对象
-        State_Dimentions = 45*3,
-        rms_momentum = 0.0001,
-        seperate_actor_critic = True,
+        Ampcfg :AMPCfg = AMPCfg(),
+        Ampnetcfg:AMPNetcfg = AMPNetcfg(),
         **kwargs,
     ):
         # 检查是否有未使用的参数
@@ -42,55 +36,32 @@ class AMPNet(nn.Module):
         super().__init__()
         #parameter init##############################
         # 加载判别器的配置
-        self.activation = get_activation(activation)
+        self.activation = get_activation(Ampnetcfg.activation)
+        self.initializer = get_initializer(Ampnetcfg.initializer)
         self.mlp_input_num = mlp_input_num
-        self.mlp_hidden_dims = mlp_hidden_dims
 
+        self.mlp_units = Ampnetcfg.mlp_units
+        self.disc_units = Ampnetcfg.disc_units
+        self.enc_units = Ampnetcfg.enc_units
+        # 加载判别器的配置
         #############################################
         self.actor_cnn = nn.Sequential()
         self.critic_cnn = nn.Sequential()
         self.actor_mlp = nn.Sequential()
         self.critic_mlp = nn.Sequential()        
-        self.seperate_actor_critic = seperate_actor_critic
+        self.seperate_actor_critic = Ampnetcfg.separate_disc
         
         #build actor
-        self.actor_mlp = self._build_mlp(self.mlp_input_num,self.mlp_hidden_dims)   
+        self.actor_mlp = self._build_mlp(self.mlp_input_num,self.mlp_units)   
         #build critic 
         if self.seperate_actor_critic == True:
-            self.critic_mlp = self._build_mlp(self.mlp_input_num,self.mlp_hidden_dims)
+            self.critic_mlp = self._build_mlp(self.mlp_input_num,self.mlp_units)
 
         #build value
-        self.value = self._build_value_layer(input_size=self.mlp_hidden_dims[-1], output_size=1)
+        self.value = self._build_value_layer(input_size=self.mlp_units[-1], output_size=1)
         self.value_activation =  nn.Identity()
     
-    def _build_enc(self, input_shape):
-        if (self._enc_separate):
-            self._enc_mlp = nn.Sequential()  # 编码器MLP
-            mlp_args = {
-                'input_size': input_shape[0], 
-                'units': self._enc_units, 
-                'activation': self._enc_activation, 
-                'dense_func': torch.nn.Linear
-            }
-            self._enc_mlp = self._build_mlp(**mlp_args)  # 构建编码器MLP
 
-            mlp_init = self.init_factory.create(**self._enc_initializer)  # 编码器初始化器
-            for m in self._enc_mlp.modules():
-                if isinstance(m, nn.Linear):
-                    mlp_init(m.weight)  # 初始化权重
-                    if getattr(m, "bias", None) is not None:
-                        torch.nn.init.zeros_(m.bias)  # 初始化偏置
-        else:
-            self._enc_mlp = self._disc_mlp  # 使用判别器MLP
-
-        mlp_out_layer = list(self._enc_mlp.modules())[-2]  # 获取MLP的倒数第二层
-        mlp_out_size = mlp_out_layer.out_features  # 获取输出特征数
-        self._enc = torch.nn.Linear(mlp_out_size, self._ase_latent_shape[-1])  # 编码器线性层
-        
-        torch.nn.init.uniform_(self._enc.weight, -ENC_LOGIT_INIT_SCALE, ENC_LOGIT_INIT_SCALE)  # 初始化权重
-        torch.nn.init.zeros_(self._enc.bias)  # 初始化偏置
-        
-        return
         
     def _build_disc(self, input_shape):
         # 初始化判别器的MLP
@@ -105,12 +76,12 @@ class AMPNet(nn.Module):
         self._disc_mlp = self._build_mlp(**mlp_args)
         
         # 获取MLP输出的大小
-        mlp_out_size = self._disc_units[-1]
+        mlp_out_size = self.disc_units[-1]
         # 初始化判别器的对数概率层
         self._disc_logits = torch.nn.Linear(mlp_out_size, 1)
 
         # 初始化MLP的权重
-        mlp_init = self.init_factory.create(**self._disc_initializer)
+        mlp_init = self.initializer
         for m in self._disc_mlp.modules():
             if isinstance(m, nn.Linear):
                 mlp_init(m.weight)
@@ -163,6 +134,9 @@ class ASENet(AMPNet):
         self._ase_latent_shape =  Asecfg.ase_latent_shape
         self.separate = Asenetcfg.separate_disc
         self.mlp_units = Asenetcfg.mlp_units
+        self.disc_units = Asenetcfg.disc_units
+        self.enc_units = Asenetcfg.enc_units
+        self.enc_separate = Asenetcfg.enc_separate
         self.value_size = 1
         self.Spacecfg = Asenetcfg.Spacecfg
         
@@ -200,6 +174,33 @@ class ASENet(AMPNet):
         self._build_disc(amp_input_shape)  # 构建判别器
         self._build_enc(amp_input_shape)  # 构建编码器
 
+        return
+
+    def _build_enc(self, input_shape):
+        if (self.enc_separate):
+            self._enc_mlp = nn.Sequential()  # 编码器MLP
+            mlp_args = {
+                'input_size': input_shape[0], 
+                'units': self.enc_units, 
+            }
+            self._enc_mlp = self._build_mlp(**mlp_args)  # 构建编码器MLP
+
+            mlp_init = self.initializer  # 编码器初始化器
+            for m in self._enc_mlp.modules():
+                if isinstance(m, nn.Linear):
+                    mlp_init(m.weight)  # 初始化权重
+                    if getattr(m, "bias", None) is not None:
+                        torch.nn.init.zeros_(m.bias)  # 初始化偏置
+        else:
+            self._enc_mlp = self._disc_mlp  # 使用判别器MLP
+
+        mlp_out_layer = list(self._enc_mlp.modules())[-2]  # 获取MLP的倒数第二层
+        mlp_out_size = mlp_out_layer.out_features  # 获取输出特征数
+        self._enc = torch.nn.Linear(mlp_out_size, self._ase_latent_shape[-1])  # 编码器线性层
+        
+        torch.nn.init.uniform_(self._enc.weight, -ENC_LOGIT_INIT_SCALE, ENC_LOGIT_INIT_SCALE)  # 初始化权重
+        torch.nn.init.zeros_(self._enc.bias)  # 初始化偏置
+        
         return
         
     def _build_action_head(self, actor_out_size, num_actions):
@@ -258,6 +259,57 @@ class ASENet(AMPNet):
 
         return actor_out_size, critic_out_size
 
+
+    def get_enc_weights(self):
+        weights = []
+        for m in self._enc_mlp.modules():
+            if isinstance(m, nn.Linear):
+                weights.append(torch.flatten(m.weight))  # 获取编码器MLP的权重
+
+        weights.append(torch.flatten(self._enc.weight))  # 获取编码器权重
+        return weights
+
+    def sample_latents(self, n):
+        device = next(self._enc.parameters()).device  # 获取设备
+        z = torch.normal(torch.zeros([n, self._ase_latent_shape[-1]], device=device))  # 生成正态分布的潜在变量
+        z = torch.nn.functional.normalize(z, dim=-1)  # 归一化潜在变量
+        return z
+                
+    def eval_critic(self, obs, ase_latents, use_hidden_latents=False):
+        c_out = self.critic_cnn(obs)  # 评论家CNN输出
+        c_out = c_out.contiguous().view(c_out.size(0), -1)  # 展平输出
+        
+        c_out = self.critic_mlp(c_out, ase_latents, use_hidden_latents)  # 评论家MLP输出
+        value = self.value_act(self.value(c_out))  # 价值激活
+        return value
+
+    def eval_actor(self, obs, ase_latents, use_hidden_latents=False):
+        a_out = self.actor_cnn(obs)  # 演员CNN输出
+        a_out = a_out.contiguous().view(a_out.size(0), -1)  # 展平输出
+        a_out = self.actor_mlp(a_out, ase_latents, use_hidden_latents)  # 演员MLP输出
+                    
+        mu = self.mu_act(self.mu(a_out))  # 连续动作的均值
+        if self.Spacecfg.fixed_sigma:
+            sigma = mu * 0.0 + self.sigma_act(self.sigma)  # 固定标准差
+        else:
+            sigma = self.sigma_act(self.sigma(a_out))  # 动态标准差
+
+        return mu, sigma
+
+    def forward(self, obs_dict):
+        obs = obs_dict['obs']  # 获取观测
+        ase_latents = obs_dict['ase_latents']  # 获取ASE潜在变量
+        states = obs_dict.get('rnn_states', None)  # 获取RNN状态
+        use_hidden_latents = obs_dict.get('use_hidden_latents', False)  # 是否使用隐藏潜在变量
+
+        actor_outputs = self.eval_actor(obs, ase_latents, use_hidden_latents)  # 评估演员
+        value = self.eval_critic(obs, ase_latents, use_hidden_latents)  # 评估评论家
+
+        output = actor_outputs + (value, states)  
+        # 组合输出，即output = (mu, sigma, value, states)
+
+        return output
+
     @staticmethod
     # not used at the moment
     def init_weights(sequential, scales):
@@ -301,6 +353,7 @@ class ASENet(AMPNet):
         self.distribution = Normal(mean,self.std)
         #print(f"Distribution: {self.distribution}")
         return mean
+    
     def act(self, observations, **kwargs):
         mean = self.update_distribution(observations)
 
@@ -320,6 +373,8 @@ class ASENet(AMPNet):
     def evaluate(self, critic_observations, **kwargs):
         value = self.critic(critic_observations)
         return value
+
+
 
 
 def get_activation(act_name):

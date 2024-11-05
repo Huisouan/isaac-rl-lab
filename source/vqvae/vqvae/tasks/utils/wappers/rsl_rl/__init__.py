@@ -9,4 +9,5 @@ from .exporter import export_policy_as_jit, export_policy_as_onnx
 from .rl_cfg import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg,RslRlPpoPMCCfg
 from .vqvae_cfg import Z_settings
 from .ase_rl_cfg import SpaceCfg,ASECfg,ASENetcfg
+from .amp_rl_cfg import AMPCfg,AMPNetcfg
 from .vecenv_wrapper import RslRlVecEnvWrapper

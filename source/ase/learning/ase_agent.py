@@ -196,7 +196,7 @@ class ASEAgent(amp_agent.AMPAgent):
             # 获取模型输出
             res_dict = self.model(input_dict)
             # 如果有中心价值网络，计算中心价值
-            if self.has_central_value:
+            if self.has_central_value:#跳过
                 states = obs_dict['states']
                 input_dict = {
                     'is_train': False,  # 不是训练模式
@@ -246,9 +246,10 @@ class ASEAgent(amp_agent.AMPAgent):
         # 处理AMP观测值
         amp_obs = input_dict['amp_obs'][0:self._amp_minibatch_size]
         amp_obs = self._preproc_amp_obs(amp_obs)
+        """
         if self._enable_enc_grad_penalty():
             amp_obs.requires_grad_(True)  # 启用梯度计算
-
+        """
         # 处理AMP重放缓存观测值
         amp_obs_replay = input_dict['amp_obs_replay'][0:self._amp_minibatch_size]
         amp_obs_replay = self._preproc_amp_obs(amp_obs_replay)
@@ -476,10 +477,6 @@ class ASEAgent(amp_agent.AMPAgent):
             self._latent_reset_steps[new_latent_env_ids] += torch.randint_like(self._latent_reset_steps[new_latent_env_ids],
                                                                             low=self._latent_steps_min, 
                                                                             high=self._latent_steps_max)
-            # 如果有观众，改变角色颜色
-            if (self.vec_env.env.task.viewer):
-                self._change_char_color(new_latent_env_ids)
-
         return
 
     def _eval_actor(self, obs, ase_latents):
@@ -646,17 +643,6 @@ class ASEAgent(amp_agent.AMPAgent):
 
         return
 
-    def _change_char_color(self, env_ids):
-        # 改变角色颜色
-        base_col = np.array([0.4, 0.4, 0.4])
-        range_col = np.array([0.0706, 0.149, 0.2863])
-        range_sum = np.linalg.norm(range_col)
-
-        rand_col = np.random.uniform(0.0, 1.0, size=3)
-        rand_col = range_sum * rand_col / np.linalg.norm(rand_col)
-        rand_col += base_col
-        self.vec_env.env.task.set_char_color(rand_col, env_ids)
-        return
 
     def _amp_debug(self, info, ase_latents):
         # AMP调试信息

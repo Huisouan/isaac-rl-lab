@@ -259,7 +259,6 @@ class ASENet(AMPNet):
 
         return actor_out_size, critic_out_size
 
-
     def get_enc_weights(self):
         weights = []
         for m in self._enc_mlp.modules():
@@ -302,27 +301,19 @@ class ASENet(AMPNet):
         states = obs_dict.get('rnn_states', None)  # 获取RNN状态
         use_hidden_latents = obs_dict.get('use_hidden_latents', False)  # 是否使用隐藏潜在变量
 
-        actor_outputs = self.eval_actor(obs, ase_latents, use_hidden_latents)  # 评估演员
+        mu,sigma = self.eval_actor(obs, ase_latents, use_hidden_latents)  # 评估演员
         value = self.eval_critic(obs, ase_latents, use_hidden_latents)  # 评估评论家
 
-        output = actor_outputs + (value, states)  
-        # 组合输出，即output = (mu, sigma, value, states)
-
-        return output
+        return mu, sigma, value, states
 
     @staticmethod
     # not used at the moment
     def init_weights(sequential, scales):
-        [
-            torch.nn.init.orthogonal_(module.weight, gain=scales[idx])
-            for idx, module in enumerate(mod for mod in sequential if isinstance(mod, nn.Linear))
-        ]
+        pass
 
     def reset(self, dones=None):
         pass
 
-    def forward(self):
-        raise NotImplementedError
     @property
     def vector_z_e(self):
         return self.z_e
@@ -347,25 +338,22 @@ class ASENet(AMPNet):
         return self.distribution.entropy().sum(dim=-1)
 
     def update_distribution(self, observations):
-
+        mu, sigma, value, states = self.forward(observations)
         # 使用均值和标准差创建一个正态分布对象
         # 其中标准差为均值乘以0（即不改变均值）再加上self.std
-        self.distribution = Normal(mean,self.std)
+        self.distribution = Normal(mu,sigma)
         #print(f"Distribution: {self.distribution}")
-        return mean
+        return mu
     
     def act(self, observations, **kwargs):
         mean = self.update_distribution(observations)
-
+        #TODO:这里可以修改贪心算法，
         return self.distribution.sample()
     
     
     def get_actions_log_prob(self, actions):
         return self.distribution.log_prob(actions).sum(dim=-1)
     
-    def get_codebook_embeddings(self):
-        return self.codebook.weight    
-
     def act_inference(self, observations):
         actions_mean = self.update_distribution(observations)
         return actions_mean
@@ -535,3 +523,90 @@ class AMPStyleCatNet1(torch.nn.Module):
 
         enc_mlp = nn.Sequential(*layers)  # 将列表转换为Sequential模块
         return enc_mlp
+    
+class RunningMeanStd(nn.Module):
+    def __init__(self, insize, epsilon=1e-05, per_channel=False, norm_only=False):
+        super(RunningMeanStd, self).__init__()
+        print('RunningMeanStd: ', insize)
+        self.insize = insize
+        self.epsilon = epsilon
+
+        self.norm_only = norm_only
+        self.per_channel = per_channel
+        if per_channel:
+            if len(self.insize) == 3:
+                self.axis = [0,2,3]
+            if len(self.insize) == 2:
+                self.axis = [0,2]
+            if len(self.insize) == 1:
+                self.axis = [0]
+            in_size = self.insize[0] 
+        else:
+            self.axis = [0]
+            in_size = insize
+
+        self.register_buffer("running_mean", torch.zeros(in_size, dtype = torch.float64))
+        self.register_buffer("running_var", torch.ones(in_size, dtype = torch.float64))
+        self.register_buffer("count", torch.ones((), dtype = torch.float64))
+
+    def _update_mean_var_count_from_moments(self, mean, var, count, batch_mean, batch_var, batch_count):
+        delta = batch_mean - mean
+        tot_count = count + batch_count
+
+        new_mean = mean + delta * batch_count / tot_count
+        m_a = var * count
+        m_b = batch_var * batch_count
+        M2 = m_a + m_b + delta**2 * count * batch_count / tot_count
+        new_var = M2 / tot_count
+        new_count = tot_count
+        return new_mean, new_var, new_count
+
+    def forward(self, input, denorm=False, mask=None):
+        if self.training:
+            if mask is not None:
+                mean, var = torch_ext.get_mean_std_with_masks(input, mask)
+            else:
+                mean = input.mean(self.axis) # along channel axis
+                var = input.var(self.axis)
+            self.running_mean, self.running_var, self.count = self._update_mean_var_count_from_moments(self.running_mean, self.running_var, self.count, 
+                                                    mean, var, input.size()[0] )
+
+        # change shape
+        if self.per_channel:
+            if len(self.insize) == 3:
+                current_mean = self.running_mean.view([1, self.insize[0], 1, 1]).expand_as(input)
+                current_var = self.running_var.view([1, self.insize[0], 1, 1]).expand_as(input)
+            if len(self.insize) == 2:
+                current_mean = self.running_mean.view([1, self.insize[0], 1]).expand_as(input)
+                current_var = self.running_var.view([1, self.insize[0], 1]).expand_as(input)
+            if len(self.insize) == 1:
+                current_mean = self.running_mean.view([1, self.insize[0]]).expand_as(input)
+                current_var = self.running_var.view([1, self.insize[0]]).expand_as(input)        
+        else:
+            current_mean = self.running_mean
+            current_var = self.running_var
+        # get output
+
+
+        if denorm:
+            y = torch.clamp(input, min=-5.0, max=5.0)
+            y = torch.sqrt(current_var.float() + self.epsilon)*y + current_mean.float()
+        else:
+            if self.norm_only:
+                y = input/ torch.sqrt(current_var.float() + self.epsilon)
+            else:
+                y = (input - current_mean.float()) / torch.sqrt(current_var.float() + self.epsilon)
+                y = torch.clamp(y, min=-5.0, max=5.0)
+        return y
+
+class RunningMeanStdObs(nn.Module):
+    def __init__(self, insize, epsilon=1e-05, per_channel=False, norm_only=False):
+        assert(isinstance(insize, dict))
+        super(RunningMeanStdObs, self).__init__()
+        self.running_mean_std = nn.ModuleDict({
+            k : RunningMeanStd(v, epsilon, per_channel, norm_only) for k,v in insize.items()
+        })
+    
+    def forward(self, input, denorm=False):
+        res = {k : self.running_mean_std[k](v, denorm) for k,v in input.items()}
+        return res

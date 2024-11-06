@@ -7,5 +7,5 @@ from .actor_critic import ActorCritic
 from .actor_critic_recurrent import ActorCriticRecurrent
 from .normalizer import EmpiricalNormalization
 from .pmc import PMC
-
-__all__ = ["ActorCritic", "ActorCriticRecurrent", "EmpiricalNormalization", "PMC"]
+from .ase import ASENet
+__all__ = ["ActorCritic", "ActorCriticRecurrent", "EmpiricalNormalization", "PMC","ASENet"]

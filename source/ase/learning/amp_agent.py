@@ -87,81 +87,113 @@ class AMPAgent(common_agent.CommonAgent):
         return
 
     def play_steps(self):
+        # 设置模型为评估模式
         self.set_eval()
 
+        # 初始化 episode 信息列表和完成索引列表
         epinfos = []
         done_indices = []
         update_list = self.update_list
 
+        # 循环执行指定步数
         for n in range(self.horizon_length):
 
+            # 重置已完成的环境
             self.obs = self.env_reset(done_indices)
+            # 更新经验缓冲区中的观测值
             self.experience_buffer.update_data('obses', n, self.obs['obs'])
 
+            # 如果使用动作掩码，获取动作掩码并计算带有掩码的动作值
             if self.use_action_masks:
                 masks = self.vec_env.get_action_masks()
                 res_dict = self.get_masked_action_values(self.obs, masks)
             else:
+                # 否则，直接计算动作值
                 res_dict = self.get_action_values(self.obs, self._rand_action_probs)
 
+            # 更新经验缓冲区中的其他数据
             for k in update_list:
                 self.experience_buffer.update_data(k, n, res_dict[k]) 
 
+            # 如果有中心值网络，更新状态数据
             if self.has_central_value:
                 self.experience_buffer.update_data('states', n, self.obs['states'])
 
+            # 执行动作并获取新的观测值、奖励、完成标志和额外信息
             self.obs, rewards, self.dones, infos = self.env_step(res_dict['actions'])
+            # 对奖励进行形状调整
             shaped_rewards = self.rewards_shaper(rewards)
+            # 更新经验缓冲区中的奖励、下一个观测值、完成标志、AMP 观测值和随机动作掩码
             self.experience_buffer.update_data('rewards', n, shaped_rewards)
             self.experience_buffer.update_data('next_obses', n, self.obs['obs'])
             self.experience_buffer.update_data('dones', n, self.dones)
             self.experience_buffer.update_data('amp_obs', n, infos['amp_obs'])
             self.experience_buffer.update_data('rand_action_mask', n, res_dict['rand_action_mask'])
 
+            # 计算终止标志
             terminated = infos['terminate'].float()
             terminated = terminated.unsqueeze(-1)
+            # 计算下一个值
             next_vals = self._eval_critic(self.obs)
             next_vals *= (1.0 - terminated)
+            # 更新经验缓冲区中的下一个值
             self.experience_buffer.update_data('next_values', n, next_vals)
 
+            # 更新当前累积奖励和长度
             self.current_rewards += rewards
             self.current_lengths += 1
+            # 获取所有完成的环境索引
             all_done_indices = self.dones.nonzero(as_tuple=False)
             done_indices = all_done_indices[::self.num_agents]
-  
+
+            # 更新游戏奖励和长度统计
             self.game_rewards.update(self.current_rewards[done_indices])
             self.game_lengths.update(self.current_lengths[done_indices])
+            # 处理额外信息
             self.algo_observer.process_infos(infos, done_indices)
 
+            # 计算未完成的环境标志
             not_dones = 1.0 - self.dones.float()
 
+            # 更新当前累积奖励和长度
             self.current_rewards = self.current_rewards * not_dones.unsqueeze(1)
             self.current_lengths = self.current_lengths * not_dones
             
+            # 如果有观众，进行 AMP 调试
             if (self.vec_env.env.task.viewer):
                 self._amp_debug(infos)
                 
+            # 更新完成索引
             done_indices = done_indices[:, 0]
 
+        # 获取经验缓冲区中的完成标志、值、下一个值和奖励
         mb_fdones = self.experience_buffer.tensor_dict['dones'].float()
         mb_values = self.experience_buffer.tensor_dict['values']
         mb_next_values = self.experience_buffer.tensor_dict['next_values']
 
+        # 获取经验缓冲区中的奖励和 AMP 观测值
         mb_rewards = self.experience_buffer.tensor_dict['rewards']
         mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
+        # 计算 AMP 奖励
         amp_rewards = self._calc_amp_rewards(mb_amp_obs)
+        # 结合原始奖励和 AMP 奖励
         mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
 
+        # 计算优势值
         mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
+        # 计算返回值
         mb_returns = mb_advs + mb_values
 
+        # 获取转换后的批量数据
         batch_dict = self.experience_buffer.get_transformed_list(a2c_common.swap_and_flatten01, self.tensor_list)
         batch_dict['returns'] = a2c_common.swap_and_flatten01(mb_returns)
         batch_dict['played_frames'] = self.batch_size
 
+        # 添加 AMP 奖励到批量数据中
         for k, v in amp_rewards.items():
             batch_dict[k] = a2c_common.swap_and_flatten01(v)
 
+        # 返回批量数据
         return batch_dict
     
     def get_action_values(self, obs_dict, rand_action_probs):
@@ -472,13 +504,25 @@ class AMPAgent(common_agent.CommonAgent):
         return config
     
     def _build_rand_action_probs(self):
+        """
+        构建随机动作概率数组。
+
+        该方法用于生成一个概率数组，用于决定每个环境中采取随机动作的概率。
+        它通过计算环境ID与总环境数的比例来确定每个环境的随机动作概率。
+        """
+        # 获取环境数量
         num_envs = self.vec_env.env.task.num_envs
+        # 将环境ID转换为浮点数张量
         env_ids = to_torch(np.arange(num_envs), dtype=torch.float32, device=self.ppo_device)
 
+        # 计算随机动作概率，概率随环境ID递减
         self._rand_action_probs = 1.0 - torch.exp(10 * (env_ids / (num_envs - 1.0) - 1.0))
+        # 设置第一个环境的随机动作概率为1.0
         self._rand_action_probs[0] = 1.0
+        # 设置最后一个环境的随机动作概率为0.0
         self._rand_action_probs[-1] = 0.0
-        
+
+        # 如果未启用epsilon贪婪策略，则将所有环境的随机动作概率设置为1.0
         if not self._enable_eps_greedy:
             self._rand_action_probs[:] = 1.0
 

@@ -5,4 +5,5 @@
 
 from .pmcppo import PMCPPO
 from .epmcppo import EPMCPPO
-__all__ = ["PMCPPO", "EPMCPPO"]
+from .aseppo import ASEPPO
+__all__ = ["PMCPPO", "EPMCPPO","ASEPPO"]

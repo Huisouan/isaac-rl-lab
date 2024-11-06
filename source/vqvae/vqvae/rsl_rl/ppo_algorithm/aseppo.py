@@ -7,12 +7,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from ..modules import ActorCritic
+from ..modules import ASENet
 from ..storage import RolloutStorage
 
 
-class PPO:
-    actor_critic: ActorCritic
+class ASEPPO:
+    actor_critic: ASENet
 
     def __init__(
         self,
@@ -54,6 +54,9 @@ class PPO:
         self.lam = lam
         self.max_grad_norm = max_grad_norm
         self.use_clipped_value_loss = use_clipped_value_loss
+
+        # Hyper params
+        self.normalize_value = True
 
     def init_storage(self, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape):
         self.storage = RolloutStorage(
@@ -166,13 +169,14 @@ class PPO:
             else:
                 value_loss = (returns_batch - value_batch).pow(2).mean()
 
+
+
+
+
             loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean()
 
-
-
-
-
-
+            loss = a_loss + self.critic_coef * c_loss - self.entropy_coef * entropy + self.bounds_loss_coef * b_loss \
+                + self._disc_coef * disc_loss + self._enc_coef * enc_loss
 
 
 
@@ -191,3 +195,69 @@ class PPO:
         self.storage.clear()
 
         return mean_value_loss, mean_surrogate_loss
+
+    def _diversity_loss(self, obs, action_params, ase_latents):
+        # 计算多样性损失
+        assert(self.actor_critic.is_continuous)
+        # 断言a2c网络的输出是连续的
+
+        n = obs.shape[0]
+        # 获取观测值的数量
+        assert(n == action_params.shape[0])
+        # 断言行为参数的数量与观测值的数量相等
+
+        new_z = self._sample_latents(n)
+        # 从潜在空间中采样新的潜在变量
+
+        mu, sigma = self._eval_actor(obs=obs, ase_latents=new_z)
+        # 计算均值和标准差
+
+        clipped_action_params = torch.clamp(action_params, -1.0, 1.0)
+        # 将行为参数限制在[-1.0, 1.0]范围内
+
+        clipped_mu = torch.clamp(mu, -1.0, 1.0)
+        # 将均值限制在[-1.0, 1.0]范围内
+
+        a_diff = clipped_action_params - clipped_mu
+        # 计算行为参数与均值之间的差异
+
+        a_diff = torch.mean(torch.square(a_diff), dim=-1)
+        # 计算差异的平方的均值
+
+        z_diff = new_z * ase_latents
+        # 计算新潜在变量与原有潜在变量的点积
+
+        z_diff = torch.sum(z_diff, dim=-1)
+        # 计算点积的和
+
+        z_diff = 0.5 - 0.5 * z_diff
+        # 对点积的和进行缩放和偏移
+
+        diversity_bonus = a_diff / (z_diff + 1e-5)
+        # 计算多样性奖励
+
+        diversity_loss = torch.square(self._amp_diversity_tar - diversity_bonus)
+        # 计算多样性损失
+
+        return diversity_loss
+
+    def _sample_latents(self, n):
+        # 从模型中采样潜在变量
+        z = self.actor_critic.sample_latents(n)
+        return z
+    
+    def _eval_actor(self, obs, ase_latents):
+        # 评估演员网络
+        output = self.actor_critic.eval_actor(obs=obs, ase_latents=ase_latents)
+        return output
+
+    def _eval_critic(self, obs_dict, ase_latents):
+        # 评估评论家网络
+        self.actor_critic.eval()
+        obs = obs_dict['obs']
+        value = self.actor_critic.eval_critic(obs, ase_latents)
+
+        # 如果需要归一化价值，进行归一化
+        if self.normalize_value:
+            value = self.value_mean_std(value, True)
+        return value

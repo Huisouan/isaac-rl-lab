@@ -344,6 +344,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
         return batch_dict  # 返回批次数据
 
     def prepare_dataset(self, batch_dict):
+        # 从 batch_dict 中提取观测值、回报、完成标志、值、动作、负对数概率、均值、标准差和 RNN 状态
         obses = batch_dict['obses']
         returns = batch_dict['returns']
         dones = batch_dict['dones']
@@ -355,12 +356,15 @@ class CommonAgent(a2c_continuous.A2CAgent):
         rnn_states = batch_dict.get('rnn_states', None)
         rnn_masks = batch_dict.get('rnn_masks', None)
         
+        # 计算优势值
         advantages = self._calc_advs(batch_dict)
 
+        # 如果启用了值归一化，对值和回报进行归一化
         if self.normalize_value:
             values = self.value_mean_std(values)
             returns = self.value_mean_std(returns)
 
+        # 初始化数据集字典
         dataset_dict = {}
         dataset_dict['old_values'] = values
         dataset_dict['old_logp_actions'] = neglogpacs
@@ -373,8 +377,10 @@ class CommonAgent(a2c_continuous.A2CAgent):
         dataset_dict['mu'] = mus
         dataset_dict['sigma'] = sigmas
 
+        # 更新数据集字典
         self.dataset.update_values_dict(dataset_dict)
 
+        # 如果启用了中心值网络，更新中心值网络的数据集
         if self.has_central_value:
             dataset_dict = {}
             dataset_dict['old_values'] = values
@@ -385,6 +391,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
             dataset_dict['rnn_masks'] = rnn_masks
             self.central_value_net.update_dataset(dataset_dict)
 
+        # 返回
         return
 
     def calc_gradients(self, input_dict):

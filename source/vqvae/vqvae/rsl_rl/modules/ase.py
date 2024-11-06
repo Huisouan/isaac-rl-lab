@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.nn import RMSNorm
 from ...tasks.utils.wappers.rsl_rl import (
-    ASECfg,ASENetcfg,AMPCfg,AMPNetcfg
+    ASECfg,ASENetcfg,AMPCfg,AMPNetcfg,ASEagentCfg
 )
 
 
@@ -127,7 +127,7 @@ class ASENet(AMPNet):
                 "ActorCritic.__init__ got unexpected arguments, which will be ignored: "
                 + str([key for key in kwargs.keys()])
             )
-        super().__init__()
+        super().__init__(num_actor_obs,num_actions,)
         #parameter init##############################
         self.initializer = get_initializer(Asenetcfg.initializer)
         self.activation = get_activation(Asenetcfg.activation)
@@ -306,6 +306,30 @@ class ASENet(AMPNet):
 
         return mu, sigma, value, states
 
+
+class ASEagent(nn.Module):
+    def __init__(
+        self,
+        num_actor_obs,
+        num_critic_obs,
+        num_actions,
+        config:ASEagentCfg = ASEagentCfg(),
+        **kwargs,):
+        nn.Module.__init__(self)
+        self.a2c_network = ASENet(num_actor_obs,num_critic_obs,num_actions)
+        
+        #init params
+        self.num_actor_obs = num_actor_obs
+        if config.normalize_value:
+            self.value_mean_std = RunningMeanStd((self.value_size,)) #   GeneralizedMovingStats((self.value_size,)) #   
+        if config.normalize_input:
+            if isinstance(num_actor_obs, dict):
+                self.running_mean_std = RunningMeanStdObs(num_actor_obs)
+            else:
+                self.running_mean_std = RunningMeanStd(num_actor_obs)        
+        
+        
+    
     @staticmethod
     # not used at the moment
     def init_weights(sequential, scales):
@@ -361,8 +385,6 @@ class ASENet(AMPNet):
     def evaluate(self, critic_observations, **kwargs):
         value = self.critic(critic_observations)
         return value
-
-
 
 
 def get_activation(act_name):
@@ -561,13 +583,10 @@ class RunningMeanStd(nn.Module):
         new_count = tot_count
         return new_mean, new_var, new_count
 
-    def forward(self, input, denorm=False, mask=None):
+    def forward(self, input, denorm=False):
         if self.training:
-            if mask is not None:
-                mean, var = torch_ext.get_mean_std_with_masks(input, mask)
-            else:
-                mean = input.mean(self.axis) # along channel axis
-                var = input.var(self.axis)
+            mean = input.mean(self.axis) # along channel axis
+            var = input.var(self.axis)
             self.running_mean, self.running_var, self.count = self._update_mean_var_count_from_moments(self.running_mean, self.running_var, self.count, 
                                                     mean, var, input.size()[0] )
 

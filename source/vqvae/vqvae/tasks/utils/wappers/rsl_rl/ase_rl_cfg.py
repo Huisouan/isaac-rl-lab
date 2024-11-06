@@ -2,6 +2,7 @@ from dataclasses import MISSING
 from typing import Literal
 from omni.isaac.lab.utils import configclass
 
+@configclass
 class SpaceCfg:
     iscontinuous:bool = True
     mu_activation:str = "none"
@@ -13,7 +14,9 @@ class SpaceCfg:
     
     fixed_sigma:bool = True
     learn_sigma:bool = False
-
+    
+    
+@configclass
 class ASECfg:
     # 获取ASE潜在形状
     ase_latent_shape:int = 64
@@ -32,3 +35,9 @@ class ASENetcfg:
     activation:str = 'relu'
     
     pass
+
+@configclass
+class ASEagentCfg:
+    normalize_value:bool = True
+    normalize_input:bool = True
+    

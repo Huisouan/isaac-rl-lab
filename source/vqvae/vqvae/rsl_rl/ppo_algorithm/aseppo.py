@@ -7,12 +7,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from ..modules import ASENet
+from ..modules import ASEagent
 from ..storage import RolloutStorage
 
 
 class ASEPPO:
-    actor_critic: ASENet
+    actor_critic: ASEagent
 
     def __init__(
         self,

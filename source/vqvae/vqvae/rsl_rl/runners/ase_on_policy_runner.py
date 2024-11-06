@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter as TensorboardSummaryWriter
 from ... import rsl_rl
 from ..ppo_algorithm import ASEPPO
 from ..env import VecEnv
-from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization, PMC
+from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization, PMC ,ASEagent
 from ..utils import store_code_state
 
 class ASEOnPolicyRunner:
@@ -32,7 +32,7 @@ class ASEOnPolicyRunner:
         else:
             num_critic_obs = num_obs
         actor_critic_class = eval(self.policy_cfg.pop("class_name"))  # ActorCritic
-        actor_critic: ActorCritic | ActorCriticRecurrent | PMC = actor_critic_class(
+        actor_critic: ActorCritic | ActorCriticRecurrent | PMC | ASEagent = actor_critic_class(
             num_obs, num_critic_obs, self.env.num_actions,**self.policy_cfg
         ).to(self.device)
         alg_class = eval(self.alg_cfg.pop("class_name"))  

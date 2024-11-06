@@ -1,7 +1,7 @@
 from dataclasses import MISSING
 from typing import Literal
 from omni.isaac.lab.utils import configclass
-
+@configclass
 class SpaceCfg:
     iscontinuous:bool = True
     mu_activation:str = "none"
@@ -14,10 +14,12 @@ class SpaceCfg:
     fixed_sigma:bool = True
     learn_sigma:bool = False
 
+@configclass
 class AMPCfg:
     # 获取AMP潜在形状
     ase_latent_shape:int = 64
 
+@configclass
 class AMPNetcfg:
     name:str = 'amp'
     separate_disc:bool = True

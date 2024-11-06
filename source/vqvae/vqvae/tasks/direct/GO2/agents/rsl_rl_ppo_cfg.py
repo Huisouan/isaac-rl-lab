@@ -83,13 +83,6 @@ class UnitreeGo2RoughAMPPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         activation="relu",
         
     )
-    z_settings = Z_settings(
-            z_length = 32,
-            num_embeddings = 256,
-            norm_z = False,
-            bot_neck_z_embed_size = 32,
-            bot_neck_prop_embed_size = 64,
-    )
     algorithm = RslRlPpoAlgorithmCfg(
         value_loss_coef=1.0,
         use_clipped_value_loss=True,

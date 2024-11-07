@@ -82,26 +82,17 @@ class ASEAgent(amp_agent.AMPAgent):
             self._update_latents()
 
             # 如果使用动作掩码，则获取带有掩码的动作值
-            if self.use_action_masks:
-                masks = self.vec_env.get_action_masks()
-                res_dict = self.get_masked_action_values(self.obs, self._ase_latents, masks)
-            else:
                 # 否则，获取普通动作值
-                res_dict = self.get_action_values(self.obs, self._ase_latents, self._rand_action_probs)
+            res_dict = self.get_action_values(self.obs, self._ase_latents, self._rand_action_probs)
 
             # 更新经验缓冲区中的数据
+            # self.update_list = ['actions', 'neglogpacs', 'values', 'mus', 'sigmas']
             for k in update_list:
                 self.experience_buffer.update_data(k, n, res_dict[k]) 
 
-            # 如果有中心价值网络，更新状态数据
-            if self.has_central_value:
-                self.experience_buffer.update_data('states', n, self.obs['states'])
-
-
             # 执行环境步骤并获取新的观测值、奖励、完成标志和信息
             self.obs, rewards, self.dones, infos = self.env_step(res_dict['actions'])
-            
-            
+
             # 对奖励进行整形
             shaped_rewards = self.rewards_shaper(rewards)
             # 更新经验缓冲区中的奖励、下一个观测值、完成标志、AMP 观测值、潜在变量和随机动作掩码
@@ -142,10 +133,12 @@ class ASEAgent(amp_agent.AMPAgent):
             self.current_rewards = self.current_rewards * not_dones.unsqueeze(1)
             self.current_lengths = self.current_lengths * not_dones
             
+            """
             # 如果有观众，进行 AMP 调试
             if (self.vec_env.env.task.viewer):
                 self._amp_debug(infos, self._ase_latents)
-
+            """
+            
             # 获取已完成的索引
             done_indices = done_indices[:, 0]
 
@@ -198,15 +191,7 @@ class ASEAgent(amp_agent.AMPAgent):
         with torch.no_grad():
             # 获取模型输出
             res_dict = self.model(input_dict)
-            # 如果有中心价值网络，计算中心价值
-            if self.has_central_value:#跳过
-                states = obs_dict['states']
-                input_dict = {
-                    'is_train': False,  # 不是训练模式
-                    'states': states  # 状态
-                }
-                value = self.get_central_value(input_dict)
-                res_dict['values'] = value  # 更新模型输出中的价值
+            # 如果有中心价值网络，计算中心价值、
 
         # 如果需要归一化价值，进行归一化
         if self.normalize_value:

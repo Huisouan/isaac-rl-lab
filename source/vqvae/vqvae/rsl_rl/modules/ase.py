@@ -37,6 +37,8 @@ class AMPNet(nn.Module):
         #parameter init##############################
         # 加载判别器的配置
         self.activation = get_activation(Ampnetcfg.activation)
+        self.value_act = get_activation(Ampnetcfg.activation)
+        
         self.initializer = get_initializer(Ampnetcfg.initializer)
         self.mlp_input_num = mlp_input_num
 
@@ -357,12 +359,12 @@ class ASEagent(nn.Module):
         **kwargs,):
         nn.Module.__init__(self)
         self.a2c_network = ASENet(num_actor_obs,num_critic_obs,num_actions)
-        
+        self.aseconf = config
         #init params
         self.num_actor_obs = num_actor_obs
-        if config.normalize_value:
+        if self.aseconf.normalize_value:
             self.value_mean_std = RunningMeanStd((self.value_size,)) #   GeneralizedMovingStats((self.value_size,)) #   
-        if config.normalize_input:
+        if self.aseconf.normalize_input:
             if isinstance(num_actor_obs, dict):
                 self.running_mean_std = RunningMeanStdObs(num_actor_obs)
             else:
@@ -392,6 +394,9 @@ class ASEagent(nn.Module):
         input_dict['obs'] = F.normalize(input_dict['obs'],p=2, dim=1, eps=1e-12)
         #network forward
         mu, logstd, value, states = self.a2c_network(input_dict)
+        if self.aseconf.normalize_value:
+            value = self.value_mean_std(value)
+
         
         sigma = torch.exp(logstd)
         result = {}                

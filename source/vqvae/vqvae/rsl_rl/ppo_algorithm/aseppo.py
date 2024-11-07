@@ -93,8 +93,12 @@ class ASEPPO:
             infos: 来自环境的额外信息，例如超时。
         """
         # 存储从环境步进中获得的奖励和完成标志
+        #计算encoder和disc reward
+        amp_reward = self.actor_critic._calc_amp_rewards()
+        #把amp reward加到reward上
+        reward = self.actor_critic._combine_rewards(rewards.clone(),amp_reward)
         
-        self.transition.rewards = rewards.clone()
+        self.transition.rewards = reward
         
         self.transition.dones = dones
          

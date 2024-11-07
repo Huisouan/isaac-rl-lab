@@ -468,8 +468,8 @@ class AMPagent(nn.Module):
         return
 
     def _preproc_amp_obs(self, amp_obs):
-        if self._normalize_amp_input:
-            amp_obs = self._amp_input_mean_std(amp_obs)
+        if self.ampconf.normalize_amp_input:
+            amp_obs = self.amp_input_mean_std(amp_obs)
         return amp_obs
 
     def _combine_rewards(self, task_rewards, amp_rewards):
@@ -522,18 +522,6 @@ class AMPagent(nn.Module):
         train_info['disc_rewards'] = batch_dict['disc_rewards']
         return
 
-    def _amp_debug(self, info):
-        with torch.no_grad():
-            amp_obs = info['amp_obs']
-            amp_obs = amp_obs[0:1]
-            disc_pred = self._eval_disc(amp_obs)
-            amp_rewards = self._calc_amp_rewards(amp_obs)
-            disc_reward = amp_rewards['disc_rewards']
-
-            disc_pred = disc_pred.detach().cpu().numpy()[0, 0]
-            disc_reward = disc_reward.cpu().numpy()[0, 0]
-            print("disc_pred: ", disc_pred, disc_reward)
-        return    
 
 class ASEagent(AMPagent):
     def __init__(
@@ -594,7 +582,57 @@ class ASEagent(AMPagent):
         # 为指定环境ID重置潜在步数计数
         self._latent_reset_steps[env_ids] = torch.randint_like(self._latent_reset_steps[env_ids], low=self._latent_steps_min, 
                                                             high=self._latent_steps_max)
-        return    
+        return  
+    
+    def _calc_amp_rewards(self, amp_obs):
+        # 计算AMP奖励
+        disc_r = self._calc_disc_rewards(amp_obs)
+        enc_r = self._calc_enc_rewards(amp_obs, self._ase_latents)
+        output = {
+            'disc_rewards': disc_r,
+            'enc_rewards': enc_r
+        }
+        return output
+    
+    def combine_rewards(self, task_rewards, amp_rewards):
+        # 结合任务奖励和AMP奖励
+        disc_r = amp_rewards['disc_rewards']
+        enc_r = amp_rewards['enc_rewards']
+        combined_rewards = self.aseconf.task_reward_w * task_rewards \
+                        + self.aseconf.disc_reward_w * disc_r \
+                        + self.aseconf.enc_reward_w * enc_r
+        return combined_rewards
+
+    def _calc_disc_rewards(self, amp_obs):
+        with torch.no_grad():
+            disc_logits = self._eval_disc(amp_obs)
+            prob = 1 / (1 + torch.exp(-disc_logits)) 
+            disc_r = -torch.log(torch.maximum(1 - prob, torch.tensor(0.0001, device=self.ppo_device)))
+            disc_r *= self.aseconf.disc_reward_scale
+
+        return disc_r    
+    
+    def _calc_enc_rewards(self, amp_obs, ase_latents):
+        # 计算编码器奖励
+        with torch.no_grad():
+            enc_pred = self._eval_enc(amp_obs)
+            err = self._calc_enc_error(enc_pred, ase_latents)
+            enc_r = torch.clamp_min(-err, 0.0)
+            enc_r *= self.aseconf.enc_reward_scale
+
+        return enc_r 
+    
+    def _eval_enc(self, amp_obs):
+        # 评估编码器
+        proc_amp_obs = self._preproc_amp_obs(amp_obs)
+        return self.a2c_network.eval_enc(proc_amp_obs)
+
+    def _calc_enc_error(self, enc_pred, ase_latent):
+        # 计算编码器误差
+        err = enc_pred * ase_latent
+        err = -torch.sum(err, dim=-1, keepdim=True)
+        return err
+     
     @staticmethod
     # not used at the moment
     def forward(self,obs, input_dict):

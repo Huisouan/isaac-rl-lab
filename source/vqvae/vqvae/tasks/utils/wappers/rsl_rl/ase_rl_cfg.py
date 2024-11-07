@@ -45,5 +45,9 @@ class ASECfg:
     latent_steps_min:int =  1
     latent_steps_max:int =  150    
     
+    disc_reward_scale:int = 2
+    enc_reward_scale:int = 1
     
-    
+    task_reward_w:float = 0.0
+    disc_reward_w:float = 0.5
+    enc_reward_w:float = 0.5

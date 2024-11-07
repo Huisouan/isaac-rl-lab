@@ -145,7 +145,7 @@ class ASEOnPolicyRunner:
                 start = stop
                 self.alg.compute_returns(critic_obs)
 
-            mean_value_loss, mean_surrogate_loss,vqvae_loss,perplexity_loss = self.alg.update(self.env.unwrapped)
+            mean_value_loss, mean_surrogate_loss = self.alg.update(self.env.unwrapped)
             stop = time.time()
             learn_time = stop - start
             self.current_learning_iteration = it

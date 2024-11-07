@@ -109,6 +109,38 @@ class AMPNet(nn.Module):
     def _build_value_layer(self,input_size, output_size,):
         return torch.nn.Linear(input_size, output_size)
 
+    def eval_disc(self, amp_obs):
+        # 通过MLP处理AMP观测值
+        disc_mlp_out = self._disc_mlp(amp_obs)
+        # 计算判别器的对数概率
+        disc_logits = self._disc_logits(disc_mlp_out)
+        return disc_logits
+    
+    def eval_critic(self, obs):
+        # 通过CNN处理观测值
+        c_out = self.critic_cnn(obs)
+        # 将输出展平
+        c_out = c_out.contiguous().view(c_out.size(0), -1)
+        # 通过MLP处理展平后的输出
+        c_out = self.critic_mlp(c_out)              
+        # 计算价值
+        value = self.value_act(self.value(c_out))
+        return value
+
+    def get_disc_logit_weights(self):
+        # 获取判别器对数概率层的权重
+        return torch.flatten(self._disc_logits.weight)
+
+    def get_disc_weights(self):
+        # 获取判别器所有线性层的权重
+        weights = []
+        for m in self._disc_mlp.modules():
+            if isinstance(m, nn.Linear):
+                weights.append(torch.flatten(m.weight))
+
+        weights.append(torch.flatten(self._disc_logits.weight))
+        return weights
+
 class ASENet(AMPNet):
     is_recurrent = False
 
@@ -295,6 +327,13 @@ class ASENet(AMPNet):
 
         return mu, sigma
 
+    def eval_enc(self, amp_obs):
+        enc_mlp_out = self._enc_mlp(amp_obs)  # 编码器MLP输出
+        enc_output = self._enc(enc_mlp_out)  # 编码器输出
+        enc_output = torch.nn.functional.normalize(enc_output, dim=-1)  # 归一化输出
+
+        return enc_output
+
     def forward(self, obs_dict):
         obs = obs_dict['obs']  # 获取观测
         ase_latents = obs_dict['ase_latents']  # 获取ASE潜在变量
@@ -314,6 +353,7 @@ class ASEagent(nn.Module):
         num_critic_obs,
         num_actions,
         config:ASEagentCfg = ASEagentCfg(),
+        num_envs = 1024,
         **kwargs,):
         nn.Module.__init__(self)
         self.a2c_network = ASENet(num_actor_obs,num_critic_obs,num_actions)
@@ -326,9 +366,54 @@ class ASEagent(nn.Module):
             if isinstance(num_actor_obs, dict):
                 self.running_mean_std = RunningMeanStdObs(num_actor_obs)
             else:
-                self.running_mean_std = RunningMeanStd(num_actor_obs)        
+                self.running_mean_std = RunningMeanStd(num_actor_obs)       
+                
+        self._latent_reset_steps = torch.zeros(num_envs, dtype=torch.int32, device='cuda') 
         
+    def _update_latents(self):
+        # 检查哪些环境需要更新潜在变量
+        new_latent_envs = self._latent_reset_steps <= self.vec_env.env.task.progress_buf
+
+        need_update = torch.any(new_latent_envs)
+        if (need_update):
+            new_latent_env_ids = new_latent_envs.nonzero(as_tuple=False).flatten()
+            self._reset_latents(new_latent_env_ids)  # 重置潜在变量
+            self._latent_reset_steps[new_latent_env_ids] += torch.randint_like(self._latent_reset_steps[new_latent_env_ids],
+                                                                            low=self._latent_steps_min, 
+                                                                            high=self._latent_steps_max)
+        return
+    
+            
+
+
+    def forward(self, input_dict):
+        is_train = input_dict.get('is_train', True)
+        prev_actions = input_dict.get('prev_actions', None)
+        input_dict['obs'] = F.normalize(input_dict['obs'],p=2, dim=1, eps=1e-12)
+        #network forward
+        mu, logstd, value, states = self.a2c_network(input_dict)
         
+        sigma = torch.exp(logstd)
+        result = {}                
+        if (is_train):
+            amp_obs = input_dict['amp_obs']
+            disc_agent_logit = self.a2c_network.eval_disc(amp_obs)
+            result["disc_agent_logit"] = disc_agent_logit
+
+            amp_obs_replay = input_dict['amp_obs_replay']
+            disc_agent_replay_logit = self.a2c_network.eval_disc(amp_obs_replay)
+            result["disc_agent_replay_logit"] = disc_agent_replay_logit
+
+            amp_demo_obs = input_dict['amp_obs_demo']
+            disc_demo_logit = self.a2c_network.eval_disc(amp_demo_obs)
+            result["disc_demo_logit"] = disc_demo_logit
+
+        if (is_train):
+            amp_obs = input_dict['amp_obs']
+            enc_pred = self.a2c_network.eval_enc(amp_obs)
+            result["enc_pred"] = enc_pred
+
+        return mu,sigma,result        
     
     @staticmethod
     # not used at the moment
@@ -338,16 +423,7 @@ class ASEagent(nn.Module):
     def reset(self, dones=None):
         pass
 
-    @property
-    def vector_z_e(self):
-        return self.z_e
 
-    @property
-    def vector_z_q(self):
-        return self.z_q
-    @property
-    def encode_one_hot(self):
-        return self.one_hot
     
     @property
     def action_mean(self):
@@ -362,10 +438,10 @@ class ASEagent(nn.Module):
         return self.distribution.entropy().sum(dim=-1)
 
     def update_distribution(self, observations):
-        mu, sigma, value, states = self.forward(observations)
+        mu,sigma,result = self.forward(observations)
         # 使用均值和标准差创建一个正态分布对象
         # 其中标准差为均值乘以0（即不改变均值）再加上self.std
-        self.distribution = Normal(mu,sigma)
+        self.distribution = Normal(mu, sigma, validate_args=False)
         #print(f"Distribution: {self.distribution}")
         return mu
     
@@ -385,6 +461,8 @@ class ASEagent(nn.Module):
     def evaluate(self, critic_observations, **kwargs):
         value = self.critic(critic_observations)
         return value
+
+
 
 
 def get_activation(act_name):
@@ -545,8 +623,13 @@ class AMPStyleCatNet1(torch.nn.Module):
 
         enc_mlp = nn.Sequential(*layers)  # 将列表转换为Sequential模块
         return enc_mlp
-    
+   
+ 
 class RunningMeanStd(nn.Module):
+    """_summary_
+    Running mean and variance calculation.
+
+    """
     def __init__(self, insize, epsilon=1e-05, per_channel=False, norm_only=False):
         super(RunningMeanStd, self).__init__()
         print('RunningMeanStd: ', insize)

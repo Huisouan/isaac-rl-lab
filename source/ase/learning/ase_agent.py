@@ -97,8 +97,11 @@ class ASEAgent(amp_agent.AMPAgent):
             if self.has_central_value:
                 self.experience_buffer.update_data('states', n, self.obs['states'])
 
+
             # 执行环境步骤并获取新的观测值、奖励、完成标志和信息
             self.obs, rewards, self.dones, infos = self.env_step(res_dict['actions'])
+            
+            
             # 对奖励进行整形
             shaped_rewards = self.rewards_shaper(rewards)
             # 更新经验缓冲区中的奖励、下一个观测值、完成标志、AMP 观测值、潜在变量和随机动作掩码

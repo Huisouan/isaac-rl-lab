@@ -197,45 +197,78 @@ class AMPAgent(common_agent.CommonAgent):
         return batch_dict
     
     def get_action_values(self, obs_dict, rand_action_probs):
+        # 处理观测值
         processed_obs = self._preproc_obs(obs_dict['obs'])
 
+        # 将模型设置为评估模式
         self.model.eval()
+        
+        # 构建输入字典
         input_dict = {
-            'is_train': False,
-            'prev_actions': None, 
-            'obs' : processed_obs,
-            'rnn_states' : self.rnn_states
+            'is_train': False,  # 设置为评估模式
+            'prev_actions': None,  # 上一个动作，如果不需要则设为 None
+            'obs': processed_obs,  # 处理后的观测值
+            'rnn_states': self.rnn_states  # RNN 状态
         }
 
+        # 关闭梯度计算
         with torch.no_grad():
+            # 获取模型的输出
             res_dict = self.model(input_dict)
+            
+            # 如果有中心价值网络，则计算中心价值
             if self.has_central_value:
                 states = obs_dict['states']
                 input_dict = {
-                    'is_train': False,
-                    'states' : states,
+                    'is_train': False,  # 设置为评估模式
+                    'states': states,  # 中心状态
                 }
                 value = self.get_central_value(input_dict)
-                res_dict['values'] = value
+                res_dict['values'] = value  # 更新结果字典中的价值
 
+        # 如果需要归一化价值，则进行归一化
         if self.normalize_value:
             res_dict['values'] = self.value_mean_std(res_dict['values'], True)
         
+        # 生成随机动作掩码
         rand_action_mask = torch.bernoulli(rand_action_probs)
+        
+        # 确定确定性动作的掩码
         det_action_mask = rand_action_mask == 0.0
+        
+        # 将确定性动作赋值给结果字典中的动作
         res_dict['actions'][det_action_mask] = res_dict['mus'][det_action_mask]
+        
+        # 将随机动作掩码添加到结果字典中
         res_dict['rand_action_mask'] = rand_action_mask
 
+        # 返回结果字典
         return res_dict
 
     def prepare_dataset(self, batch_dict):
+        """
+        准备数据集以供后续使用。
+
+        该方法首先调用父类的同名方法以执行任何必要的预处理步骤。
+        然后，它将batch_dict中的特定观测数据和随机动作掩码添加到数据集的values_dict中。
+        这些数据对于训练和演示回放过程至关重要。
+
+        参数:
+        - batch_dict: 包含一批数据的字典，包括不同类型的观测数据和随机动作掩码。
+        """
+        # 调用父类的方法以执行预处理步骤
         super().prepare_dataset(batch_dict)
+        
+        # 将不同类型的观测数据添加到数据集的字典中
         self.dataset.values_dict['amp_obs'] = batch_dict['amp_obs']
         self.dataset.values_dict['amp_obs_demo'] = batch_dict['amp_obs_demo']
         self.dataset.values_dict['amp_obs_replay'] = batch_dict['amp_obs_replay']
         
+        # 获取随机动作掩码并将其添加到数据集的字典中
         rand_action_mask = batch_dict['rand_action_mask']
         self.dataset.values_dict['rand_action_mask'] = rand_action_mask
+        
+        # 方法执行完毕，无需返回值
         return
 
     def train_epoch(self):

@@ -84,17 +84,30 @@ class ASEPPO:
         return self.transition.actions
 
     def process_env_step(self, rewards, dones, infos):
+        """
+        处理环境的步进结果。
+
+        参数:
+            rewards: 从环境中获得的奖励。
+            dones: 标记表示剧集是否结束。
+            infos: 来自环境的额外信息，例如超时。
+        """
+        # 存储从环境步进中获得的奖励和完成标志
         self.transition.rewards = rewards.clone()
         self.transition.dones = dones
-        # Bootstrapping on time outs
+        
+        # 超时引导
         if "time_outs" in infos:
+            # 如果有超时信息，使用它来调整奖励
             self.transition.rewards += self.gamma * torch.squeeze(
                 self.transition.values * infos["time_outs"].unsqueeze(1).to(self.device), 1
             )
-
-        # Record the transition
+        
+        # 记录转换
         self.storage.add_transitions(self.transition)
         self.transition.clear()
+        
+        # 重置已完成剧集的演员-评论家网络
         self.actor_critic.reset(dones)
 
     def compute_returns(self, last_critic_obs):

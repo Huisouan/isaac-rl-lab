@@ -271,13 +271,6 @@ class ASEAgent(amp_agent.AMPAgent):
             'ase_latents': ase_latents  # ASE潜在变量
         }
 
-        # 如果模型使用RNN，准备RNN相关数据
-        rnn_masks = None
-        if self.is_rnn:
-            rnn_masks = input_dict['rnn_masks']
-            batch_dict['rnn_states'] = input_dict['rNN_states']
-            batch_dict['seq_length'] = self.seq_len
-
         # 使用混合精度训练
         with torch.cuda.amp.autocast(enabled=self.mixed_precision):
             # 获取模型输出

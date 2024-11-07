@@ -479,17 +479,40 @@ class CommonAgent(a2c_continuous.A2CAgent):
         return
 
     def discount_values(self, mb_fdones, mb_values, mb_rewards, mb_next_values):
+        """
+        计算折扣后的优势值（Advantages）。
+
+        该函数通过时间差分方法计算每个时间步的优势值，用于在强化学习中更新策略网络。
+
+        参数:
+        - mb_fdones: Tensor, 形状为(self.horizon_length, batch_size)，表示每个时间步结束时的done标志。
+        - mb_values: Tensor, 形状为(self.horizon_length, batch_size)，表示每个时间步的状态值。
+        - mb_rewards: Tensor, 形状为(self.horizon_length, batch_size)，表示每个时间步获得的奖励。
+        - mb_next_values: Tensor, 形状为(self.horizon_length, batch_size)，表示每个时间步的下一个状态值。
+
+        返回:
+        - mb_advs: Tensor, 形状为(self.horizon_length, batch_size)，表示每个时间步的优势值。
+        """
+        # 初始化最后一个时间步的优势值为0
         lastgaelam = 0
+        # 初始化与奖励形状相同的张量来存储优势值
         mb_advs = torch.zeros_like(mb_rewards)
 
+        # 逆向遍历时间步来计算优势值
         for t in reversed(range(self.horizon_length)):
+            # 计算未完成的时间步的标记，如果时间步未完成则为1，否则为0
             not_done = 1.0 - mb_fdones[t]
+            # 将not_done扩展一维以匹配其他张量的维度
             not_done = not_done.unsqueeze(1)
 
+            # 计算时间步t的TD(error)，即delta
             delta = mb_rewards[t] + self.gamma * mb_next_values[t] - mb_values[t]
+            # 更新最后一个时间步的优势值，用于下一个时间步的计算
             lastgaelam = delta + self.gamma * self.tau * not_done * lastgaelam
+            # 将计算出的优势值存储在相应的时间步
             mb_advs[t] = lastgaelam
 
+        # 返回计算出的优势值
         return mb_advs
 
     def env_reset(self, env_ids=None):

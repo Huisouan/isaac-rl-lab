@@ -622,6 +622,11 @@ class ASEagent(AMPagent):
 
         return enc_r 
     
+    
+    
+    
+    
+    
     def _eval_enc(self, amp_obs):
         # 评估编码器
         proc_amp_obs = self._preproc_amp_obs(amp_obs)
@@ -632,7 +637,53 @@ class ASEagent(AMPagent):
         err = enc_pred * ase_latent
         err = -torch.sum(err, dim=-1, keepdim=True)
         return err
-     
+
+
+    def bound_loss(self, mu):
+        if self.aseconf.bounds_loss_coef is not None:
+            soft_bound = 1.0
+            mu_loss_high = torch.clamp_min(mu - soft_bound, 0.0)**2
+            mu_loss_low = torch.clamp_max(mu + soft_bound, 0.0)**2
+            b_loss = (mu_loss_low + mu_loss_high).sum(axis=-1)
+        else:
+            b_loss = 0
+        return b_loss
+    
+    def _enc_loss(self, enc_pred, ase_latent, enc_obs):
+        # 计算编码器损失
+        enc_err = self._calc_enc_error(enc_pred, ase_latent)
+        enc_loss = torch.mean(enc_err)
+
+        # 权重衰减
+        if (self.aseconf.enc_weight_decay != 0):
+            enc_weights = self.a2c_network.get_enc_weights()
+            enc_weights = torch.cat(enc_weights, dim=-1)
+            enc_weight_decay = torch.sum(torch.square(enc_weights))
+            enc_loss += self.aseconf.enc_weight_decay * enc_weight_decay
+            
+        enc_info = {
+            'enc_loss': enc_loss
+        }
+
+        # 如果启用了梯度惩罚，计算梯度惩罚
+        if (self._enable_enc_grad_penalty()):
+            enc_obs_grad = torch.autograd.grad(enc_err, enc_obs, grad_outputs=torch.ones_like(enc_err),
+                                            create_graph=True, retain_graph=True, only_inputs=True)
+            enc_obs_grad = enc_obs_grad[0]
+            enc_obs_grad = torch.sum(torch.square(enc_obs_grad), dim=-1)
+            enc_grad_penalty = torch.mean(enc_obs_grad)
+
+            enc_loss += self.aseconf.enc_grad_penalty * enc_grad_penalty
+
+            enc_info['enc_grad_penalty'] = enc_grad_penalty.detach()
+
+        return enc_info    
+    
+    def _enable_enc_grad_penalty(self):
+        # 检查是否启用了编码器梯度惩罚
+        return self.aseconf.enc_grad_penalty != 0    
+    
+    
     @staticmethod
     # not used at the moment
     def forward(self,obs, input_dict):
@@ -659,6 +710,7 @@ class ASEagent(AMPagent):
     @property
     def entropy(self):
         return self.distribution.entropy().sum(dim=-1)
+    
 
     def update_distribution(self, observations,input_dict):
         observations = F.normalize(observations,p=2, dim=1, eps=1e-12)
@@ -671,17 +723,17 @@ class ASEagent(AMPagent):
         result = {}     
         if self.train_mod == True:  
             #在这里面，amp_obs_demo就是数据集
+            amp_obs = input_dict['amp_obs']
+            self.disc_agent_logit = self.a2c_network.eval_disc(amp_obs)
+                            
             amp_obs_replay = input_dict['amp_obs_replay']
-            disc_agent_replay_logit = self.a2c_network.eval_disc(amp_obs_replay)
-            result["disc_agent_replay_logit"] = disc_agent_replay_logit
+            self.disc_agent_replay_logit = self.a2c_network.eval_disc(amp_obs_replay)
 
             amp_demo_obs = input_dict['amp_obs_demo']
-            disc_demo_logit = self.a2c_network.eval_disc(amp_demo_obs)
-            result["disc_demo_logit"] = disc_demo_logit
+            self.disc_demo_logit = self.a2c_network.eval_disc(amp_demo_obs)
 
             amp_obs = input_dict['amp_obs']
-            enc_pred = self.a2c_network.eval_enc(amp_obs)
-            result["enc_pred"] = enc_pred
+            self.enc_pred = self.a2c_network.eval_enc(amp_obs)
         # 使用均值和标准差创建一个正态分布对象
         # 其中标准差为均值乘以0（即不改变均值）再加上self.std
         self.distribution = Normal(mu, sigma, validate_args=False)

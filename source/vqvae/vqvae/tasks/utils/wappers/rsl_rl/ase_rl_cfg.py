@@ -47,7 +47,15 @@ class ASECfg:
     
     disc_reward_scale:int = 2
     enc_reward_scale:int = 1
+    enc_coef:int = 5
+    enc_weight_decay:float = 0.0000
+    enc_reward_scale:int = 1
+    enc_grad_penalty:int = 0
     
     task_reward_w:float = 0.0
     disc_reward_w:float = 0.5
     enc_reward_w:float = 0.5
+    
+    bounds_loss_coef:int = 10
+    
+    

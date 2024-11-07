@@ -141,7 +141,9 @@ class ASEPPO:
             masks_batch,
         ) in generator:
             self.actor_critic.train_mod = True
+            
             self.actor_critic.act(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0])
+            
             actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
             value_batch = self.actor_critic.evaluate(
                 critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1]
@@ -189,14 +191,22 @@ class ASEPPO:
             else:
                 value_loss = (returns_batch - value_batch).pow(2).mean()
 
+            bound_loss = self.actor_critic.bound_loss(mu_batch)
+            
+            # 计算判别器损失
+            disc_agent_cat_logit = torch.cat([self.actor_critic.disc_agent_logit, self.actor_critic.disc_agent_replay_logit], dim=0)
+            disc_info = self.actor_critic._disc_loss(disc_agent_cat_logit, self.actor_critic.disc_demo_logit, amp_obs_demo)
+            disc_loss = disc_info['disc_loss']
+
+            # 计算编码器损失
+            enc_latents = self.actor_critic._ase_latents
+            enc_info = self.actor_critic._enc_loss(self.actor_critic.enc_pred, enc_latents, batch_dict['amp_obs'])
+            enc_loss = enc_info['enc_loss']
 
 
-
-
-            loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean()
-
-            loss = a_loss + self.critic_coef * c_loss - self.entropy_coef * entropy + self.bounds_loss_coef * b_loss \
-                + self._disc_coef * disc_loss + self._enc_coef * enc_loss
+            loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean() \
+                +self.actor_critic.aseconf.bounds_loss_coef * bound_loss +\
+                self._disc_coef * disc_loss + self._enc_coef * enc_loss
 
 
 

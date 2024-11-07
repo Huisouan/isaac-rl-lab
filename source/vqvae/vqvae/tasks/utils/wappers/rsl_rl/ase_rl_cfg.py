@@ -16,11 +16,9 @@ class SpaceCfg:
     learn_sigma:bool = False
     
     
-@configclass
-class ASECfg:
-    # 获取ASE潜在形状
-    ase_latent_shape:int = 64
 
+
+@configclass
 class ASENetcfg:
     name:str = 'ase'
     separate_disc:bool = True
@@ -37,8 +35,15 @@ class ASENetcfg:
     pass
 
 @configclass
-class ASEagentCfg:
+class ASECfg:
+    # 获取ASE潜在形状
+
     normalize_value:bool = True
-    normalize_input:bool = True
+    normalize_input:bool = True    
+
+    ase_latent_shape:int = 64
+    latent_steps_min:int =  1
+    latent_steps_max:int =  150    
+    
     
     

@@ -14,10 +14,7 @@ class SpaceCfg:
     fixed_sigma:bool = True
     learn_sigma:bool = False
 
-@configclass
-class AMPCfg:
-    # 获取AMP潜在形状
-    ase_latent_shape:int = 64
+
 
 @configclass
 class AMPNetcfg:
@@ -34,3 +31,9 @@ class AMPNetcfg:
     activation:str = 'relu'
     
     pass
+
+@configclass
+class AMPCfg:
+    # 获取AMP潜在形状
+    ase_latent_shape:int = 64
+    normalize_amp_input:bool = True

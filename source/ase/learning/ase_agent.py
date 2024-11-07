@@ -57,7 +57,7 @@ class ASEAgent(amp_agent.AMPAgent):
 
         self._latent_reset_steps = torch.zeros(batch_shape[-1], dtype=torch.int32, device=self.ppo_device)
         num_envs = self.vec_env.env.task.num_envs
-        env_ids = to_torch(np.arange(num_envs), dtype=torch.long, device=self.ppo_device)
+        env_ids = torch.tensor(np.arange(num_envs), dtype=torch.long, device=self.ppo_device)
         self._reset_latent_step_count(env_ids)
 
         return

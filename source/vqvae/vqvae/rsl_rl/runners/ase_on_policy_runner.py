@@ -107,6 +107,7 @@ class ASEOnPolicyRunner:
             # Rollout
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
+                    self.alg.actor_critic.train_mod = False
                     actions = self.alg.act(obs,self.env.unwrapped,critic_obs)
                     obs, rewards, dones, infos = self.env.step(actions)
                     obs = self.obs_normalizer(obs)

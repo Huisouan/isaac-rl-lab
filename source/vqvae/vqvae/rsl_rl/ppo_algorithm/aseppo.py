@@ -93,9 +93,11 @@ class ASEPPO:
             infos: 来自环境的额外信息，例如超时。
         """
         # 存储从环境步进中获得的奖励和完成标志
-        self.transition.rewards = rewards.clone()
-        self.transition.dones = dones
         
+        self.transition.rewards = rewards.clone()
+        
+        self.transition.dones = dones
+         
         # 超时引导
         if "time_outs" in infos:
             # 如果有超时信息，使用它来调整奖励
@@ -134,6 +136,7 @@ class ASEPPO:
             hid_states_batch,
             masks_batch,
         ) in generator:
+            self.actor_critic.train_mod = True
             self.actor_critic.act(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0])
             actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
             value_batch = self.actor_critic.evaluate(

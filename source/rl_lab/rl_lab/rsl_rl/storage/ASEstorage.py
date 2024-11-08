@@ -51,6 +51,7 @@ class ASERolloutStorage(RolloutStorage):
         # 将transition中的动作标准差复制到self.sigma对应步骤的位置
         self.sigma[self.step].copy_(transition.action_sigma)
 
+
         self.ase_latent[self.step].copy_(transition.ase_latent)
 
         # 保存transition中的隐藏状态

@@ -44,7 +44,7 @@ class ASEPPO:
         self.actor_critic.to(self.device)
         self.storage = None  # initialized later
         self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=learning_rate)
-        self.transition = ASERolloutStorage.ASETransition()
+        self.transition = ASERolloutStorage.Transition()
 
         # PPO parameters
         self.clip_param = clip_param
@@ -61,8 +61,11 @@ class ASEPPO:
         self.normalize_value = True
 
     def init_storage(self, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape):
+        latent_shape = self.actor_critic.aseconf.ase_latent_shape
+        
         self.storage = ASERolloutStorage(
-            num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape, self.device
+            num_envs, num_transitions_per_env, actor_obs_shape, 
+            critic_obs_shape, action_shape, latent_shape,self.device
         )
 
     def test_mode(self):
@@ -103,7 +106,10 @@ class ASEPPO:
         self.transition.rewards = reward
         
         self.transition.dones = dones
-         
+        
+        #ase latent
+        self.transition.ase_latent = infos["ase_latent"]
+        
         # 超时引导
         if "time_outs" in infos:
             # 如果有超时信息，使用它来调整奖励

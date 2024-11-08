@@ -529,8 +529,8 @@ class ASEagent(AMPagent):
         num_actor_obs,
         num_critic_obs,
         num_actions,
-        config:ASECfg = ASECfg(),
         num_envs = 1024,
+        config:ASECfg = ASECfg(),
         **kwargs,):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         nn.Module.__init__(self)

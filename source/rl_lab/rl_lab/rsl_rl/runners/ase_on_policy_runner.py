@@ -33,7 +33,7 @@ class ASEOnPolicyRunner:
             num_critic_obs = num_obs
         actor_critic_class = eval(self.policy_cfg.pop("class_name"))  # ActorCritic
         actor_critic: ActorCritic | ActorCriticRecurrent | PMC | ASEagent = actor_critic_class(
-            num_obs, num_critic_obs, self.env.num_actions,**self.policy_cfg
+            num_obs, num_critic_obs, self.env.num_actions,self.env.num_envs,**self.policy_cfg
         ).to(self.device)
         alg_class = eval(self.alg_cfg.pop("class_name"))  
         self.alg: ASEPPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)

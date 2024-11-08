@@ -105,9 +105,10 @@ class ASERolloutStorage(RolloutStorage):
                 advantages_batch = advantages[batch_idx]
                 old_mu_batch = old_mu[batch_idx]
                 old_sigma_batch = old_sigma[batch_idx]
+                ase_latent_batch = self.ase_latent[batch_idx]
 
                 # 产出当前小批量的数据，以及一些额外的占位符
-                yield obs_batch, critic_observations_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, old_mu_batch, old_sigma_batch, (
+                yield obs_batch, critic_observations_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, old_mu_batch, old_sigma_batch,ase_latent_batch, (
                     None,
                     None,
                 ), None

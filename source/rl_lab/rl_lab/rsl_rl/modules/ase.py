@@ -712,10 +712,10 @@ class ASEagent(AMPagent):
         return self.distribution.entropy().sum(dim=-1)
     
 
-    def update_distribution(self, observations,input_dict):
+    def update_distribution(self, observations,ase_latents,input_dict):
         observations = F.normalize(observations,p=2, dim=1, eps=1e-12)
         #network forward
-        mu, logstd = self.a2c_network(observations,self._ase_latents,use_hidden_latents = False)
+        mu, logstd = self.a2c_network(observations,ase_latents,use_hidden_latents = False)
         if self.aseconf.normalize_value:
             value = self.value_mean_std(value)
         sigma = torch.exp(logstd)
@@ -741,7 +741,11 @@ class ASEagent(AMPagent):
         return mu
     
     def act(self, observations, **kwargs):
-        mean = self.update_distribution(observations)
+        if 'ase_latents' in kwargs:
+            ase_latents = kwargs['ase_latents']
+        else:
+            ase_latents = self._ase_latents
+        mean = self.update_distribution(observations,ase_latents)
         #TODO:这里可以修改贪心算法，
         return self.distribution.sample()
     

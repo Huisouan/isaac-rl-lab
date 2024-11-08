@@ -19,7 +19,7 @@ from .go2_amp_env import AMPEnvCfg,AMPEnv
 
 gym.register(
     id="Isaac-go2-pmc-Direct-v0",
-    entry_point="vqvae.tasks.direct.GO2.go2_pmc_env:PMCEnv",
+    entry_point="rl_lab.tasks.direct.GO2.go2_pmc_env:PMCEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": PMCEnvCfg,
@@ -30,7 +30,7 @@ gym.register(
 
 gym.register(
     id="Isaac-go2-amp-Direct-v0",
-    entry_point="vqvae.tasks.direct.GO2.go2_amp_env:AMPEnv",
+    entry_point="rl_lab.tasks.direct.GO2.go2_amp_env:AMPEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": AMPEnvCfg,

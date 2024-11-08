@@ -73,7 +73,7 @@ class PMCEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
         self.action_scale = cfg.action_scale
         
-        self.motiondata = MotionData("source/vqvae/data/go2")
+        self.motiondata = MotionData("source/rl_lab/data/go2")
         #init data index
         self.pmc_data_frameinplay = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.pmc_data_maxtime = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)

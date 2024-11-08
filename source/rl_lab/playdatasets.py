@@ -17,7 +17,7 @@ simulation_app = app_launcher.app
 import glob
 import numpy as np
 import torch
-from vqvae.datasets.go2_model import GO2_MARKER_CFG
+from rl_lab.datasets.go2_model import GO2_MARKER_CFG
 from omni.isaac.lab.markers import VisualizationMarkers, VisualizationMarkersCfg
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation
@@ -28,10 +28,10 @@ from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.utils.math import subtract_frame_transforms
-folder_path = "source/vqvae/data/go2"
-from vqvae.datasets.motionload import MotionData
+folder_path = "source/rl_lab/data/go2"
+from rl_lab.datasets.motionload import MotionData
 from omni.isaac.lab.utils.math import quat_rotate
-from vqvae.utils import PMC_UTILS_DIR
+from rl_lab.utils import PMC_UTILS_DIR
 import csv
 import os
 import csv
@@ -191,7 +191,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot = scene["robot"]
         env_ids = torch.tensor([0], device='cuda')
         
-        data = MotionData("source/vqvae/data/go2")
+        data = MotionData("source/rl_lab/data/go2")
         dt = 1/120
 
         for traj_idx in range(len(data.data_length)):

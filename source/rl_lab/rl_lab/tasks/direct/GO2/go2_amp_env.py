@@ -73,7 +73,7 @@ class AMPEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
         self.action_scale = cfg.action_scale
         
-        self.motiondata = MotionData("source/vqvae/data")
+        self.motiondata = MotionData("source/rl_lab/data")
         #初始化数据集采样的时间
         self.amp_data_frameinplay = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.amp_data_maxtime = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)

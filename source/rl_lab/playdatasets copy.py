@@ -17,7 +17,7 @@ simulation_app = app_launcher.app
 import glob
 import numpy as np
 import torch
-from .vqvae.datasets.go2_model import GO2_MARKER_CFG
+from .rl_lab.datasets.go2_model import GO2_MARKER_CFG
 from omni.isaac.lab.markers import VisualizationMarkers, VisualizationMarkersCfg
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation
@@ -29,9 +29,9 @@ from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.utils.math import subtract_frame_transforms
 folder_path = "source/standalone/Mycode/data"
-from vqvae.datasets.motion_loader import DATALoader
+from rl_lab.datasets.motion_loader import DATALoader
 from omni.isaac.lab.utils.math import quat_rotate
-from vqvae.utils import PMC_UTILS_DIR
+from rl_lab.utils import PMC_UTILS_DIR
 import csv
 import os
 import csv

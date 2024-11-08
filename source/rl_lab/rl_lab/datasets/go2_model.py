@@ -5,7 +5,7 @@ from omni.isaac.lab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
 UNITREE_GO2_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"source/vqvae/vqvae/datasets/Robot_usds/Unitree/Go2/go2.usd",
+        usd_path=f"source/rl_lab/rl_lab/datasets/Robot_usds/Unitree/Go2/go2.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -48,7 +48,7 @@ UNITREE_GO2_CFG = ArticulationCfg(
 
 GO2_MARKER_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"source/vqvae/vqvae/datasets/Robot_usds/Unitree/Go2/go2_no_coll.usd",
+        usd_path=f"source/rl_lab/rl_lab/datasets/Robot_usds/Unitree/Go2/go2_no_coll.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=True,

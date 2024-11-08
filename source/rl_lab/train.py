@@ -55,7 +55,7 @@ import os
 import torch
 from datetime import datetime
 
-from vqvae.rsl_rl.runners import PmcOnPolicyRunner
+from rl_lab.rsl_rl.runners import PmcOnPolicyRunner
 
 from omni.isaac.lab.envs import (
     DirectMARLEnv,
@@ -68,7 +68,7 @@ from omni.isaac.lab.utils.dict import print_dict
 from omni.isaac.lab.utils.io import dump_pickle, dump_yaml
 
 import omni.isaac.lab_tasks  # noqa: F401
-import vqvae.tasks
+import rl_lab.tasks
 
 from omni.isaac.lab_tasks.utils import get_checkpoint_path
 from omni.isaac.lab_tasks.utils.hydra import hydra_task_config

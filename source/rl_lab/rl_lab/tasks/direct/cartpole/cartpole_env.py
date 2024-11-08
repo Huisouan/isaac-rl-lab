@@ -62,7 +62,7 @@ class CartpoleEnv(DirectRLEnv):
 
         self.joint_pos = self.cartpole.data.joint_pos
         self.joint_vel = self.cartpole.data.joint_vel
-        self.motiondata = MotionData("source/vqvae/data/cartpole")
+        self.motiondata = MotionData("source/rl_lab/data/cartpole")
         
         #初始化数据集采样的时间
         

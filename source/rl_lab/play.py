@@ -42,11 +42,11 @@ import gymnasium as gym
 import os
 import torch
 
-from vqvae.rsl_rl.runners import PmcOnPolicyRunner
+from rl_lab.rsl_rl.runners import PmcOnPolicyRunner
 
 from omni.isaac.lab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from omni.isaac.lab.utils.dict import print_dict
-import vqvae.tasks
+import rl_lab.tasks
 import omni.isaac.lab_tasks  # noqa: F401
 from omni.isaac.lab_tasks.utils import get_checkpoint_path, parse_env_cfg
 from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (

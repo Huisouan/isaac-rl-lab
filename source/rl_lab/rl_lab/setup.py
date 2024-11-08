@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='vqvae',
+    name='rl_lab',
     version='0.1',
     packages=find_packages(),
     url='http://example.com/my_package',

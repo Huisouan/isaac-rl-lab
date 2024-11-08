@@ -8,7 +8,9 @@ import torch.nn as nn
 import torch.optim as optim
 
 from ..modules import ASEagent
-from ..storage import RolloutStorage
+from ..storage import ASERolloutStorage
+
+
 
 
 class ASEPPO:
@@ -42,7 +44,7 @@ class ASEPPO:
         self.actor_critic.to(self.device)
         self.storage = None  # initialized later
         self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=learning_rate)
-        self.transition = RolloutStorage.Transition()
+        self.transition = ASERolloutStorage.ASETransition()
 
         # PPO parameters
         self.clip_param = clip_param
@@ -59,7 +61,7 @@ class ASEPPO:
         self.normalize_value = True
 
     def init_storage(self, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape):
-        self.storage = RolloutStorage(
+        self.storage = ASERolloutStorage(
             num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape, self.device
         )
 

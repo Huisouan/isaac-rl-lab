@@ -523,6 +523,42 @@ class AMPagent(nn.Module):
         return
 
 
+    
+    @property
+    def action_mean(self):
+        return self.distribution.mean
+
+    @property
+    def action_std(self):
+        return self.distribution.stddev
+
+    @property
+    def entropy(self):
+        return self.distribution.entropy().sum(dim=-1)
+    
+
+    def update_distribution(self, observations,ase_latents,input_dict):
+
+        pass
+    
+    def act(self, observations, **kwargs):
+        pass
+    
+    
+    def get_actions_log_prob(self, actions):
+        return self.distribution.log_prob(actions).sum(dim=-1)
+    
+    def act_inference(self, observations):
+        actions_mean = self.update_distribution(observations)
+        return actions_mean
+
+    def evaluate(self, critic_observations, **kwargs):   
+        pass 
+
+
+
+
+
 class ASEagent(AMPagent):
     def __init__(
         self,

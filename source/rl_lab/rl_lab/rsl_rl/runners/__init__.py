@@ -4,7 +4,6 @@
 """Implementation of runners for environment-agent interaction."""
 
 from .pmc_on_policy_runner import PmcOnPolicyRunner
-#from .epmc_on_policy_runner import EPmcOnPolicyRunner
+from .amp_on_policy_runner import AmpOnPolicyRunner
 
-
-__all__ = ["PmcOnPolicyRunner"]
+__all__ = ["PmcOnPolicyRunner","AmpOnPolicyRunner"]

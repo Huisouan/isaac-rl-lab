@@ -55,7 +55,7 @@ import os
 import torch
 from datetime import datetime
 
-from rl_lab.rsl_rl.runners import PmcOnPolicyRunner
+from rl_lab.rsl_rl.runners import PmcOnPolicyRunner,AmpOnPolicyRunner
 
 from omni.isaac.lab.envs import (
     DirectMARLEnv,
@@ -126,7 +126,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     env = RslRlVecEnvWrapper(env)
 
     # create runner from rsl-rl
-    runner = PmcOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
     # save resume path before creating a new log_dir

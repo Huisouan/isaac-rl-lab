@@ -13,8 +13,8 @@ from omni.isaac.lab.envs.common import VecEnvStepReturn
 from omni.isaac.lab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from omni.isaac.lab.envs.manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
 
-from ........rsl_rl.utils.kinematics import urdf
-from ........rsl_rl.datasets_for_txt.motion_loader import AMPLoader
+from rl_lab.rsl_rl.utils.kinematics import urdf
+from rl_lab.rsl_rl.datasets_for_txt.motion_loader import AMPLoader
 
 
 class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):

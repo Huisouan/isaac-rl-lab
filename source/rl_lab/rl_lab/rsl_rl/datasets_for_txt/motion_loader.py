@@ -5,6 +5,8 @@ import torch
 
 from pybullet_utils import transformations
 from . import motion_util, pose3d
+_EPS = np.finfo(float).eps * 4.0
+
 
 def quaternion_slerp(q0, q1, fraction, spin=0, shortestpath=True):
     """Batch quaternion spherical linear interpolation."""

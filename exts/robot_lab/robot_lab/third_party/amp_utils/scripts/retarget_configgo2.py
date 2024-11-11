@@ -2,7 +2,7 @@ import numpy as np
 
 VISUALIZE_RETARGETING = True
 
-URDF_FILENAME = "exts/robot_lab/robot_lab/third_party/amp_utils/models/go2_description/urdf/go2_description.urdf"
+URDF_FILENAME = "datasets/go2_description/urdf/go2_description.urdf"
 OUTPUT_DIR = f"exts/robot_lab/robot_lab/third_party/amp_utils/motion_files/mocap_motions_go2/"
 
 REF_POS_SCALE = 0.825 # 缩放系数,如果遇到关节限位异常，尝试将此数变小
@@ -97,3 +97,38 @@ MOCAP_MOTIONS = [
 ]
 
 
+import os
+
+def generate_mocap_motions(folder_path, weight=1):
+    """
+    从指定文件夹中读取所有 .txt 文件，并自动生成 MOCAP_MOTIONS 列表。
+
+    Args:
+        folder_path (str): 包含 .txt 文件的文件夹路径。
+        weight (float): 所有动作的权重，默认为1。
+
+    Returns:
+        list: 生成的 MOCAP_MOTIONS 列表。
+    """
+    mocap_motions = []
+    txt_files = [f for f in os.listdir(folder_path) if f.endswith('.txt')]
+
+    for i, file_name in enumerate(txt_files):
+        file_path = os.path.join(folder_path, file_name)
+        motion_name = f"motion{i}"
+        
+        # 假设所有帧都读取
+        start_frame = 0
+        end_frame = None  # 表示读取所有帧
+        
+        mocap_motions.append([
+            motion_name,
+            file_path,
+            start_frame,
+            end_frame,
+            weight
+        ])
+    
+    return mocap_motions
+
+MOCAP_MOTIONS = generate_mocap_motions("datasets/keypoint_datasets/ai4animation/motions")

@@ -26,7 +26,7 @@ class AMPNetcfg:
     mlp_units:list = [1024, 1024, 512]
     disc_units:list = [1024, 1024, 512]
     enc_units:list = [1024, 512]
-    enc_separate: False
+    enc_separate:bool =  False
     initializer:str = 'default'
     activation:str = 'relu'
     

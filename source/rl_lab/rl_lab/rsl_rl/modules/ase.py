@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.nn import RMSNorm
 from ...tasks.utils.wappers.rsl_rl import (
-    ASECfg,ASENetcfg,AMPCfg,AMPNetcfg,ASEagentCfg
+    ASECfg,ASENetcfg,AMPCfg,AMPNetcfg
 )
 
 

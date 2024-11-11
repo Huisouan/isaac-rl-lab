@@ -31,7 +31,7 @@ if args_cli.video:
     args_cli.enable_cameras = True
 
 ################################set headless mode############################################
-setattr(args_cli, 'headless', True)
+#setattr(args_cli, 'headless', True)
 ################################set headless mode############################################
 
 # clear out sys.argv for Hydra
@@ -48,7 +48,7 @@ import os
 import torch
 from datetime import datetime
 
-from rsl_rl_extension.runners import AmpOnPolicyRunner
+from robot_lab.third_party.rsl_rl_amp.runners.amp_on_policy_runner import AmpOnPolicyRunner
 
 from omni.isaac.lab.envs import (
     DirectMARLEnv,

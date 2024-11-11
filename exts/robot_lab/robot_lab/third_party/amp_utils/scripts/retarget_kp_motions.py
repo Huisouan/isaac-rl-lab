@@ -28,7 +28,7 @@ import pybullet
 import pybullet_data as pd
 
 from retarget_utils import *
-import retarget_config as config
+import retarget_configgo2 as config
 
 POS_SIZE = 3
 ROT_SIZE = 4
@@ -52,6 +52,8 @@ REF_ROOT_ROT = transformations.quaternion_from_euler(0, 0, 0.47 * np.pi)  #
 
 REF_PELVIS_JOINT_ID = 0
 REF_NECK_JOINT_ID = 3
+
+
 
 REF_TOE_JOINT_IDS = [10, 15, 19, 23]
 REF_HIP_JOINT_IDS = [6, 11, 16, 20]

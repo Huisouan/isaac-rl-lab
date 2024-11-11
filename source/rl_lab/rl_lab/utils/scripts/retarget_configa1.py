@@ -3,8 +3,8 @@ from amp_utils import AMP_UTILS_DIR
 
 VISUALIZE_RETARGETING = True
 
-URDF_FILENAME = f"{AMP_UTILS_DIR}/models/a1/urdf/a1.urdf"
-OUTPUT_DIR = f"{AMP_UTILS_DIR}/motion_files/mocap_motions_a1/"
+URDF_FILENAME = f"exts/robot_lab/robot_lab/third_party/amp_utils/models/a1/urdf/a1.urdf"
+OUTPUT_DIR = f"exts/robot_lab/robot_lab/third_party/amp_utils/motion_files/mocap_motions_a1/"
 
 REF_POS_SCALE = 0.825 # 缩放系数,如果遇到关节限位异常，尝试将此数变小
 INIT_POS = np.array([0, 0, 0.32]) # a1
@@ -39,19 +39,19 @@ HL_FOOT_NAME = "RL_foot"
 
 MOCAP_MOTIONS = [
     # Output motion name, input file, frame start, frame end, motion weight.
-    ["pace0", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_walk00_joint_pos.txt", 162, 201, 1],
-    ["pace1", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_walk00_joint_pos.txt", 201, 400, 1],
-    ["pace2", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_walk00_joint_pos.txt", 400, 600, 1],
-    ["trot0", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_walk03_joint_pos.txt", 448, 481, 1],
-    ["trot1", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_walk03_joint_pos.txt", 400, 600, 1],
-    ["trot2", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_run04_joint_pos.txt", 480, 663, 1],
-    ["canter0", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_run00_joint_pos.txt", 430, 480, 1],
-    ["canter1", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_run00_joint_pos.txt", 380, 430, 1],
-    ["canter2", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_run00_joint_pos.txt", 480, 566, 1],
-    ["right_turn0", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_walk09_joint_pos.txt", 1085, 1124, 1.5],
-    ["right_turn1", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_walk09_joint_pos.txt", 560, 670, 1.5],
-    ["left_turn0", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_walk09_joint_pos.txt", 2404, 2450, 1.5],
-    ["left_turn1", f"{AMP_UTILS_DIR}/datasets/keypoint_datasets/ai4animation/dog_walk09_joint_pos.txt", 120, 220, 1.5]
+    ["pace0", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_walk00_joint_pos.txt", 162, 201, 1],
+    ["pace1", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_walk00_joint_pos.txt", 201, 400, 1],
+    ["pace2", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_walk00_joint_pos.txt", 400, 600, 1],
+    ["trot0", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_walk03_joint_pos.txt", 448, 481, 1],
+    ["trot1", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_walk03_joint_pos.txt", 400, 600, 1],
+    ["trot2", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_run04_joint_pos.txt", 480, 663, 1],
+    ["canter0", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_run00_joint_pos.txt", 430, 480, 1],
+    ["canter1", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_run00_joint_pos.txt", 380, 430, 1],
+    ["canter2", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_run00_joint_pos.txt", 480, 566, 1],
+    ["right_turn0", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_walk09_joint_pos.txt", 1085, 1124, 1.5],
+    ["right_turn1", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_walk09_joint_pos.txt", 560, 670, 1.5],
+    ["left_turn0", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_walk09_joint_pos.txt", 2404, 2450, 1.5],
+    ["left_turn1", f"exts/robot_lab/robot_lab/third_party/amp_utils/datasets/keypoint_datasets/ai4animation/dog_walk09_joint_pos.txt", 120, 220, 1.5]
 ]
 """
 Joint 0:

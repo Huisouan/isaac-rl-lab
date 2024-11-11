@@ -7,15 +7,14 @@ from omni.isaac.lab.utils import configclass
 import robot_lab.tasks.locomotion.velocity.mdp as mdp
 from robot_lab.tasks.locomotion.velocity.config.unitree_a1_amp.env.events import reset_amp
 from robot_lab.tasks.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, create_obsgroup_class
-from robot_lab.third_party.amp_utils import AMP_UTILS_DIR
 
 ##
 # Pre-defined configs
 ##
 # use cloud assets
-# from omni.isaac.lab_assets.unitree import UNITREE_A1_CFG  # isort: skip
+# from omni.isaac.lab_assets.unitree import UNITREE_GO2_CFG  # isort: skip
 # use local assets
-from robot_lab.assets.unitree import UNITREE_A1_CFG  # isort: skip
+from omni.isaac.lab_assets.unitree import UNITREE_GO2_CFG  # isort: skip
 
 
 @configclass
@@ -28,8 +27,8 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # ------------------------------Sence------------------------------
         # switch robot to unitree-a1
-        self.scene.robot = UNITREE_A1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/trunk"
+        self.scene.robot = UNITREE_GO2_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/root"
         # scale down the terrains because the robot is small
         self.scene.terrain.terrain_generator.sub_terrains["boxes"].grid_height_range = (0.025, 0.1)
         self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_range = (0.01, 0.06)
@@ -113,7 +112,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             self.disable_zero_weight_rewards()
 
         # ------------------------------Terminations------------------------------
-        self.terminations.illegal_contact.params["sensor_cfg"].body_names = ["trunk"]
+        self.terminations.illegal_contact.params["sensor_cfg"].body_names = ["root"]
 
         # ------------------------------Commands------------------------------
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
@@ -121,10 +120,10 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (-1.57, 1.57)
 
         # ------------------------------AMP------------------------------
-        self.urdf_path = f"{AMP_UTILS_DIR}/models/a1/urdf/a1.urdf"
+        self.urdf_path = "exts/robot_lab/robot_lab/third_party/amp_utils/models/go2_description/urdf/go2_description.urdf"
         self.ee_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
-        self.base_name = "trunk"
+        self.base_name = "base"
         self.reference_state_initialization = True
-        self.amp_motion_files = glob.glob(f"{AMP_UTILS_DIR}/motion_files/mocap_motions_a1/*")
+        self.amp_motion_files = glob.glob(f"exts/robot_lab/robot_lab/third_party/amp_utils/motion_files/mocap_motions_go2/*")
         self.amp_num_preload_transitions = 2000000
         self.amp_replay_buffer_size = 1000000

@@ -1,6 +1,3 @@
-#  Copyright 2021 ETH Zurich, NVIDIA CORPORATION
-#  SPDX-License-Identifier: BSD-3-Clause
-
 from __future__ import annotations
 
 import os
@@ -10,14 +7,19 @@ import torch
 from collections import deque
 from torch.utils.tensorboard import SummaryWriter as TensorboardSummaryWriter
 
-from ... import rsl_rl
-from ..ppo_algorithm import ASEPPO
-from ..env import VecEnv
-from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization, PMC ,ASEagent
-from ..utils import store_code_state
 
-class ASEOnPolicyRunner:
-    """On-policy runner for training and evaluation."""
+from ... import rsl_rl
+from ..env import VecEnv
+from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization
+from ..ppo_algorithm import AMPPPO
+from ..ppo_algorithm import AMPDiscriminator
+from ..datasets_for_txt.motion_loader import AMPLoader
+from ..utils import store_code_state
+from ..utils.amp_utils import Normalizer
+
+
+class AmpOnPolicyRunner:
+    """AMP On-policy runner for training and evaluation."""
 
     def __init__(self, env: VecEnv, train_cfg, log_dir=None, device="cpu"):
         self.cfg = train_cfg
@@ -32,11 +34,35 @@ class ASEOnPolicyRunner:
         else:
             num_critic_obs = num_obs
         actor_critic_class = eval(self.policy_cfg.pop("class_name"))  # ActorCritic
-        actor_critic: ActorCritic | ActorCriticRecurrent | PMC | ASEagent = actor_critic_class(
-            num_obs, num_critic_obs, self.env.num_actions,self.env.num_envs,**self.policy_cfg
+        actor_critic: ActorCritic | ActorCriticRecurrent = actor_critic_class(
+            num_obs, num_critic_obs, self.env.unwrapped.num_actions, **self.policy_cfg
         ).to(self.device)
-        alg_class = eval(self.alg_cfg.pop("class_name"))  
-        self.alg: ASEPPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)
+        self.alg_cfg["amp_replay_buffer_size"] = self.env.unwrapped.cfg.amp_replay_buffer_size
+        amp_data = AMPLoader(
+            device=self.device,
+            motion_files=self.env.unwrapped.cfg.amp_motion_files,
+            time_between_frames=self.env.unwrapped.cfg.sim.dt * self.env.unwrapped.cfg.sim.render_interval,
+            preload_transitions=True,
+            num_preload_transitions=self.env.unwrapped.cfg.amp_num_preload_transitions,
+        )
+        amp_normalizer = Normalizer(amp_data.observation_dim)
+        discriminator = AMPDiscriminator(
+            amp_data.observation_dim * 2,
+            self.cfg["amp_reward_coef"],
+            self.cfg["amp_discr_hidden_dims"],
+            device,
+            self.cfg["amp_task_reward_lerp"],
+        ).to(self.device)
+        min_std = torch.tensor(self.cfg["min_normalized_std"], device=self.device) * (
+            torch.abs(
+                self.env.unwrapped.robot.data.soft_joint_pos_limits[0, :, 1]
+                - self.env.unwrapped.robot.data.soft_joint_pos_limits[0, :, 0]
+            )
+        )
+        alg_class = eval(self.alg_cfg.pop("class_name"))  # PPO
+        self.alg: AMPPPO = alg_class(
+            actor_critic, discriminator, amp_data, amp_normalizer, min_std, device=self.device, **self.alg_cfg
+        )
         self.num_steps_per_env = self.cfg["num_steps_per_env"]
         self.save_interval = self.cfg["save_interval"]
         self.empirical_normalization = self.cfg["empirical_normalization"]
@@ -52,7 +78,7 @@ class ASEOnPolicyRunner:
             self.num_steps_per_env,
             [num_obs],
             [num_critic_obs],
-            [self.env.num_actions],
+            [self.env.unwrapped.num_actions],
         )
 
         # Log
@@ -71,12 +97,12 @@ class ASEOnPolicyRunner:
             self.logger_type = self.logger_type.lower()
 
             if self.logger_type == "neptune":
-                from rsl_rl.utils.neptune_utils import NeptuneSummaryWriter
+                from ..utils.neptune_utils import NeptuneSummaryWriter
 
                 self.writer = NeptuneSummaryWriter(log_dir=self.log_dir, flush_secs=10, cfg=self.cfg)
                 self.writer.log_config(self.env.cfg, self.cfg, self.alg_cfg, self.policy_cfg)
             elif self.logger_type == "wandb":
-                from rsl_rl.utils.wandb_utils import WandbSummaryWriter
+                from ..utils.wandb_utils import WandbSummaryWriter
 
                 self.writer = WandbSummaryWriter(log_dir=self.log_dir, flush_secs=10, cfg=self.cfg)
                 self.writer.log_config(self.env.cfg, self.cfg, self.alg_cfg, self.policy_cfg)
@@ -92,6 +118,9 @@ class ASEOnPolicyRunner:
         obs, extras = self.env.get_observations()
         critic_obs = extras["observations"].get("critic", obs)
         obs, critic_obs = obs.to(self.device), critic_obs.to(self.device)
+        amp_obs = self.env.unwrapped.get_amp_observations()
+        amp_obs = amp_obs.to(self.device)
+
         self.train_mode()  # switch to train mode (for dropout for example)
 
         ep_infos = []
@@ -107,9 +136,10 @@ class ASEOnPolicyRunner:
             # Rollout
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
-                    self.alg.actor_critic.train_mod = False
-                    actions = self.alg.act(obs,self.env.unwrapped,critic_obs)
+                    actions = self.alg.act(obs, critic_obs, amp_obs)
                     obs, rewards, dones, infos = self.env.step(actions)
+                    reset_env_ids = infos["reset_env_ids"]
+                    terminal_amp_states = infos["terminal_amp_states"]
                     obs = self.obs_normalizer(obs)
                     if "critic" in infos["observations"]:
                         critic_obs = self.critic_obs_normalizer(infos["observations"]["critic"])
@@ -121,8 +151,16 @@ class ASEOnPolicyRunner:
                         rewards.to(self.device),
                         dones.to(self.device),
                     )
-                    self.alg.process_env_step(rewards, dones, infos)
-
+                    next_amp_obs = self.env.unwrapped.get_amp_observations()
+                    next_amp_obs = next_amp_obs.to(self.device)
+                    # Account for terminal states.
+                    next_amp_obs_with_term = torch.clone(next_amp_obs)
+                    next_amp_obs_with_term[reset_env_ids] = terminal_amp_states
+                    rewards = self.alg.discriminator.predict_amp_reward(
+                        amp_obs, next_amp_obs_with_term, rewards, normalizer=self.alg.amp_normalizer
+                    )[0]
+                    amp_obs = torch.clone(next_amp_obs)
+                    self.alg.process_env_step(rewards, dones, infos, next_amp_obs_with_term)
                     if self.log_dir is not None:
                         # Book keeping
                         # note: we changed logging to use "log" instead of "episode" to avoid confusion with
@@ -140,13 +178,20 @@ class ASEOnPolicyRunner:
                         cur_episode_length[new_ids] = 0
 
                 stop = time.time()
-                collection_time = stop - starexts/robot_lab/robot_lab/third_party/rsl_rl_amp/utils/amp_utils.pyt
+                collection_time = stop - start
 
                 # Learning step
                 start = stop
                 self.alg.compute_returns(critic_obs)
 
-            mean_value_loss, mean_surrogate_loss = self.alg.update(self.env.unwrapped)
+            (
+                mean_value_loss,
+                mean_surrogate_loss,
+                mean_amp_loss,
+                mean_grad_pen_loss,
+                mean_policy_pred,
+                mean_expert_pred,
+            ) = self.alg.update()
             stop = time.time()
             learn_time = stop - start
             self.current_learning_iteration = it
@@ -163,7 +208,7 @@ class ASEOnPolicyRunner:
                     for path in git_file_paths:
                         self.writer.save_file(path)
 
-        self.save(os.path.join(self.log_dir, f"model_{self.current_learning_iteration}.pt"))
+        self.save(os.path.join(self.log_dir, f"model_{self.current_learning_iteration + 1}.pt"))
 
     def log(self, locs: dict, width: int = 80, pad: int = 35):
         self.tot_timesteps += self.num_steps_per_env * self.env.num_envs
@@ -209,6 +254,8 @@ class ASEOnPolicyRunner:
                 self.writer.add_scalar(
                     "Train/mean_episode_length/time", statistics.mean(locs["lenbuffer"]), self.tot_time
                 )
+        self.writer.add_scalar("Loss/AMP", locs["mean_amp_loss"], locs["it"])
+        self.writer.add_scalar("Loss/AMP_grad", locs["mean_grad_pen_loss"], locs["it"])
 
         str = f" \033[1m Learning iteration {locs['it']}/{locs['tot_iter']} \033[0m "
 
@@ -219,12 +266,14 @@ class ASEOnPolicyRunner:
                 f"""{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs[
                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
                 f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
-                f"""{'VQVAE loss:':>{pad}} {locs['vqvae_loss']:.4f}\n"""
-                f"""{'perplexity:':>{pad}} {locs['perplexity_loss']:.4f}\n"""
                 f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
                 f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
                 f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""
                 f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n"""
+                f"""{'AMP loss:':>{pad}} {locs['mean_amp_loss']:.4f}\n"""
+                f"""{'AMP grad pen loss:':>{pad}} {locs['mean_grad_pen_loss']:.4f}\n"""
+                f"""{'AMP mean policy pred:':>{pad}} {locs['mean_policy_pred']:.4f}\n"""
+                f"""{'AMP mean expert pred:':>{pad}} {locs['mean_expert_pred']:.4f}\n"""
             )
             #   f"""{'Mean reward/step:':>{pad}} {locs['mean_reward']:.2f}\n"""
             #   f"""{'Mean episode length/episode:':>{pad}} {locs['mean_trajectory_length']:.2f}\n""")
@@ -258,6 +307,8 @@ class ASEOnPolicyRunner:
             "optimizer_state_dict": self.alg.optimizer.state_dict(),
             "iter": self.current_learning_iteration,
             "infos": infos,
+            "discriminator_state_dict": self.alg.discriminator.state_dict(),
+            "amp_normalizer": self.alg.amp_normalizer,
         }
         if self.empirical_normalization:
             saved_dict["obs_norm_state_dict"] = self.obs_normalizer.state_dict()
@@ -277,6 +328,8 @@ class ASEOnPolicyRunner:
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
         self.current_learning_iteration = loaded_dict["iter"]
+        self.alg.discriminator.load_state_dict(loaded_dict["discriminator_state_dict"])
+        self.alg.amp_normalizer = loaded_dict["amp_normalizer"]
         return loaded_dict["infos"]
 
     def get_inference_policy(self, device=None):

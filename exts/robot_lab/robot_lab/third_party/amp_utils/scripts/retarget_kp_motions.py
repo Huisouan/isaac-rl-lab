@@ -20,9 +20,9 @@ import time
 import numpy as np
 from pyquaternion import Quaternion
 
-from robot_lab.third_party.amp_utils.kinematics.urdf import build_serial_chain_from_urdf
+from ..kinematics.urdf import build_serial_chain_from_urdf
 
-from rsl_rl_amp.datasets import pose3d
+from ...rsl_rl_amp.datasets import pose3d
 from pybullet_utils import transformations
 import pybullet
 import pybullet_data as pd

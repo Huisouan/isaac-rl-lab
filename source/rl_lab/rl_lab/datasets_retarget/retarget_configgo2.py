@@ -81,12 +81,9 @@ HL_FOOT_NAME = "RL_foot"
 
 MOCAP_MOTIONS = [
     # Output motion name, input file, frame start, frame end, motion weight.
-  ["pace", "datasets/keypoint_datasets/ai4animation/motions/dog_walk00_joint_pos.txt",162,201,1],
-  ["trot", "datasets/keypoint_datasets/ai4animation/motions/dog_walk03_joint_pos.txt",448,481 ,1],
-  ["trot2", "datasets/keypoint_datasets/ai4animation/motions/dog_run04_joint_pos.txt",630,663 ,1],
-  ["canter", "datasets/keypoint_datasets/ai4animation/motions/dog_run00_joint_pos.txt", 430, 459,1],
-  ["left turn0", "datasets/keypoint_datasets/ai4animation/motions/dog_walk09_joint_pos.txt",1085,1124 ,1.5],
-  ["right turn0", "datasets/keypoint_datasets/ai4animation/motions/dog_walk09_joint_pos.txt", 2404,2450,1.5],
+    ["right_turn2", f"datasets/keypoint_datasets/ai4animation/dog_walk09_joint_pos.txt", 1085, 1124, 1.5],
+
+
   
 ]
 

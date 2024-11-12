@@ -115,9 +115,9 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.terminations.illegal_contact.params["sensor_cfg"].body_names = ["base"]
 
         # ------------------------------Commands------------------------------
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 3.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-1, 1)
-        self.commands.base_velocity.ranges.ang_vel_z = (-3, 3)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1, 1)
 
         # ------------------------------AMP------------------------------
         self.urdf_path = "datasets/go2_description/urdf/go2_description.urdf"
@@ -125,5 +125,5 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.base_name = "base"
         self.reference_state_initialization = True
         self.amp_motion_files = glob.glob(f"datasets/mocap_motions_go2/*")
-        self.amp_num_preload_transitions = 2000000
-        self.amp_replay_buffer_size = 1000000
+        self.amp_num_preload_transitions = 6000000
+        self.amp_replay_buffer_size = 3000000

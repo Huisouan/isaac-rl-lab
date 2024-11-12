@@ -129,7 +129,13 @@ def main():
             obs, _, _, _ = env.step(actions)
             
             readings = joystick.advance()
-            readings_tensor = torch.from_numpy(readings).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
+            if readings[0] < 0:
+                readings[0] = readings[0]
+            else :
+                readings[0] = 2*readings[0]
+            readings[1] = 0.3*readings[1]
+            readings[2] = 1.53*readings[2]
+            readings_tensor = torch.from_numpy(readings*2).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
             #obs[0][:3] = readings_tensor.float()
             
             

@@ -473,7 +473,12 @@ class TerminationsCfg:
     # joint_vel_out_of_limit
     # joint_vel_out_of_manual_limit
     # joint_effort_out_of_limit
-
+    
+    root_height_below_minimum = DoneTerm(
+        func=mdp.root_height_below_minimum,
+        params={"minimum_height": 0.1},
+    )
+    
     # Contact sensor
     illegal_contact = DoneTerm(
         func=mdp.illegal_contact,

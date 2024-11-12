@@ -70,8 +70,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # ------------------------------Rewards------------------------------
         # General
         # UNUESD self.rewards.is_alive.weight = 0
-        self.rewards.is_terminated.weight = 0
-
+        self.rewards.is_terminated.weight = -0.1 * 1.0 / (0.005 * 6)
         # Root penalties
         self.rewards.lin_vel_z_l2.weight = 0
         self.rewards.ang_vel_xy_l2.weight = 0
@@ -96,7 +95,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.contact_forces.weight = 0
 
         # Velocity-tracking rewards
-        self.rewards.track_lin_vel_xy_exp.weight = 1.5 * 1.0 / (0.005 * 6)
+        self.rewards.track_lin_vel_xy_exp.weight = 1.0 * 1.0 / (0.005 * 6)
         self.rewards.track_ang_vel_z_exp.weight = 0.5 * 1.0 / (0.005 * 6)
 
         # Others
@@ -107,6 +106,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.joint_power.weight = 0
         self.rewards.stand_still_when_zero_command.weight = 0
 
+
         # If the weight of rewards is 0, set rewards to None
         if self._run_disable_zero_weight_rewards:
             self.disable_zero_weight_rewards()
@@ -116,8 +116,8 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # ------------------------------Commands------------------------------
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (-1, 1)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1, 1)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.3, 0.3)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.57, 1.57)
 
         # ------------------------------AMP------------------------------
         self.urdf_path = "datasets/go2_description/urdf/go2_description.urdf"

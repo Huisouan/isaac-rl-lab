@@ -704,18 +704,37 @@ class AMPAgent(common_agent.CommonAgent):
         return disc_r
 
     def _store_replay_amp_obs(self, amp_obs):
+        """
+        存储重放观察值到AMP（加速运动模仿）重放缓冲区中。
+        
+        该方法首先检查重放缓冲区的当前总数是否超过缓冲区的大小。
+        如果超过，它会根据预定义的保留概率筛选观察值，以适应缓冲区的大小限制。
+        如果观察值的数量仍然超过缓冲区大小，它会随机选择一部分观察值以适应缓冲区大小。
+        最后，它将处理后的观察值存储到AMP重放缓冲区中。
+        
+        参数:
+        - amp_obs: 待存储到AMP重放缓冲区中的观察值。
+        
+        返回:
+        无返回值。
+        """
+        # 获取AMP重放缓冲区的大小和总观察值数量
         buf_size = self._amp_replay_buffer.get_buffer_size()
         buf_total_count = self._amp_replay_buffer.get_total_count()
+        
+        # 如果总观察值数量超过缓冲区大小，则根据保留概率筛选观察值
         if (buf_total_count > buf_size):
             keep_probs = to_torch(np.array([self._amp_replay_keep_prob] * amp_obs.shape[0]), device=self.ppo_device)
             keep_mask = torch.bernoulli(keep_probs) == 1.0
             amp_obs = amp_obs[keep_mask]
 
+        # 如果经过筛选后的观察值数量仍然超过缓冲区大小，则随机选择一部分观察值
         if (amp_obs.shape[0] > buf_size):
             rand_idx = torch.randperm(amp_obs.shape[0])
             rand_idx = rand_idx[:buf_size]
             amp_obs = amp_obs[rand_idx]
 
+        # 将最终的观察值存储到AMP重放缓冲区中
         self._amp_replay_buffer.store({'amp_obs': amp_obs})
         return
 

@@ -283,24 +283,39 @@ class HumanoidAMP(Humanoid):
         return
     
     def _compute_amp_observations(self, env_ids=None):
+        """
+        计算AMP(Agile and Modular Perception)观测值。
+
+        该函数根据环境中的刚体位置、旋转、速度等信息，以及关节的角度和速度，计算出AMP观测值。
+        AMP观测值用于捕捉环境中的动态变化，以便进行后续的处理和决策。
+
+        参数:
+        - env_ids (可选): 指定要计算AMP观测值的环境ID列表。如果为None，则计算所有环境的AMP观测值。
+
+        返回:
+        该函数没有返回值，但是会更新类实例的 `_curr_amp_obs_buf` 属性，存储计算得到的AMP观测值。
+        """
+        # 提取关键刚体的位置信息
         key_body_pos = self._rigid_body_pos[:, self._key_body_ids, :]
+
+        # 如果env_ids为None，则计算所有环境的AMP观测值
         if (env_ids is None):
             self._curr_amp_obs_buf[:] = build_amp_observations(self._rigid_body_pos[:, 0, :],
-                                                               self._rigid_body_rot[:, 0, :],
-                                                               self._rigid_body_vel[:, 0, :],
-                                                               self._rigid_body_ang_vel[:, 0, :],
-                                                               self._dof_pos, self._dof_vel, key_body_pos,
-                                                               self._local_root_obs, self._root_height_obs, 
-                                                               self._dof_obs_size, self._dof_offsets)
+                                                            self._rigid_body_rot[:, 0, :],
+                                                            self._rigid_body_vel[:, 0, :],
+                                                            self._rigid_body_ang_vel[:, 0, :],
+                                                            self._dof_pos, self._dof_vel, key_body_pos,
+                                                            self._local_root_obs, self._root_height_obs, 
+                                                            self._dof_obs_size, self._dof_offsets)
         else:
+            # 如果指定了env_ids，则仅计算这些环境的AMP观测值
             self._curr_amp_obs_buf[env_ids] = build_amp_observations(self._rigid_body_pos[env_ids][:, 0, :],
-                                                                   self._rigid_body_rot[env_ids][:, 0, :],
-                                                                   self._rigid_body_vel[env_ids][:, 0, :],
-                                                                   self._rigid_body_ang_vel[env_ids][:, 0, :],
-                                                                   self._dof_pos[env_ids], self._dof_vel[env_ids], key_body_pos[env_ids],
-                                                                   self._local_root_obs, self._root_height_obs, 
-                                                                   self._dof_obs_size, self._dof_offsets)
-        return
+                                                                    self._rigid_body_rot[env_ids][:, 0, :],
+                                                                    self._rigid_body_vel[env_ids][:, 0, :],
+                                                                    self._rigid_body_ang_vel[env_ids][:, 0, :],
+                                                                    self._dof_pos[env_ids], self._dof_vel[env_ids], key_body_pos[env_ids],
+                                                                    self._local_root_obs, self._root_height_obs, 
+                                                                    self._dof_obs_size, self._dof_offsets)
 
 
 #####################################################################
@@ -311,34 +326,72 @@ class HumanoidAMP(Humanoid):
 def build_amp_observations(root_pos, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos, 
                            local_root_obs, root_height_obs, dof_obs_size, dof_offsets):
     # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, bool, bool, int, List[int]) -> Tensor
+    """
+    构建AMP(Agile and Modular Perception)观测值。
+
+    参数:
+    - root_pos: 根节点的位置
+    - root_rot: 根节点的旋转
+    - root_vel: 根节点的速度
+    - root_ang_vel: 根节点的角速度
+    - dof_pos: 关节的位置
+    - dof_vel: 关节的速度
+    - key_body_pos: 关键刚体的位置
+    - local_root_obs: 是否使用局部根节点观测值
+    - root_height_obs: 是否使用根节点高度观测值
+    - dof_obs_size: 关节观测值的大小
+    - dof_offsets: 关节观测值的偏移量
+
+    返回:
+    - obs: 构建的AMP观测值
+    """
+
+    # 提取根节点的高度
     root_h = root_pos[:, 2:3]
+
+    # 计算根节点的朝向逆旋转
     heading_rot = torch_utils.calc_heading_quat_inv(root_rot)
 
+    # 如果使用局部根节点观测值，将根节点的旋转转换为局部坐标系
     if (local_root_obs):
         root_rot_obs = quat_mul(heading_rot, root_rot)
     else:
         root_rot_obs = root_rot
+
+    # 将根节点的旋转转换为切线空间表示
     root_rot_obs = torch_utils.quat_to_tan_norm(root_rot_obs)
-    
+
+    # 如果不使用根节点高度观测值，将高度观测值设置为零
     if (not root_height_obs):
         root_h_obs = torch.zeros_like(root_h)
     else:
         root_h_obs = root_h
-    
+
+    # 将根节点的速度和角速度转换到局部坐标系
     local_root_vel = quat_rotate(heading_rot, root_vel)
     local_root_ang_vel = quat_rotate(heading_rot, root_ang_vel)
 
+    # 扩展根节点的位置，以便与关键刚体的位置相减
     root_pos_expand = root_pos.unsqueeze(-2)
     local_key_body_pos = key_body_pos - root_pos_expand
-    
+
+    # 扩展根节点的朝向逆旋转，并重复以匹配关键刚体的数量
     heading_rot_expand = heading_rot.unsqueeze(-2)
     heading_rot_expand = heading_rot_expand.repeat((1, local_key_body_pos.shape[1], 1))
+
+    # 将局部关键刚体的位置展平
     flat_end_pos = local_key_body_pos.view(local_key_body_pos.shape[0] * local_key_body_pos.shape[1], local_key_body_pos.shape[2])
     flat_heading_rot = heading_rot_expand.view(heading_rot_expand.shape[0] * heading_rot_expand.shape[1], 
                                                heading_rot_expand.shape[2])
+
+    # 将展平的关键刚体位置转换到局部坐标系
     local_end_pos = quat_rotate(flat_heading_rot, flat_end_pos)
     flat_local_key_pos = local_end_pos.view(local_key_body_pos.shape[0], local_key_body_pos.shape[1] * local_key_body_pos.shape[2])
-    
+
+    # 将关节位置转换为观测值
     dof_obs = dof_to_obs(dof_pos, dof_obs_size, dof_offsets)
+
+    # 将所有观测值拼接成最终的AMP观测值
     obs = torch.cat((root_h_obs, root_rot_obs, local_root_vel, local_root_ang_vel, dof_obs, dof_vel, flat_local_key_pos), dim=-1)
+    
     return obs

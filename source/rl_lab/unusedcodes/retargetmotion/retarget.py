@@ -137,8 +137,6 @@ def define_bot_markers():
     return VisualizationMarkers(marker_cfg)
 
 
-
-
 class MotionProcessor:
     def __init__(self, motion_data: MotionData):
         self.motion_data = motion_data

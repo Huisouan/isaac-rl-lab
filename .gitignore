@@ -48,3 +48,14 @@ _build
 **/runs/*
 **/logs/*
 **/recordings/*
+
+#daes 
+**/*.dae
+**/.dae/
+
+datasets/go2_description/dae/calf_mirror.dae
+datasets/go2_description/dae/calf.dae
+datasets/go2_description/dae/foot.dae
+datasets/go2_description/dae/hip.dae
+datasets/go2_description/dae/thigh_mirror.dae
+datasets/go2_description/dae/thigh.dae

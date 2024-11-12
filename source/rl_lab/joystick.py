@@ -129,6 +129,9 @@ def main():
             obs, _, _, _ = env.step(actions)
             
             readings = joystick.advance()
+            readings_tensor = torch.from_numpy(readings).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
+            obs[0][3:6] = readings_tensor.float()
+            
             print(readings)
             
         if args_cli.video:

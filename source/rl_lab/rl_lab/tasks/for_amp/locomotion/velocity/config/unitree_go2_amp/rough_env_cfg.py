@@ -60,12 +60,12 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.physics_material = None
         self.events.add_base_mass = None
         self.events.base_external_force_torque = None
-        self.events.reset_base = None
-        self.events.reset_robot_joints = None
+        #self.events.reset_base = None
+        #self.events.reset_robot_joints = None
         self.events.randomize_actuator_gains = None
         self.events.randomize_joint_parameters = None
         self.events.push_robot = None
-        self.events.reset_amp = EventTerm(func=reset_amp, mode="reset")
+        #self.events.reset_amp = EventTerm(func=reset_amp, mode="reset")
 
         # ------------------------------Rewards------------------------------
         # General

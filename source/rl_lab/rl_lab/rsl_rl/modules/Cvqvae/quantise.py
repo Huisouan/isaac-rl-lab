@@ -44,7 +44,7 @@ class VectorQuantiser(nn.Module):
         assert return_logits == False, "仅用于与Gumbel接口兼容"
         
         # 重塑输入张量并展平
-        z = rearrange(z, 'b c h w -> b h w c').contiguous()
+        #z = rearrange(z, 'b c h w -> b h w c').contiguous()
         z_flattened = z.view(-1, self.embed_dim)
         
         # 计算距离
@@ -72,7 +72,7 @@ class VectorQuantiser(nn.Module):
         # 保留梯度
         z_q = z + (z_q - z).detach()
         # 恢复原始输入形状
-        z_q = rearrange(z_q, 'b h w c -> b c h w').contiguous()
+        #z_q = rearrange(z_q, 'b h w c -> b c h w').contiguous()
         
         # 统计
         avg_probs = torch.mean(encodings, dim=0)

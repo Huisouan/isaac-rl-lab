@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from quantise import VectorQuantiser
+from .quantise import VectorQuantiser
 
 
 class Residual(nn.Module):

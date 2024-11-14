@@ -5,7 +5,7 @@
 
 from omni.isaac.lab.utils import configclass
 
-from .....tasks.utils.wappers.rsl_rl import (
+from tasks.utils.wappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
     RslRlPpoActorCriticCfg,
     RslRlPpoAlgorithmCfg,
@@ -64,6 +64,14 @@ class UnitreeGo2FlatPMCPPORunnerCfg(UnitreeGo2RoughPMCPPORunnerCfg):
         self.experiment_name = "unitree_go2_flat"
         #self.policy.actor_hidden_dims = [256, 256, 256]
         #self.policy.critic_hidden_dims = [256, 256, 256]
+
+@configclass
+class UnitreeGo2RoughCVQVAEPPORunnerCfg(UnitreeGo2FlatPMCPPORunnerCfg):
+    
+    def __post_init__(self):
+        super().__post_init__()
+        self.policy.class_name = "CVQVAE"
+
 
 
 @configclass

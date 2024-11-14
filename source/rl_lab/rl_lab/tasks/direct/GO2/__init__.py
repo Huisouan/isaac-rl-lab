@@ -34,7 +34,7 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": PMCEnvCfg,
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGo2FlatPMCPPORunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGo2RoughCVQVAEPPORunnerCfg",
     },
 )
 #amp 不使用这个注册

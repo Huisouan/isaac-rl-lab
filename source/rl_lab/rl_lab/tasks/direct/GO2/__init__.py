@@ -17,6 +17,7 @@ from .go2_amp_env import AMPEnvCfg,AMPEnv
 # Register Gym environments.
 ##
 
+#vqvae
 gym.register(
     id="Isaac-go2-pmc-Direct-v0",
     entry_point="rl_lab.tasks.direct.GO2.go2_pmc_env:PMCEnv",
@@ -26,7 +27,7 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGo2FlatPMCPPORunnerCfg",
     },
 )
-#cvqvae相比vqvae只修改了码本的更新方式，因此使用与vqvae相同的环境注册方式
+#cvqvae，相比vqvae只修改了码本的更新方式，因此使用与vqvae相同的环境注册方式
 gym.register(
     id="Isaac-go2-cvqvae-Direct-v0",
     entry_point="rl_lab.tasks.direct.GO2.go2_pmc_env:PMCEnv",
@@ -36,7 +37,7 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGo2FlatPMCPPORunnerCfg",
     },
 )
-
+#amp 不使用这个注册
 gym.register(
     id="Isaac-go2-amp-Direct-v0",
     entry_point="rl_lab.tasks.direct.GO2.go2_amp_env:AMPEnv",

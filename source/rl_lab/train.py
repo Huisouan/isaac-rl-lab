@@ -55,7 +55,7 @@ import os
 import torch
 from datetime import datetime
 
-from rl_lab.rsl_rl.runners import PmcOnPolicyRunner,AmpOnPolicyRunner
+from rl_lab.rsl_rl.runners import PmcOnPolicyRunner,AmpOnPolicyRunner,CvqvaeOnPolicyRunner
 
 from omni.isaac.lab.envs import (
     DirectMARLEnv,
@@ -125,8 +125,17 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # wrap around environment for rsl-rl
     env = RslRlVecEnvWrapper(env)
 
+
     # create runner from rsl-rl
-    runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
+        print("[INFO] Using AmpOnPolicyRunner")
+        runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    if args_cli.task == "Isaac-go2-pmc-Direct-v0":
+        print("[INFO] Using PmcOnPolicyRunner")
+        runner = PmcOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    if args_cli.task == "Isaac-go2-cvqvae-Direct-v0":
+        runner = CvqvaeOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+        
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
     # save resume path before creating a new log_dir

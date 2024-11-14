@@ -187,6 +187,14 @@ class CVQVAE(nn.Module):
         return self.distribution.stddev
 
     @property
+    def cvqvae_loss(self):
+        return self.loss_vq
+    
+    @property
+    def perplexity(self):
+        return self.Perplexity
+
+    @property
     def entropy(self):
         return self.distribution.entropy().sum(dim=-1)
 
@@ -195,7 +203,7 @@ class CVQVAE(nn.Module):
         
         self.z_e = self.encoder(observations)
         
-        quantized, loss, (perplexity, encodings, _) = self.codebook(self.z_e)
+        quantized, self.loss_vq, (self.Perplexity, encodings, _) = self.codebook(self.z_e)
         observation_embd = self.observation_embd(observations[:, :self.State_Dimentions])
         #将量化后的向量与观测值进行拼接
         decoder_input = torch.cat((quantized,observation_embd), dim=1)

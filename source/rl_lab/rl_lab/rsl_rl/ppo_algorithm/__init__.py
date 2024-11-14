@@ -8,4 +8,7 @@ from .epmcppo import EPMCPPO
 from .aseppo import ASEPPO
 from .amp_discriminator import AMPDiscriminator
 from .amp_ppo import AMPPPO
-__all__ = ["PMCPPO", "EPMCPPO","ASEPPO","AMPDiscriminator","AMPPPO"]
+from .cvqvaeppo import CVQVAEPPO
+__all__ = ["PMCPPO", "EPMCPPO","ASEPPO",
+           "AMPDiscriminator","AMPPPO","CVQVAEPPO",
+           ]

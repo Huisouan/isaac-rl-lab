@@ -29,6 +29,16 @@ gym.register(
 )
 
 gym.register(
+    id="Isaac-go2-cvqvae-Direct-v0",
+    entry_point="rl_lab.tasks.direct.GO2.go2_pmc_env:PMCEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": PMCEnvCfg,
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGo2FlatPMCPPORunnerCfg",
+    }
+)
+
+gym.register(
     id="Isaac-go2-amp-Direct-v0",
     entry_point="rl_lab.tasks.direct.GO2.go2_amp_env:AMPEnv",
     disable_env_checker=True,

@@ -5,5 +5,10 @@
 
 from .pmc_on_policy_runner import PmcOnPolicyRunner
 from .amp_on_policy_runner import AmpOnPolicyRunner
+from .cvqvae_on_policy_runner import CvqvaeOnPolicyRunner
 
-__all__ = ["PmcOnPolicyRunner","AmpOnPolicyRunner"]
+__all__ = ["PmcOnPolicyRunner",
+           "AmpOnPolicyRunner",
+           "CvqvaeOnPolicyRunner",
+           
+           ]

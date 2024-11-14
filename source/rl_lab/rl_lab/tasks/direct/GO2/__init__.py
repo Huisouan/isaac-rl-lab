@@ -24,10 +24,9 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": PMCEnvCfg,
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGo2FlatPMCPPORunnerCfg",
-
     },
 )
-
+#cvqvae相比vqvae只修改了码本的更新方式，因此使用与vqvae相同的环境注册方式
 gym.register(
     id="Isaac-go2-cvqvae-Direct-v0",
     entry_point="rl_lab.tasks.direct.GO2.go2_pmc_env:PMCEnv",
@@ -35,7 +34,7 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": PMCEnvCfg,
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGo2FlatPMCPPORunnerCfg",
-    }
+    },
 )
 
 gym.register(
@@ -45,6 +44,5 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": AMPEnvCfg,
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGo2FlatAMPPPORunnerCfg",
-
     },
 )

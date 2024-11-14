@@ -110,7 +110,7 @@ class PMCEnv(DirectRLEnv):
     def _apply_action(self) -> None:
         # apply action
         #self._pd_control()
-        self.robot.set_joint_effort_target(self.actions) 
+        self.robot.set_joint_position_target(self.actions) 
         #self.robot.set_joint_position_target(self.actions)
         #update marker
         frame = self.motiondata.get_frame_batch(self.pmc_data_selected,self.pmc_data_frameinplay)
@@ -333,8 +333,6 @@ class PMCEnv(DirectRLEnv):
 
         # return observations, rewards, resets and extras
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras
-
-
 
 
 @torch.jit.script

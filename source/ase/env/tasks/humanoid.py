@@ -549,32 +549,61 @@ class Humanoid(BaseTask):
 
 @torch.jit.script
 def dof_to_obs(pose, dof_obs_size, dof_offsets):
+    """
+    将给定的关节姿势转换为自由度观测值。
+    
+    Args:
+        pose (Tensor): 关节姿势，形状为[..., dof_size]，其中dof_size是总自由度数量。
+        dof_obs_size (int): 自由度观测值的大小。
+        dof_offsets (List[int]): 自由度偏移量的列表，其中每个元素表示每个关节自由度的起始索引。
+    
+    Returns:
+        Tensor: 自由度观测值，形状为[..., dof_obs_size]。
+    
+    """
     # type: (Tensor, int, List[int]) -> Tensor
+    # 定义关节观测值的维度
     joint_obs_size = 6
+    # 计算关节数量
     num_joints = len(dof_offsets) - 1
 
+    # 计算自由度观测值的形状
     dof_obs_shape = pose.shape[:-1] + (dof_obs_size,)
+    # 初始化自由度观测值为零
     dof_obs = torch.zeros(dof_obs_shape, device=pose.device)
+    # 初始化自由度观测值的偏移量
     dof_obs_offset = 0
 
     for j in range(num_joints):
+        # 获取当前关节的自由度偏移量
         dof_offset = dof_offsets[j]
+        # 计算当前关节的自由度数量
         dof_size = dof_offsets[j + 1] - dof_offsets[j]
+        # 获取当前关节的姿势
         joint_pose = pose[:, dof_offset:(dof_offset + dof_size)]
 
-        # assume this is a spherical joint
+        # 假设这是一个球形关节
+        # 如果自由度数量为3
         if (dof_size == 3):
+            # 将指数映射转换为四元数
             joint_pose_q = torch_utils.exp_map_to_quat(joint_pose)
+        # 如果自由度数量为1
         elif (dof_size == 1):
+            # 定义旋转轴
             axis = torch.tensor([0.0, 1.0, 0.0], dtype=joint_pose.dtype, device=pose.device)
+            # 根据角度和轴生成四元数
             joint_pose_q = quat_from_angle_axis(joint_pose[..., 0], axis)
         else:
+            # 如果自由度数量既不是3也不是1，则不支持
             joint_pose_q = None
             assert(False), "Unsupported joint type"
 
+        # 将四元数转换为正切和范数
         joint_dof_obs = torch_utils.quat_to_tan_norm(joint_pose_q)
+        # 将关节的自由度观测值赋值到整体自由度观测值中
         dof_obs[:, (j * joint_obs_size):((j + 1) * joint_obs_size)] = joint_dof_obs
 
+    # 断言关节观测值的总维度与自由度观测值的大小相等
     assert((num_joints * joint_obs_size) == dof_obs_size)
 
     return dof_obs

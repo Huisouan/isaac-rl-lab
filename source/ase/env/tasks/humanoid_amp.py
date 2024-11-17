@@ -91,37 +91,63 @@ class HumanoidAMP(Humanoid):
 
     def fetch_amp_obs_demo(self, num_samples):
 
+        # 如果缓存为空，则构建缓存
         if (self._amp_obs_demo_buf is None):
             self._build_amp_obs_demo_buf(num_samples)
         else:
+            # 否则，断言缓存的大小与请求的样本数相匹配
             assert(self._amp_obs_demo_buf.shape[0] == num_samples)
-        
+    
+        # 从运动库中采样运动ID
         motion_ids = self._motion_lib.sample_motions(num_samples)
-        
+    
+        # 因为在构建AMP观测样本时会对这些值添加负时间，所以我们将它们移到范围[0 + truncate_time, clip的末尾]
         # since negative times are added to these values in build_amp_obs_demo,
         # we shift them into the range [0 + truncate_time, end of clip]
         truncate_time = self.dt * (self._num_amp_obs_steps - 1)
         motion_times0 = self._motion_lib.sample_time(motion_ids, truncate_time=truncate_time)
         motion_times0 += truncate_time
 
+        # 构建AMP观测样本
         amp_obs_demo = self.build_amp_obs_demo(motion_ids, motion_times0)
+        # 将构建的AMP观测样本视图赋值给缓存
         self._amp_obs_demo_buf[:] = amp_obs_demo.view(self._amp_obs_demo_buf.shape)
+        # 将缓存视图展平为一维数组
         amp_obs_demo_flat = self._amp_obs_demo_buf.view(-1, self.get_num_amp_obs())
 
         return amp_obs_demo_flat
 
     def build_amp_obs_demo(self, motion_ids, motion_times0):
-        dt = self.dt
+        """
+        根据给定的运动ID和时间生成AMP观测值示例。
+        
+        Args:
+            motion_ids (Tensor): 运动ID的Tensor，形状为 (batch_size,)。
+            motion_times0 (Tensor): 初始运动时间的Tensor，形状为 (batch_size,)。
+        
+        Returns:
+            Tensor: AMP观测值示例，形状为 (batch_size * num_amp_obs_steps, obs_dim)。
+        
+        """
+        dt = self.dt  # 获取时间间隔
 
+        # 将motion_ids进行平铺
         motion_ids = torch.tile(motion_ids.unsqueeze(-1), [1, self._num_amp_obs_steps])
+        # 将motion_times0扩展一个维度
         motion_times = motion_times0.unsqueeze(-1)
+        # 生成时间步
         time_steps = -dt * torch.arange(0, self._num_amp_obs_steps, device=self.device)
+        # 计算motion_times
         motion_times = motion_times + time_steps
 
+        # 将motion_ids展平
         motion_ids = motion_ids.view(-1)
+        # 将motion_times展平
         motion_times = motion_times.view(-1)
+        # 从_motion_lib中获取运动状态
         root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
                = self._motion_lib.get_motion_state(motion_ids, motion_times)
+        # 构建AMP观测值
         amp_obs_demo = build_amp_observations(root_pos, root_rot, root_vel, root_ang_vel,
                                               dof_pos, dof_vel, key_pos,
                                               self._local_root_obs, self._root_height_obs,
@@ -129,6 +155,8 @@ class HumanoidAMP(Humanoid):
         return amp_obs_demo
 
     def _build_amp_obs_demo_buf(self, num_samples):
+        # 创建一个全零的张量，形状为 (num_samples, self._num_amp_obs_steps, self._num_amp_obs_per_step)
+        # 设备为 self.device，数据类型为 torch.float32
         self._amp_obs_demo_buf = torch.zeros((num_samples, self._num_amp_obs_steps, self._num_amp_obs_per_step), device=self.device, dtype=torch.float32)
         return
         

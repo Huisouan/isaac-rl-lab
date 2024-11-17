@@ -126,11 +126,14 @@ class MotionLib():
         return self._motions[motion_id]
 
     def sample_motions(self, n):
+        # 根据_motion_weights进行多项式抽样，生成n个样本，允许重复
         motion_ids = torch.multinomial(self._motion_weights, num_samples=n, replacement=True)
 
         # m = self.num_motions()
         # motion_ids = np.random.choice(m, size=n, replace=True, p=self._motion_weights)
+        # 将生成的样本转换为Tensor，并指定设备和数据类型
         # motion_ids = torch.tensor(motion_ids, device=self._device, dtype=torch.long)
+        # 返回生成的样本ID
         return motion_ids
 
     def sample_time(self, motion_ids, truncate_time=None):
@@ -149,6 +152,24 @@ class MotionLib():
         return self._motion_lengths[motion_ids]
 
     def get_motion_state(self, motion_ids, motion_times):
+        """
+        获取运动状态
+        
+        Args:
+            motion_ids (list): 运动ID列表
+            motion_times (list): 每个运动的时间列表
+        
+        Returns:
+            tuple: 包含以下元素的元组
+                root_pos (torch.Tensor): 根节点位置
+                root_rot (torch.Tensor): 根节点旋转
+                dof_pos (torch.Tensor): 自由度位置
+                root_vel (torch.Tensor): 根节点速度
+                root_ang_vel (torch.Tensor): 根节点角速度
+                dof_vel (torch.Tensor): 自由度速度
+                key_pos (torch.Tensor): 关键节点位置
+        
+        """
         n = len(motion_ids)
         num_bodies = self._get_num_bodies()
         num_key_bodies = self._key_body_ids.shape[0]
@@ -200,6 +221,7 @@ class MotionLib():
         return root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos
     
     def _load_motions(self, motion_file):
+        # 初始化各种列表，用于存储运动数据
         self._motions = []
         self._motion_lengths = []
         self._motion_weights = []
@@ -208,59 +230,75 @@ class MotionLib():
         self._motion_num_frames = []
         self._motion_files = []
 
+        # 初始化总长度为0.0
         total_len = 0.0
 
+        # 获取运动文件及其权重
         motion_files, motion_weights = self._fetch_motion_files(motion_file)
         num_motion_files = len(motion_files)
         for f in range(num_motion_files):
+            # 打印加载进度
             curr_file = motion_files[f]
             print("Loading {:d}/{:d} motion files: {:s}".format(f + 1, num_motion_files, curr_file))
+            
+            # 从文件中加载当前运动
             curr_motion = SkeletonMotion.from_file(curr_file)
 
+            # 计算当前运动的帧率和时间间隔
             motion_fps = curr_motion.fps
             curr_dt = 1.0 / motion_fps
 
+            # 获取当前运动的帧数和总长度
             num_frames = curr_motion.tensor.shape[0]
             curr_len = 1.0 / motion_fps * (num_frames - 1)
 
+            # 存储当前运动的帧率、时间间隔和帧数
             self._motion_fps.append(motion_fps)
             self._motion_dt.append(curr_dt)
             self._motion_num_frames.append(num_frames)
- 
+
+            # 计算当前运动的关节速度
             curr_dof_vels = self._compute_motion_dof_vels(curr_motion)
             curr_motion.dof_vels = curr_dof_vels
 
-            # Moving motion tensors to the GPU
+            # 如果使用缓存，将当前运动对象移到设备上
             if USE_CACHE:
-                curr_motion = DeviceCache(curr_motion, self._device)                
+                curr_motion = DeviceCache(curr_motion, self._device)
             else:
                 curr_motion.tensor = curr_motion.tensor.to(self._device)
                 curr_motion._skeleton_tree._parent_indices = curr_motion._skeleton_tree._parent_indices.to(self._device)
                 curr_motion._skeleton_tree._local_translation = curr_motion._skeleton_tree._local_translation.to(self._device)
                 curr_motion._rotation = curr_motion._rotation.to(self._device)
 
+            # 将当前运动对象添加到列表中
             self._motions.append(curr_motion)
             self._motion_lengths.append(curr_len)
-            
+
+            # 获取当前运动的权重并添加到列表中
             curr_weight = motion_weights[f]
             self._motion_weights.append(curr_weight)
             self._motion_files.append(curr_file)
 
+        # 将运动长度列表转换为张量
         self._motion_lengths = torch.tensor(self._motion_lengths, device=self._device, dtype=torch.float32)
 
+        # 将运动权重列表转换为张量，并归一化
         self._motion_weights = torch.tensor(self._motion_weights, dtype=torch.float32, device=self._device)
         self._motion_weights /= self._motion_weights.sum()
 
+        # 将帧率、时间间隔和帧数列表转换为张量
         self._motion_fps = torch.tensor(self._motion_fps, device=self._device, dtype=torch.float32)
         self._motion_dt = torch.tensor(self._motion_dt, device=self._device, dtype=torch.float32)
         self._motion_num_frames = torch.tensor(self._motion_num_frames, device=self._device)
 
-
+        # 计算运动的数量和总长度
         num_motions = self.num_motions()
         total_len = self.get_total_length()
 
+        # 打印加载的运动数量和总长度
         print("Loaded {:d} motions with a total length of {:.3f}s.".format(num_motions, total_len))
 
+        # 返回
         return
 
     def _fetch_motion_files(self, motion_file):

@@ -140,7 +140,7 @@ class ASEOnPolicyRunner:
                         cur_episode_length[new_ids] = 0
 
                 stop = time.time()
-                collection_time = stop - starexts/robot_lab/robot_lab/third_party/rsl_rl_amp/utils/amp_utils.pyt
+                collection_time = stop - start
 
                 # Learning step
                 start = stop

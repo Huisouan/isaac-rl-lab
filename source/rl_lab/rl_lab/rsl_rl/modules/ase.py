@@ -391,44 +391,7 @@ class AMPagent(nn.Module):
         self._init_amp_demo_buf()
         return
 
-    def _disc_loss(self, disc_agent_logit, disc_demo_logit, obs_demo):
-        # prediction loss
-        disc_loss_agent = self._disc_loss_neg(disc_agent_logit)
-        disc_loss_demo = self._disc_loss_pos(disc_demo_logit)
-        disc_loss = 0.5 * (disc_loss_agent + disc_loss_demo)
 
-        # logit reg
-        logit_weights = self.model.a2c_network.get_disc_logit_weights()
-        disc_logit_loss = torch.sum(torch.square(logit_weights))
-        disc_loss += self._disc_logit_reg * disc_logit_loss
-
-        # grad penalty
-        disc_demo_grad = torch.autograd.grad(disc_demo_logit, obs_demo, grad_outputs=torch.ones_like(disc_demo_logit),
-                                             create_graph=True, retain_graph=True, only_inputs=True)
-        disc_demo_grad = disc_demo_grad[0]
-        disc_demo_grad = torch.sum(torch.square(disc_demo_grad), dim=-1)
-        disc_grad_penalty = torch.mean(disc_demo_grad)
-        disc_loss += self._disc_grad_penalty * disc_grad_penalty
-
-        # weight decay
-        if (self._disc_weight_decay != 0):
-            disc_weights = self.model.a2c_network.get_disc_weights()
-            disc_weights = torch.cat(disc_weights, dim=-1)
-            disc_weight_decay = torch.sum(torch.square(disc_weights))
-            disc_loss += self._disc_weight_decay * disc_weight_decay
-
-        disc_agent_acc, disc_demo_acc = self._compute_disc_acc(disc_agent_logit, disc_demo_logit)
-
-        disc_info = {
-            'disc_loss': disc_loss,
-            'disc_grad_penalty': disc_grad_penalty.detach(),
-            'disc_logit_loss': disc_logit_loss.detach(),
-            'disc_agent_acc': disc_agent_acc.detach(),
-            'disc_demo_acc': disc_demo_acc.detach(),
-            'disc_agent_logit': disc_agent_logit.detach(),
-            'disc_demo_logit': disc_demo_logit.detach()
-        }
-        return disc_info
 
     def _disc_loss_neg(self, disc_logits):
         bce = torch.nn.BCEWithLogitsLoss()
@@ -718,6 +681,55 @@ class ASEagent(AMPagent):
     def _enable_enc_grad_penalty(self):
         # 检查是否启用了编码器梯度惩罚
         return self.aseconf.enc_grad_penalty != 0    
+    
+    def _disc_loss(self, disc_agent_logit, disc_demo_logit, obs_demo):
+        # 计算预测损失
+        # prediction loss
+        disc_loss_agent = self._disc_loss_neg(disc_agent_logit)
+        disc_loss_demo = self._disc_loss_pos(disc_demo_logit)
+        disc_loss = 0.5 * (disc_loss_agent + disc_loss_demo)
+
+        # 计算logit正则化损失
+        # logit reg
+        logit_weights = self.a2c_network.get_disc_logit_weights()
+        disc_logit_loss = torch.sum(torch.square(logit_weights))
+        disc_loss += self._disc_logit_reg * disc_logit_loss
+
+        # 计算梯度惩罚
+        # grad penalty
+        disc_demo_grad = torch.autograd.grad(disc_demo_logit, obs_demo, grad_outputs=torch.ones_like(disc_demo_logit),
+                                             create_graph=True, retain_graph=True, only_inputs=True)
+        disc_demo_grad = disc_demo_grad[0]
+        disc_demo_grad = torch.sum(torch.square(disc_demo_grad), dim=-1)
+        disc_grad_penalty = torch.mean(disc_demo_grad)
+        disc_loss += self._disc_grad_penalty * disc_grad_penalty
+
+        # 计算权重衰减
+        # weight decay
+        if (self._disc_weight_decay != 0):
+            disc_weights = self.a2c_network.get_disc_weights()
+            disc_weights = torch.cat(disc_weights, dim=-1)
+            disc_weight_decay = torch.sum(torch.square(disc_weights))
+            disc_loss += self._disc_weight_decay * disc_weight_decay
+
+        # 计算判别器准确率
+        disc_agent_acc, disc_demo_acc = self._compute_disc_acc(disc_agent_logit, disc_demo_logit)
+
+        # 构造返回的信息字典
+        disc_info = {
+            'disc_loss': disc_loss,
+            'disc_grad_penalty': disc_grad_penalty.detach(),
+            'disc_logit_loss': disc_logit_loss.detach(),
+            'disc_agent_acc': disc_agent_acc.detach(),
+            'disc_demo_acc': disc_demo_acc.detach(),
+            'disc_agent_logit': disc_agent_logit.detach(),
+            'disc_demo_logit': disc_demo_logit.detach()
+        }
+        return disc_info
+    
+    
+
+    
     
     
     @staticmethod

@@ -65,7 +65,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.randomize_actuator_gains = None
         self.events.randomize_joint_parameters = None
         self.events.push_robot = None
-        #self.events.reset_amp = EventTerm(func=reset_amp, mode="reset")
+        self.events.reset_amp = EventTerm(func=reset_amp, mode="reset")
 
         # ------------------------------Rewards------------------------------
         # General

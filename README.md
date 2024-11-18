@@ -4,11 +4,12 @@
 
 ## Installation
 
-- [ ] Windows11
-- [ ] Ubuntu22.04/24.04
+- [X]  Windows11
+- [X]  Ubuntu22.04/24.04
+- [X]  Ubuntu20.04 for Binary install
 
 安装可以参考
-[https://isaac-sim.github.io/IsaacLab/source/setup/installation/index.html](https://isaac-sim.github.io/IsaacLab/source/setup/installation/index.html)
+[安装教程](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html)
 也可以使用如下代码对isaacsim进行安装
 Conda环境：
 
@@ -88,9 +89,6 @@ source/extensions/omni.isaac.lab/omni/isaac/lab/utils/assets.py
 
 这个文件，把里面的NUCLEUS_ASSET_ROOT_DIR 改成本地的文件夹路径，就可以实现本地的文件寻址
 
-
-
-
 ## How to use
 
 ### train
@@ -137,4 +135,3 @@ source/rl_lab/rl_lab/rsl_rl/modules/pmc.py
 ```
 
 这一部分包含了pmc网络的init部分以及forward部分，froward部分的算法在函数`update_distribution`里面实现。
-

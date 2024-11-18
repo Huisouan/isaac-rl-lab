@@ -9,7 +9,6 @@ import torch.optim as optim
 
 from ..modules import CVQVAE
 from ..storage import RolloutStorage
-from torchviz import make_dot
 
 class CVQVAEPPO:
     actor_critic: CVQVAE

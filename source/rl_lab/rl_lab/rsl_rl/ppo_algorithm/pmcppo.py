@@ -9,7 +9,6 @@ import torch.optim as optim
 
 from ..modules import PMC
 from ..storage import RolloutStorage
-from torchviz import make_dot
 
 class PMCPPO:
     actor_critic: PMC

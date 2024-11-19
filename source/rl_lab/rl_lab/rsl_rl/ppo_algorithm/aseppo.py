@@ -9,9 +9,9 @@ import torch.optim as optim
 
 from ..modules import ASEagent
 from ..storage import ASERolloutStorage
-
-
-
+from ..storage.replay_buffer import ReplayBuffer
+from ..datasets_for_txt.motion_loader import AMPLoader
+from ..utils.amp_utils import Normalizer
 
 class ASEPPO:
     actor_critic: ASEagent
@@ -32,12 +32,24 @@ class ASEPPO:
         schedule="fixed",
         desired_kl=0.01,
         device="cpu",
+        amp_data:AMPLoader = None,
+        amp_replay_buffer_size = 100000,
+        *args, **kwargs
     ):
         self.device = device
 
         self.desired_kl = desired_kl
         self.schedule = schedule
         self.learning_rate = learning_rate
+
+
+        # ASE components
+        
+        # load amp data
+        
+        self.amp_storage = ReplayBuffer(amp_data.observation_dim, amp_replay_buffer_size, device)
+        self.amp_data = amp_data
+        self.amp_normalizer = Normalizer(amp_data.observation_dim)
 
         # PPO components
         self.actor_critic = actor_critic
@@ -61,11 +73,12 @@ class ASEPPO:
         self.normalize_value = True
 
     def init_storage(self, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape):
-        latent_shape = self.actor_critic.aseconf.ase_latent_shape
         
+        latent_shape = self.actor_critic.aseconf.ase_latent_shape
         self.storage = ASERolloutStorage(
             num_envs, num_transitions_per_env, actor_obs_shape, 
             critic_obs_shape, action_shape, latent_shape,self.device
+            
         )
 
     def test_mode(self):
@@ -74,7 +87,7 @@ class ASEPPO:
     def train_mode(self):
         self.actor_critic.train()
 
-    def act(self, obs, critic_obs):
+    def act(self, obs, critic_obs,amp_obs):
         if self.actor_critic.is_recurrent:
             self.transition.hidden_states = self.actor_critic.get_hidden_states()
         # Compute the actions and values
@@ -86,6 +99,7 @@ class ASEPPO:
         # need to record obs and critic_obs before env.step()
         self.transition.observations = obs
         self.transition.critic_observations = critic_obs
+        self.amp_transition.observations = amp_obs
         return self.transition.actions
 
     def process_env_step(self, rewards, dones, infos):
@@ -205,13 +219,12 @@ class ASEPPO:
             bound_loss = self.actor_critic.bound_loss(mu_batch)
             
             # 计算判别器损失
-            disc_agent_cat_logit = torch.cat([self.actor_critic.disc_agent_logit, self.actor_critic.disc_agent_replay_logit], dim=0)
-            disc_info = self.actor_critic._disc_loss(disc_agent_cat_logit, self.actor_critic.disc_demo_logit, amp_obs_demo)
+            disc_info = self.actor_critic._disc_loss(self.actor_critic.disc_agent_logit, self.actor_critic.disc_demo_logit, datasets)
             disc_loss = disc_info['disc_loss']
 
             # 计算编码器损失
             enc_latents = self.actor_critic._ase_latents
-            enc_info = self.actor_critic._enc_loss(self.actor_critic.enc_pred, enc_latents, batch_dict['amp_obs'])
+            enc_info = self.actor_critic._enc_loss(self.actor_critic.enc_pred, enc_latents, self.amp_obs)
             enc_loss = enc_info['enc_loss']
 
 
@@ -219,7 +232,10 @@ class ASEPPO:
                 +self.actor_critic.aseconf.bounds_loss_coef * bound_loss +\
                 self._disc_coef * disc_loss + self._enc_coef * enc_loss
 
-
+            if self._enable_amp_diversity_bonus():
+                diversity_loss = self._diversity_loss(obs_batch, mu, ase_latent_batch)
+                loss += self._amp_diversity_bonus * diversity_loss
+                
 
             # Gradient step
             self.optimizer.zero_grad()

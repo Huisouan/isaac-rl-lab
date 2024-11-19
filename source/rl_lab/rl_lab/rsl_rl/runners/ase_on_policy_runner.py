@@ -15,6 +15,7 @@ from ..ppo_algorithm import ASEPPO
 from ..env import VecEnv
 from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization, PMC ,ASEagent
 from ..utils import store_code_state
+from ..datasets_for_txt.motion_loader import AMPLoader
 
 class ASEOnPolicyRunner:
     """On-policy runner for training and evaluation."""
@@ -35,8 +36,19 @@ class ASEOnPolicyRunner:
         actor_critic: ActorCritic | ActorCriticRecurrent | PMC | ASEagent = actor_critic_class(
             num_obs, num_critic_obs, self.env.num_actions,self.env.num_envs,**self.policy_cfg
         ).to(self.device)
+        
+        # load amp data
+        amp_data = AMPLoader(
+            device=self.device,
+            motion_files=self.env.unwrapped.cfg.amp_motion_files,
+            time_between_frames=self.env.unwrapped.cfg.sim.dt * self.env.unwrapped.cfg.sim.render_interval,
+            preload_transitions=True,
+            num_preload_transitions=self.env.unwrapped.cfg.amp_num_preload_transitions,
+        )
+        
+        
         alg_class = eval(self.alg_cfg.pop("class_name"))  
-        self.alg: ASEPPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)
+        self.alg: ASEPPO = alg_class(actor_critic, device=self.device,amp_data = amp_data, **self.alg_cfg)
         self.num_steps_per_env = self.cfg["num_steps_per_env"]
         self.save_interval = self.cfg["save_interval"]
         self.empirical_normalization = self.cfg["empirical_normalization"]
@@ -92,6 +104,12 @@ class ASEOnPolicyRunner:
         obs, extras = self.env.get_observations()
         critic_obs = extras["observations"].get("critic", obs)
         obs, critic_obs = obs.to(self.device), critic_obs.to(self.device)
+        
+        # AMPOBS############################################
+        amp_obs = self.env.unwrapped.get_amp_observations()
+        amp_obs = amp_obs.to(self.device)        
+        # AMPOBS############################################
+        
         self.train_mode()  # switch to train mode (for dropout for example)
 
         ep_infos = []
@@ -108,8 +126,13 @@ class ASEOnPolicyRunner:
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
                     self.alg.actor_critic.train_mod = False
-                    actions = self.alg.act(obs,self.env.unwrapped,critic_obs)
+                    actions = self.alg.act(obs,critic_obs,amp_obs)
                     obs, rewards, dones, infos = self.env.step(actions)
+                    
+                    terminal_amp_states = infos["terminal_amp_states"]
+                    obs = self.obs_normalizer(obs)                    
+                    
+                    
                     obs = self.obs_normalizer(obs)
                     if "critic" in infos["observations"]:
                         critic_obs = self.critic_obs_normalizer(infos["observations"]["critic"])
@@ -121,6 +144,20 @@ class ASEOnPolicyRunner:
                         rewards.to(self.device),
                         dones.to(self.device),
                     )
+                    # AMPOBS############################################
+                    next_amp_obs = self.env.unwrapped.get_amp_observations()
+                    next_amp_obs = next_amp_obs.to(self.device)                    
+                    # AMPOBS############################################
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
                     self.alg.process_env_step(rewards, dones, infos)
 
                     if self.log_dir is not None:

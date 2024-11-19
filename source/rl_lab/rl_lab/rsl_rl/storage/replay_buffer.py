@@ -37,6 +37,9 @@ class ReplayBuffer:
         self.step = (self.step + num_states) % self.buffer_size
 
     def feed_forward_generator(self, num_mini_batch, mini_batch_size):
+        # 遍历每一个mini-batch
         for _ in range(num_mini_batch):
+            # 从所有样本中随机选择mini_batch_size个样本的索引
             sample_idxs = np.random.choice(self.num_samples, size=mini_batch_size)
+            # 生成一个包含当前状态和下一个状态的元组，并将其移动到指定的设备上
             yield (self.states[sample_idxs].to(self.device), self.next_states[sample_idxs].to(self.device))

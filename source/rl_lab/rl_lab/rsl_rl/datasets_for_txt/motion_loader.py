@@ -386,14 +386,20 @@ class AMPLoader:
     def feed_forward_generator(self, num_mini_batch, mini_batch_size):
         """Generates a batch of AMP transitions."""
         for _ in range(num_mini_batch):
+            # 如果启用了预加载转换
             if self.preload_transitions:
+                # 随机选择预加载的状态索引
                 idxs = np.random.choice(self.preloaded_s.shape[0], size=mini_batch_size)
+                # 从预加载的状态中获取关节位置和速度信息
                 s = self.preloaded_s[idxs, AMPLoader.JOINT_POSE_START_IDX : AMPLoader.JOINT_VEL_END_IDX]
+                # 将根位置信息添加到状态向量中
                 s = torch.cat(
                     [s, self.preloaded_s[idxs, AMPLoader.ROOT_POS_START_IDX + 2 : AMPLoader.ROOT_POS_START_IDX + 3]],
                     dim=-1,
                 )
+                # 从预加载的下一个状态中获取关节位置和速度信息
                 s_next = self.preloaded_s_next[idxs, AMPLoader.JOINT_POSE_START_IDX : AMPLoader.JOINT_VEL_END_IDX]
+                # 将根位置信息添加到下一个状态向量中
                 s_next = torch.cat(
                     [
                         s_next,
@@ -404,15 +410,23 @@ class AMPLoader:
                     dim=-1,
                 )
             else:
+                # 初始化状态向量和下一个状态向量
                 s, s_next = [], []
+                # 从加权轨迹索引中采样一个批次
                 traj_idxs = self.weighted_traj_idx_sample_batch(mini_batch_size)
+                # 从轨迹时间中采样一个批次
                 times = self.traj_time_sample_batch(traj_idxs)
+                # 遍历轨迹索引和时间
                 for traj_idx, frame_time in zip(traj_idxs, times):
+                    # 获取指定轨迹和时间的帧
                     s.append(self.get_frame_at_time(traj_idx, frame_time))
+                    # 获取下一个帧（时间加上帧间时间间隔）
                     s_next.append(self.get_frame_at_time(traj_idx, frame_time + self.time_between_frames))
 
+                # 将状态向量和下一个状态向量垂直堆叠
                 s = torch.vstack(s)
                 s_next = torch.vstack(s_next)
+            # 产出状态和下一个状态
             yield s, s_next
 
     @property

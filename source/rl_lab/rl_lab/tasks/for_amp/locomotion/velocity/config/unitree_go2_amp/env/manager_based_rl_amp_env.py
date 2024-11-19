@@ -48,42 +48,59 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
     """
 
     def get_amp_observations(self):
+        """
+        获取AMP环境的观测值。
+
+        Returns:
+            torch.Tensor: 观测值的张量。
+        """
         obs_manager = self.observation_manager
-        # iterate over all the terms in each group
+        # 获取AMP组中的所有观测项名称
         group_term_names = obs_manager._group_obs_term_names["AMP"]
-        # buffer to store obs per group
+        # 初始化一个字典来存储每个观测项的值
         group_obs = dict.fromkeys(group_term_names, None)
-        # read attributes for each term
+        # 将观测项名称和配置项打包成元组
         obs_terms = zip(group_term_names, obs_manager._group_obs_term_cfgs["AMP"])
-        # evaluate terms: compute, add noise, clip, scale.
+        
+        # 遍历每个观测项，计算其值并进行后处理
         for name, term_cfg in obs_terms:
-            # compute term's value
+            # 计算观测项的值
             obs: torch.Tensor = term_cfg.func(obs_manager._env, **term_cfg.params).clone()
-            # apply post-processing
+            # 如果配置中有噪声，添加噪声
             if term_cfg.noise:
                 obs = term_cfg.noise.func(obs, term_cfg.noise)
+            # 如果配置中有裁剪范围，进行裁剪
             if term_cfg.clip:
                 obs = obs.clip_(min=term_cfg.clip[0], max=term_cfg.clip[1])
+            # 如果配置中有缩放因子，进行缩放
             if term_cfg.scale:
                 obs = obs.mul_(term_cfg.scale)
-            # TODO: Introduce delay and filtering models.
-            # Ref: https://robosuite.ai/docs/modules/sensors.html#observables
-            # add value to list
+            # TODO: 引入延迟和滤波模型
+            # 参考: https://robosuite.ai/docs/modules/sensors.html#observables
+            # 将计算后的值存储到字典中
             group_obs[name] = obs
 
-        # Isaac Sim uses breadth-first joint ordering, while Isaac Gym uses depth-first joint ordering
+        # Isaac Sim 使用广度优先的关节顺序，而 Isaac Gym 使用深度优先的关节顺序
+        # 因此需要重新排序关节位置和速度
         joint_pos = group_obs["joint_pos"]
         joint_vel = group_obs["joint_vel"]
         joint_pos = self.amp_loader.reorder_from_isaacsim_to_isaacgym_tool(joint_pos)
         joint_vel = self.amp_loader.reorder_from_isaacsim_to_isaacgym_tool(joint_vel)
+        
+        # 计算脚部位置
         foot_pos = []
         with torch.no_grad():
             for i, chain_ee in enumerate(self.chain_ee):
+                # 使用前向运动学计算每个脚部的位置
                 foot_pos.append(chain_ee.forward_kinematics(joint_pos[:, i * 3 : i * 3 + 3]).get_matrix()[:, :3, 3])
         foot_pos = torch.cat(foot_pos, dim=-1)
+        
+        # 获取基座线速度、角速度和Z轴位置
         base_lin_vel = group_obs["base_lin_vel"]
         base_ang_vel = group_obs["base_ang_vel"]
         z_pos = group_obs["base_pos_z"]
+        
+        # 按照指定顺序拼接所有观测值
         # joint_pos(0-11) foot_pos(12-23) base_lin_vel(24-26) base_ang_vel(27-29) joint_vel(30-41) z_pos(42)
         return torch.cat((joint_pos, foot_pos, base_lin_vel, base_ang_vel, joint_vel, z_pos), dim=-1)
 

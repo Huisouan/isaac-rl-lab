@@ -633,7 +633,11 @@ class ASEagent(AMPagent):
 
     def _calc_enc_error(self, enc_pred, ase_latent):
         # 计算编码器误差
+        # 计算误差值
+        # err = enc_pred * ase_latent
         err = enc_pred * ase_latent
+        # 对误差值进行求和，并保留维度
+        # err = -torch.sum(err, dim=-1, keepdim=True)
         err = -torch.sum(err, dim=-1, keepdim=True)
         return err
 
@@ -650,6 +654,7 @@ class ASEagent(AMPagent):
     
     def _enc_loss(self, enc_pred, ase_latent, enc_obs):
         # 计算编码器损失
+        #当enc_pred = ase_latent，enc_err最小（负数）
         enc_err = self._calc_enc_error(enc_pred, ase_latent)
         enc_loss = torch.mean(enc_err)
 
@@ -685,6 +690,7 @@ class ASEagent(AMPagent):
     def _disc_loss(self, disc_agent_logit, disc_demo_logit, obs_demo):
         # 计算预测损失
         # prediction loss
+        #disc_agent_logit是generator产生的数据经过disc出来的结果，disc_demo_logit是数据集数据经过disc出来的结果
         disc_loss_agent = self._disc_loss_neg(disc_agent_logit)
         disc_loss_demo = self._disc_loss_pos(disc_demo_logit)
         disc_loss = 0.5 * (disc_loss_agent + disc_loss_demo)
@@ -763,19 +769,17 @@ class ASEagent(AMPagent):
     def update_distribution(self, observations,ase_latents,input_dict):
         observations = F.normalize(observations,p=2, dim=1, eps=1e-12)
         #network forward
+        #use_hidden_latents = True时，aselatents会多经过一个隐藏层
         mu, logstd = self.a2c_network(observations,ase_latents,use_hidden_latents = False)
         if self.aseconf.normalize_value:
             value = self.value_mean_std(value)
         sigma = torch.exp(logstd)
         
-        result = {}     
+        result = {} 
         if self.train_mod == True:  
             #在这里面，amp_obs_demo就是数据集
             amp_obs = input_dict['amp_obs']
             self.disc_agent_logit = self.a2c_network.eval_disc(amp_obs)
-                            
-            amp_obs_replay = input_dict['amp_obs_replay']
-            self.disc_agent_replay_logit = self.a2c_network.eval_disc(amp_obs_replay)
 
             amp_demo_obs = input_dict['amp_obs_demo']
             self.disc_demo_logit = self.a2c_network.eval_disc(amp_demo_obs)

@@ -58,4 +58,6 @@ class ASECfg:
     
     bounds_loss_coef:int = 10
     
+    amp_diversity_tar:float = 1.0
+    
     

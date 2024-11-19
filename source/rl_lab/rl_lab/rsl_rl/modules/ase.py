@@ -165,6 +165,7 @@ class ASENet(AMPNet):
         self.initializer = get_initializer(Asenetcfg.initializer)
         self.activation = get_activation(Asenetcfg.activation)
         self._ase_latent_shape =  Asecfg.ase_latent_shape
+        
         self.separate = Asenetcfg.separate_disc
         self.mlp_units = Asenetcfg.mlp_units
         self.disc_units = Asenetcfg.disc_units
@@ -604,9 +605,13 @@ class ASEagent(AMPagent):
 
     def _calc_disc_rewards(self, amp_obs):
         with torch.no_grad():
+            # 计算判别器的逻辑值
             disc_logits = self._eval_disc(amp_obs)
+            # 计算概率值
             prob = 1 / (1 + torch.exp(-disc_logits)) 
+            # 计算判别奖励
             disc_r = -torch.log(torch.maximum(1 - prob, torch.tensor(0.0001, device=self.ppo_device)))
+            # 根据配置调整判别奖励
             disc_r *= self.aseconf.disc_reward_scale
 
         return disc_r    
@@ -621,10 +626,10 @@ class ASEagent(AMPagent):
 
         return enc_r 
     
-    
-    
-    
-    
+    def _eval_actor(self, obs, ase_latents):
+        # 评估演员网络
+        output = self.a2c_network.eval_actor(obs=obs, ase_latents=ase_latents)
+        return output    
     
     def _eval_enc(self, amp_obs):
         # 评估编码器
@@ -733,7 +738,50 @@ class ASEagent(AMPagent):
         }
         return disc_info
     
-    
+    def _diversity_loss(self, obs, action_params, ase_latents):
+        # 计算多样性损失
+        assert(self.a2c_network.is_continuous)
+        # 断言a2c网络的输出是连续的
+
+        n = obs.shape[0]
+        # 获取观测值的数量
+        assert(n == action_params.shape[0])
+        # 断言行为参数的数量与观测值的数量相等
+
+        new_z = self._sample_latents(n)
+        # 从潜在空间中采样新的潜在变量
+
+        mu, sigma = self._eval_actor(obs=obs, ase_latents=new_z)
+        # 计算均值和标准差
+
+        clipped_action_params = torch.clamp(action_params, -1.0, 1.0)
+        # 将行为参数限制在[-1.0, 1.0]范围内
+
+        clipped_mu = torch.clamp(mu, -1.0, 1.0)
+        # 将均值限制在[-1.0, 1.0]范围内
+
+        a_diff = clipped_action_params - clipped_mu
+        # 计算行为参数与均值之间的差异
+
+        a_diff = torch.mean(torch.square(a_diff), dim=-1)
+        # 计算差异的平方的均值
+
+        z_diff = new_z * ase_latents
+        # 计算新潜在变量与原有潜在变量的点积
+
+        z_diff = torch.sum(z_diff, dim=-1)
+        # 计算点积的和
+
+        z_diff = 0.5 - 0.5 * z_diff
+        # 对点积的和进行缩放和偏移
+
+        diversity_bonus = a_diff / (z_diff + 1e-5)
+        # 计算多样性奖励
+
+        diversity_loss = torch.square(self.aseconf.amp_diversity_tar - diversity_bonus)
+        # 计算多样性损失
+
+        return diversity_loss    
 
     
     

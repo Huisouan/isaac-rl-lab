@@ -115,9 +115,7 @@ class ASEPPO:
         #计算encoder和disc reward
         amp_reward = self.actor_critic._calc_amp_rewards()
         #把amp reward加到reward上
-        reward = self.actor_critic._combine_rewards(rewards.clone(),amp_reward)
-        
-        self.transition.rewards = reward
+        self.transition.rewards = self.actor_critic._combine_rewards(rewards.clone(),amp_reward)
         
         self.transition.dones = dones
         
@@ -233,7 +231,7 @@ class ASEPPO:
                 self._disc_coef * disc_loss + self._enc_coef * enc_loss
 
             if self._enable_amp_diversity_bonus():
-                diversity_loss = self._diversity_loss(obs_batch, mu, ase_latent_batch)
+                diversity_loss = self.actor_critic._diversity_loss(obs_batch, mu, ase_latent_batch)
                 loss += self._amp_diversity_bonus * diversity_loss
                 
 

@@ -126,14 +126,15 @@ class ASEOnPolicyRunner:
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
                     self.alg.actor_critic.train_mod = False
+                    
+                    
                     actions = self.alg.act(obs,critic_obs,amp_obs)
                     obs, rewards, dones, infos = self.env.step(actions)
                     
+                    reset_env_ids = infos["reset_env_ids"]
                     terminal_amp_states = infos["terminal_amp_states"]
                     obs = self.obs_normalizer(obs)                    
                     
-                    
-                    obs = self.obs_normalizer(obs)
                     if "critic" in infos["observations"]:
                         critic_obs = self.critic_obs_normalizer(infos["observations"]["critic"])
                     else:
@@ -146,16 +147,12 @@ class ASEOnPolicyRunner:
                     )
                     # AMPOBS############################################
                     next_amp_obs = self.env.unwrapped.get_amp_observations()
-                    next_amp_obs = next_amp_obs.to(self.device)                    
+                    next_amp_obs = next_amp_obs.to(self.device)      
+                    
+                    
+                    next_amp_obs_with_term = torch.clone(next_amp_obs)
+                    next_amp_obs_with_term[reset_env_ids] = terminal_amp_states              
                     # AMPOBS############################################
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
                     
                     
                     self.alg.process_env_step(rewards, dones, infos)

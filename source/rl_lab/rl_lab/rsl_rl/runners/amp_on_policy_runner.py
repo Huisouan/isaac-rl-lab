@@ -53,12 +53,14 @@ class AmpOnPolicyRunner:
             device,
             self.cfg["amp_task_reward_lerp"],
         ).to(self.device)
+        
         min_std = torch.tensor(self.cfg["min_normalized_std"], device=self.device) * (
             torch.abs(
                 self.env.unwrapped.robot.data.soft_joint_pos_limits[0, :, 1]
                 - self.env.unwrapped.robot.data.soft_joint_pos_limits[0, :, 0]
             )
         )
+        
         alg_class = eval(self.alg_cfg.pop("class_name"))  # PPO
         self.alg: AMPPPO = alg_class(
             actor_critic, discriminator, amp_data, amp_normalizer, min_std, device=self.device, **self.alg_cfg
@@ -146,7 +148,7 @@ class AmpOnPolicyRunner:
                     else:
                         critic_obs = obs
                     obs, critic_obs, rewards, dones = (
-                        obs.to(self.device),
+                        obs.to(self.device),在
                         critic_obs.to(self.device),
                         rewards.to(self.device),
                         dones.to(self.device),

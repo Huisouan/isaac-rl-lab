@@ -229,7 +229,7 @@ class ASENet(AMPNet):
         else:
             self._enc_mlp = self._disc_mlp  # 使用判别器MLP
 
-        mlp_out_layer = list(self._enc_mlp.modules())[-2]  # 获取MLP的倒数第二层
+        mlp_out_layer = list(self._enc_mlp.modules())[-1]  # 获取MLP的倒数第二层
         mlp_out_size = mlp_out_layer.out_features  # 获取输出特征数
         self._enc = torch.nn.Linear(mlp_out_size, self._ase_latent_shape)  # 编码器线性层
         

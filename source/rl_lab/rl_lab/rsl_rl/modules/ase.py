@@ -619,7 +619,7 @@ class ASEagent(AMPagent):
             # 计算概率值
             prob = 1 / (1 + torch.exp(-disc_logits)) 
             # 计算判别奖励
-            disc_r = -torch.log(torch.maximum(1 - prob, torch.tensor(0.0001, device=self.ppo_device)))
+            disc_r = -torch.log(torch.maximum(1 - prob, torch.tensor(0.0001, device=self.device)))
             # 根据配置调整判别奖励
             disc_r *= self.aseconf.disc_reward_scale
 

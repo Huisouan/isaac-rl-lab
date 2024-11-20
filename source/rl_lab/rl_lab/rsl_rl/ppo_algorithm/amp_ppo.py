@@ -142,7 +142,9 @@ class AMPPPO:
         # Record the transition
         self.storage.add_transitions(self.transition)
         self.transition.clear()
+        
         self.amp_transition.clear()
+        
         self.actor_critic.reset(dones)
 
     def compute_returns(self, last_critic_obs):

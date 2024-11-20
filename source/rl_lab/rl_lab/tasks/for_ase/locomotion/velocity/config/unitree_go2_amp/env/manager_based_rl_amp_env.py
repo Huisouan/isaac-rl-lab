@@ -165,9 +165,10 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         # -- reset envs that terminated/timed-out and log the episode information
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         terminal_amp_states = self.get_amp_observations()[reset_env_ids]
+        
         if len(reset_env_ids) > 0:
             self._reset_idx(reset_env_ids)
-
+        
         self.extras["reset_env_ids"] = reset_env_ids
         self.extras["terminal_amp_states"] = terminal_amp_states
         # -- update command

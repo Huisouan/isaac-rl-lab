@@ -551,12 +551,18 @@ class ASEagent(AMPagent):
         self._latent_reset_steps = torch.zeros(num_envs, dtype=torch.int32, device=self.device) 
         self._ase_latents = torch.zeros((num_envs, self._latent_dim), dtype=torch.float32,
                                          device=self.device)        
-        env_ids = torch.tensor(np.arange(num_envs), dtype=torch.long, device=self.ppo_device)
+        env_ids = torch.tensor(np.arange(num_envs), dtype=torch.long, device=self.device)
         self._reset_latent_step_count(env_ids)
-        
-    def _update_latents(self,envsteps):
+    
+    def init_all_ase_latents(self,num_envs ):
+        # 初始化所有环境的潜在变量
+            env_ids = torch.tensor(np.arange(num_envs), dtype=torch.long, device=self.device)
+            self._reset_latents(env_ids)  # 重置潜在变量
+            self._reset_latent_step_count(env_ids)  # 重置潜在步数计数
+
+    def _update_latents(self,cur_episode_length):
         # 检查哪些环境需要更新潜在变量
-        new_latent_envs = self._latent_reset_steps <= envsteps
+        new_latent_envs = self._latent_reset_steps <= cur_episode_length
 
         need_update = torch.any(new_latent_envs)
         if (need_update):
@@ -569,9 +575,11 @@ class ASEagent(AMPagent):
     
     def _reset_latents(self, env_ids):
         # 为指定环境ID重置潜在变量
-        n = len(env_ids)
-        z = self._sample_latents(n)
-        self._ase_latents[env_ids] = z
+        if env_ids is None:
+            n = len(env_ids)
+            z = self._sample_latents(n)
+            self._ase_latents[env_ids] = z
+
 
     def _sample_latents(self, n):
         # 从模型中采样潜在变量
@@ -635,6 +643,11 @@ class ASEagent(AMPagent):
         # 评估编码器
         proc_amp_obs = self._preproc_amp_obs(amp_obs)
         return self.a2c_network.eval_enc(proc_amp_obs)
+
+    def _eval_disc(self, amp_obs):
+        proc_amp_obs = self._preproc_amp_obs(amp_obs)
+        return self.a2c_network.eval_disc(proc_amp_obs)
+
 
     def _calc_enc_error(self, enc_pred, ase_latent):
         # 计算编码器误差
@@ -822,23 +835,32 @@ class ASEagent(AMPagent):
         if self.aseconf.normalize_value:
             value = self.value_mean_std(value)
         sigma = torch.exp(logstd)
-        
-        result = {} 
-        if self.train_mod == True:  
-            #在这里面，amp_obs_demo就是数据集
-            amp_obs = input_dict['amp_obs']
-            self.disc_agent_logit = self.a2c_network.eval_disc(amp_obs)
-
-            amp_demo_obs = input_dict['amp_obs_demo']
-            self.disc_demo_logit = self.a2c_network.eval_disc(amp_demo_obs)
-
-            amp_obs = input_dict['amp_obs']
-            self.enc_pred = self.a2c_network.eval_enc(amp_obs)
         # 使用均值和标准差创建一个正态分布对象
         # 其中标准差为均值乘以0（即不改变均值）再加上self.std
         self.distribution = Normal(mu, sigma, validate_args=False)
         #print(f"Distribution: {self.distribution}")
         return mu
+    
+    def ase_forward(self, observations,ase_latent_batch,rl_state_trans,data_state_trans):
+        observations = F.normalize(observations,p=2, dim=1, eps=1e-12)
+        #network forward
+        #use_hidden_latents = True时，aselatents会多经过一个隐藏层
+        mu, logstd = self.a2c_network(observations,ase_latent_batch,use_hidden_latents = False)
+        if self.aseconf.normalize_value:
+            value = self.value_mean_std(value)
+        sigma = torch.exp(logstd)
+        
+        #在这里面，amp_obs_demo就是数据集
+        self.disc_agent_logit = self.a2c_network.eval_disc(rl_state_trans)
+
+        self.disc_demo_logit = self.a2c_network.eval_disc(data_state_trans)
+
+        self.enc_pred = self.a2c_network.eval_enc(rl_state_trans)
+        # 使用均值和标准差创建一个正态分布对象
+        # 其中标准差为均值乘以0（即不改变均值）再加上self.std
+        self.distribution = Normal(mu, sigma, validate_args=False)
+        #TODO:这里可以修改贪心算法，
+        return self.distribution.sample()
     
     def act(self, observations, **kwargs):
         if 'ase_latents' in kwargs:

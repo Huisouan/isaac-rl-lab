@@ -148,7 +148,7 @@ class AmpOnPolicyRunner:
                     else:
                         critic_obs = obs
                     obs, critic_obs, rewards, dones = (
-                        obs.to(self.device),在
+                        obs.to(self.device),
                         critic_obs.to(self.device),
                         rewards.to(self.device),
                         dones.to(self.device),

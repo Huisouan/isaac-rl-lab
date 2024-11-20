@@ -12,6 +12,7 @@ class ASERolloutStorage(RolloutStorage):
         def __init__(self):
             super().__init__()
             self.ase_latent = None
+            self.amp_observations = None
     
     def __init__(self, num_envs, num_transitions_per_env, obs_shape, privileged_obs_shape, actions_shape, latent_shape = 64,device="cpu"):
         super().__init__(num_envs, num_transitions_per_env, obs_shape, privileged_obs_shape, actions_shape, device)

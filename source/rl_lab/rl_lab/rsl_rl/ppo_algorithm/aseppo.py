@@ -81,16 +81,21 @@ class ASEPPO:
             
         )
 
+    def init_ase_latents(self,num_envs):
+        self.actor_critic.init_all_ase_latents(num_envs)
+
     def test_mode(self):
         self.actor_critic.test()
 
     def train_mode(self):
         self.actor_critic.train()
 
-    def act(self, obs, critic_obs,amp_obs):
+    def act(self, obs, critic_obs,amp_obs,cur_episode_length):
         if self.actor_critic.is_recurrent:
             self.transition.hidden_states = self.actor_critic.get_hidden_states()
         # Compute the actions and values
+        self.actor_critic._update_latents(cur_episode_length)
+        
         self.transition.actions = self.actor_critic.act(obs).detach()
         self.transition.values = self.actor_critic.evaluate(critic_obs).detach()
         self.transition.actions_log_prob = self.actor_critic.get_actions_log_prob(self.transition.actions).detach()
@@ -99,10 +104,10 @@ class ASEPPO:
         # need to record obs and critic_obs before env.step()
         self.transition.observations = obs
         self.transition.critic_observations = critic_obs
-        self.amp_transition.observations = amp_obs
+        self.transition.amp_observations = amp_obs
         return self.transition.actions
 
-    def process_env_step(self, rewards, dones, infos):
+    def process_env_step(self, rewards, dones, infos,amp_obs,next_amp_obs_with_term):
         """
         处理环境的步进结果。
 
@@ -113,14 +118,19 @@ class ASEPPO:
         """
         # 存储从环境步进中获得的奖励和完成标志
         #计算encoder和disc reward
-        amp_reward = self.actor_critic._calc_amp_rewards()
-        #把amp reward加到reward上
+        amp_obs_trans = torch.cat([amp_obs,next_amp_obs_with_term],dim = -1)
+        
+        amp_reward = self.actor_critic._calc_amp_rewards(amp_obs_trans)
+        #把amp reward加到reward上，此处reward会进入到advantage的计算中，从而影响ppo算法的损失
         self.transition.rewards = self.actor_critic._combine_rewards(rewards.clone(),amp_reward)
         
         self.transition.dones = dones
         
+        
         #ase latent
-        self.transition.ase_latent = infos["ase_latent"]
+        self.transition.ase_latent = self.actor_critic._ase_latents.detach()
+        #将amp obs存入amp replay buffer
+        self.amp_storage.insert(self.transition.amp_observations, next_amp_obs_with_term)
         
         # 超时引导
         if "time_outs" in infos:
@@ -143,11 +153,24 @@ class ASEPPO:
     def update(self):
         mean_value_loss = 0
         mean_surrogate_loss = 0
+        
+        
         if self.actor_critic.is_recurrent:
             generator = self.storage.reccurent_mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)
         else:
             generator = self.storage.mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)
-        for (
+        
+        amp_rl_trans_generator = self.amp_storage.feed_forward_generator(
+            self.num_learning_epochs * self.num_mini_batches,
+            self.storage.num_envs * self.storage.num_transitions_per_env // self.num_mini_batches,
+        )
+        amp_motion_data_trans_generator = self.amp_data.feed_forward_generator(
+            self.num_learning_epochs * self.num_mini_batches,
+            self.storage.num_envs * self.storage.num_transitions_per_env // self.num_mini_batches,
+        )
+
+        
+        for ((
             obs_batch,
             critic_obs_batch,
             actions_batch,
@@ -161,11 +184,15 @@ class ASEPPO:
             ase_latent_batch,
             
             hid_states_batch,
-            masks_batch,
-        ) in generator:
+            masks_batch),
+            rl_state_trans,
+            data_state_trans,
+        ) in zip(generator,amp_rl_trans_generator,amp_motion_data_trans_generator):
             self.actor_critic.train_mod = True
+            #使用ase_forward
             
-            self.actor_critic.act(obs_batch,ase_latent_batch, masks=masks_batch, hidden_states=hid_states_batch[0])
+            
+            self.actor_critic.ase_forward(obs_batch,ase_latent_batch,rl_state_trans,data_state_trans)
             
             actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
             value_batch = self.actor_critic.evaluate(

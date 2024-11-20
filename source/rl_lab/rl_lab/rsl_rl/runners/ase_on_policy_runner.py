@@ -101,14 +101,20 @@ class ASEOnPolicyRunner:
             self.env.episode_length_buf = torch.randint_like(
                 self.env.episode_length_buf, high=int(self.env.max_episode_length)
             )
+        #初始化所有的latents
+        self.alg.init_ase_latents(self.env.num_envs)
+        
         obs, extras = self.env.get_observations()
         critic_obs = extras["observations"].get("critic", obs)
         obs, critic_obs = obs.to(self.device), critic_obs.to(self.device)
         
         # AMPOBS############################################
+        
         amp_obs = self.env.unwrapped.get_amp_observations()
         amp_obs = amp_obs.to(self.device)        
         # AMPOBS############################################
+        
+        
         
         self.train_mode()  # switch to train mode (for dropout for example)
 
@@ -117,7 +123,8 @@ class ASEOnPolicyRunner:
         lenbuffer = deque(maxlen=100)
         cur_reward_sum = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
         cur_episode_length = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
-
+        
+        
         start_iter = self.current_learning_iteration
         tot_iter = start_iter + num_learning_iterations
         for it in range(start_iter, tot_iter):
@@ -128,12 +135,12 @@ class ASEOnPolicyRunner:
                     self.alg.actor_critic.train_mod = False
                     
                     
-                    actions = self.alg.act(obs,critic_obs,amp_obs)
+                    actions = self.alg.act(obs,critic_obs,amp_obs,cur_episode_length)
                     obs, rewards, dones, infos = self.env.step(actions)
                     
                     reset_env_ids = infos["reset_env_ids"]
                     terminal_amp_states = infos["terminal_amp_states"]
-                    obs = self.obs_normalizer(obs)                    
+                    obs = self.obs_normalizer(obs)         
                     
                     if "critic" in infos["observations"]:
                         critic_obs = self.critic_obs_normalizer(infos["observations"]["critic"])
@@ -151,12 +158,13 @@ class ASEOnPolicyRunner:
                     
                     
                     next_amp_obs_with_term = torch.clone(next_amp_obs)
+                    #此处terminal_amp_states是重置前的状态
                     next_amp_obs_with_term[reset_env_ids] = terminal_amp_states              
                     # AMPOBS############################################
                     
                     
-                    self.alg.process_env_step(rewards, dones, infos)
-
+                    self.alg.process_env_step(rewards, dones, infos,amp_obs,next_amp_obs_with_term)
+                    amp_obs = torch.clone(next_amp_obs)
                     if self.log_dir is not None:
                         # Book keeping
                         # note: we changed logging to use "log" instead of "episode" to avoid confusion with

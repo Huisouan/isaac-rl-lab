@@ -475,10 +475,6 @@ class TerminationsCfg:
     # joint_vel_out_of_manual_limit
     # joint_effort_out_of_limit
     
-    root_height_below_minimum = DoneTerm(
-        func=mdp.root_height_below_minimum,
-        params={"minimum_height": 0.1},
-    )
     
     # Contact sensor
     illegal_contact = DoneTerm(
@@ -504,7 +500,7 @@ class LocomotionVelocityRoughEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the locomotion velocity-tracking environment."""
 
     # Scene settings
-    scene: MySceneCfg = MySceneCfg(num_envs=2048, env_spacing=2.5)
+    scene: MySceneCfg = MySceneCfg(num_envs=4096, env_spacing=2.5)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()

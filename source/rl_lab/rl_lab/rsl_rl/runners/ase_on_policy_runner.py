@@ -27,23 +27,24 @@ class ASEOnPolicyRunner:
         self.env = env
         obs, extras = self.env.get_observations()
         num_obs = obs.shape[1]
-        if "critic" in extras["observations"]:
-            num_critic_obs = extras["observations"]["critic"].shape[1]
-        else:
-            num_critic_obs = num_obs
-        actor_critic = ASEagent(
-            num_obs, num_critic_obs, self.env.num_actions,self.env.num_envs
-        ).to(self.device)
-        
-        # load amp data
         amp_data = AMPLoader(
             device=self.device,
             motion_files=self.env.unwrapped.cfg.amp_motion_files,
             time_between_frames=self.env.unwrapped.cfg.sim.dt * self.env.unwrapped.cfg.sim.render_interval,
             preload_transitions=True,
             num_preload_transitions=self.env.unwrapped.cfg.amp_num_preload_transitions,
-        )
-        
+        )        
+        if "critic" in extras["observations"]:
+            num_critic_obs = extras["observations"]["critic"].shape[1]
+        else:
+            num_critic_obs = num_obs
+        actor_critic = ASEagent(
+            num_obs, 
+            num_critic_obs, 
+            self.env.num_actions,
+            amp_data.observation_dim * 2,
+            self.env.num_envs
+        ).to(self.device)
         
         alg_class = eval(self.alg_cfg.pop("class_name"))  
         self.alg: ASEPPO = alg_class(actor_critic, device=self.device,amp_data = amp_data, **self.alg_cfg)

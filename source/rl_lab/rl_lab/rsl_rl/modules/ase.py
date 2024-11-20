@@ -71,7 +71,7 @@ class AMPNet(nn.Module):
         self._disc_mlp = nn.Sequential()
 
         mlp_args = {
-            'input_size' : input_shape[0], 
+            'num_input' : input_shape, 
             'units' : self.disc_units, 
         }
         self._disc_mlp = self._build_mlp(**mlp_args)
@@ -103,7 +103,7 @@ class AMPNet(nn.Module):
         in_size = input        
         for unit in units:
             mlp_layers.append(nn.Linear(in_size, unit))
-            mlp_layers.append(self.activation())
+            mlp_layers.append(self.activation)
             in_size = unit
         return nn.Sequential(*mlp_layers)
 
@@ -150,6 +150,7 @@ class ASENet(AMPNet):
         num_actor_obs,
         num_critic_obs,
         num_actions,
+        num_amp_obs,
         Asecfg :ASECfg = ASECfg(),
         Asenetcfg:ASENetcfg = ASENetcfg(),
         **kwargs,
@@ -174,7 +175,7 @@ class ASENet(AMPNet):
         self.value_size = 1
         self.Spacecfg = Asenetcfg.Spacecfg
         
-        amp_input_shape = (num_actor_obs, num_critic_obs)   #TODO
+        amp_input_shape = num_amp_obs   #TODO
         #build network###############################
         
         #build actor and critic net##################
@@ -230,7 +231,7 @@ class ASENet(AMPNet):
 
         mlp_out_layer = list(self._enc_mlp.modules())[-2]  # 获取MLP的倒数第二层
         mlp_out_size = mlp_out_layer.out_features  # 获取输出特征数
-        self._enc = torch.nn.Linear(mlp_out_size, self._ase_latent_shape[-1])  # 编码器线性层
+        self._enc = torch.nn.Linear(mlp_out_size, self._ase_latent_shape)  # 编码器线性层
         
         torch.nn.init.uniform_(self._enc.weight, -ENC_LOGIT_INIT_SCALE, ENC_LOGIT_INIT_SCALE)  # 初始化权重
         torch.nn.init.zeros_(self._enc.bias)  # 初始化偏置
@@ -241,9 +242,9 @@ class ASENet(AMPNet):
         if self.Spacecfg.iscontinuous:
             self.mu = torch.nn.Linear(actor_out_size, num_actions)  # 连续动作的均值层
             self.mu_act = get_activation(self.Spacecfg.mu_activation)  # 均值激活函数none
-            mu_init = get_initializer(self.Spacecfg.mu_init,self.mu.weight)  # 均值初始化器
+            mu_init = get_initializer(self.Spacecfg.mu_init)  # 均值初始化器  # 均值初始化器
             # 标准差初始化器const_initializer ,nn.init.constant_
-            sigma_init = get_initializer(self.Spacecfg.sigma_init,self.sigma,self.Spacecfg.sigma_val)  
+            sigma_init = get_initializer(self.Spacecfg.sigma_init,val=self.Spacecfg.sigma_val)  
             self.sigma_act = get_activation(self.Spacecfg.sigma_activation)  # 标准差激活函数none
             if (not self.Spacecfg.learn_sigma):
                 self.sigma = nn.Parameter(torch.zeros(num_actions, requires_grad=False, dtype=torch.float32), requires_grad=False)  # 固定标准差
@@ -261,7 +262,7 @@ class ASENet(AMPNet):
         
     def _build_actor_critic_net(self, input_shape, ase_latent_shape):
         style_units = [512, 256]  # 风格单元
-        style_dim = ase_latent_shape[-1]  # 风格维度
+        style_dim = ase_latent_shape  # 风格维度
 
         self.actor_cnn = nn.Sequential()  # 演员CNN
         self.critic_cnn = nn.Sequential()  # 评论家CNN
@@ -270,8 +271,8 @@ class ASENet(AMPNet):
         initializer = self.initializer  # 初始化器
 
         self.actor_mlp = AMPStyleCatNet1(
-            obs_size=input_shape[-1],
-            ase_latent_size=ase_latent_shape[-1],
+            obs_size=input_shape,
+            ase_latent_size=ase_latent_shape,
             units=self.mlp_units,
             activation=act_fn,
             style_units=style_units,
@@ -281,8 +282,8 @@ class ASENet(AMPNet):
 
         if self.separate:
             self.critic_mlp = AMPMLPNet(
-                obs_size=input_shape[-1],
-                ase_latent_size=ase_latent_shape[-1],
+                obs_size=input_shape,
+                ase_latent_size=ase_latent_shape,
                 units=self.mlp_units,
                 activation=act_fn,
                 initializer=initializer
@@ -344,23 +345,15 @@ class ASENet(AMPNet):
 class AMPagent(nn.Module):
     def __init__(
         self,
-        num_actor_obs,
-        num_critic_obs,
-        num_actions,
-        config:AMPCfg = AMPCfg(),
-        num_envs = 1024,
-        **kwargs,):
+        mconfig:AMPCfg = AMPCfg(),
+        ):
         nn.Module.__init__(self)
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.ampconf = config
+        self.ampconf = mconfig
         if self.ampconf.normalize_amp_input:
-            self.amp_input_mean_std = RunningMeanStd(self._amp_observation_space.shape).to(self.ppo_device)
+            self.amp_input_mean_std = RunningMeanStd(self._amp_observation_space.shape).to(self.device)
         
         
-    def _build_net_config(self):
-        config = super()._build_net_config()
-        config['amp_input_shape'] = self._amp_observation_space.shape
-        return config
     
     def _build_rand_action_probs(self):
         """
@@ -431,10 +424,7 @@ class AMPagent(nn.Module):
         self._amp_obs_demo_buffer.store({'amp_obs': new_amp_obs_demo})
         return
 
-    def _preproc_amp_obs(self, amp_obs):
-        if self.ampconf.normalize_amp_input:
-            amp_obs = self.amp_input_mean_std(amp_obs)
-        return amp_obs
+
 
     def _combine_rewards(self, task_rewards, amp_rewards):
         disc_r = amp_rewards['disc_rewards']
@@ -519,41 +509,43 @@ class AMPagent(nn.Module):
     def evaluate(self, critic_observations, **kwargs):   
         pass 
 
-
-
-
-
 class ASEagent(AMPagent):
+    is_recurrent = False
     def __init__(
         self,
         num_actor_obs,
         num_critic_obs,
         num_actions,
+        num_amp_obs,
         num_envs = 1024,
         config:ASECfg = ASECfg(),
         **kwargs,):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         nn.Module.__init__(self)
-        self.a2c_network = ASENet(num_actor_obs,num_critic_obs,num_actions)
+
+        self.a2c_network = ASENet(num_actor_obs,num_critic_obs,num_actions,num_amp_obs)
         self.aseconf = config
         #init params
         self.train_mod = True
-        
+       
         self.num_actor_obs = num_actor_obs
         if self.aseconf.normalize_value:
-            self.value_mean_std = RunningMeanStd((self.value_size,)) #   GeneralizedMovingStats((self.value_size,)) #   
+            self.value_mean_std = RunningMeanStd(self.a2c_network.value_size) #   GeneralizedMovingStats((self.value_size,)) #   
         if self.aseconf.normalize_input:
             if isinstance(num_actor_obs, dict):
                 self.running_mean_std = RunningMeanStdObs(num_actor_obs)
             else:
-                self.running_mean_std = RunningMeanStd(num_actor_obs)       
+                self.running_mean_std = RunningMeanStd(num_actor_obs)  
+        if self.aseconf.normalize_amp_input:
+            self.amp_input_mean_std = RunningMeanStd(num_amp_obs).to(self.device)                 
+                     
         self._latent_dim = self.aseconf.ase_latent_shape        
         self._latent_reset_steps = torch.zeros(num_envs, dtype=torch.int32, device=self.device) 
         self._ase_latents = torch.zeros((num_envs, self._latent_dim), dtype=torch.float32,
                                          device=self.device)        
         env_ids = torch.tensor(np.arange(num_envs), dtype=torch.long, device=self.device)
         self._reset_latent_step_count(env_ids)
-    
+###########LATENTS#################################################################
     def init_all_ase_latents(self,num_envs ):
         # 初始化所有环境的潜在变量
             env_ids = torch.tensor(np.arange(num_envs), dtype=torch.long, device=self.device)
@@ -588,10 +580,19 @@ class ASEagent(AMPagent):
             
     def _reset_latent_step_count(self, env_ids):
         # 为指定环境ID重置潜在步数计数
-        self._latent_reset_steps[env_ids] = torch.randint_like(self._latent_reset_steps[env_ids], low=self._latent_steps_min, 
-                                                            high=self._latent_steps_max)
+        self._latent_reset_steps[env_ids] = torch.randint_like(self._latent_reset_steps[env_ids], low=self.aseconf.latent_steps_min, 
+                                                            high=self.aseconf.latent_steps_max)
         return  
-    
+###########LATENTS#################################################################
+
+############AMP_OBS################################################################
+    def _preproc_amp_obs(self, amp_obs):
+        if self.aseconf.normalize_amp_input:
+            amp_obs = self.amp_input_mean_std(amp_obs)
+        return amp_obs
+############AMP_OBS################################################################
+
+###########AMP_REWARDS#############################################################    
     def _calc_amp_rewards(self, amp_obs):
         # 计算AMP奖励
         disc_r = self._calc_disc_rewards(amp_obs)
@@ -633,7 +634,10 @@ class ASEagent(AMPagent):
             enc_r *= self.aseconf.enc_reward_scale
 
         return enc_r 
-    
+
+###########AMP_REWARDS############################################################# 
+
+###########EVALS###################################################################   
     def _eval_actor(self, obs, ase_latents):
         # 评估演员网络
         output = self.a2c_network.eval_actor(obs=obs, ase_latents=ase_latents)
@@ -648,7 +652,8 @@ class ASEagent(AMPagent):
         proc_amp_obs = self._preproc_amp_obs(amp_obs)
         return self.a2c_network.eval_disc(proc_amp_obs)
 
-
+###########EVALS###################################################################
+ 
     def _calc_enc_error(self, enc_pred, ase_latent):
         # 计算编码器误差
         # 计算误差值
@@ -827,13 +832,11 @@ class ASEagent(AMPagent):
         return self.distribution.entropy().sum(dim=-1)
     
 
-    def update_distribution(self, observations,ase_latents,input_dict):
+    def update_distribution(self, observations,ase_latents):
         observations = F.normalize(observations,p=2, dim=1, eps=1e-12)
         #network forward
         #use_hidden_latents = True时，aselatents会多经过一个隐藏层
         mu, logstd = self.a2c_network(observations,ase_latents,use_hidden_latents = False)
-        if self.aseconf.normalize_value:
-            value = self.value_mean_std(value)
         sigma = torch.exp(logstd)
         # 使用均值和标准差创建一个正态分布对象
         # 其中标准差为均值乘以0（即不改变均值）再加上self.std
@@ -846,8 +849,6 @@ class ASEagent(AMPagent):
         #network forward
         #use_hidden_latents = True时，aselatents会多经过一个隐藏层
         mu, logstd = self.a2c_network(observations,ase_latent_batch,use_hidden_latents = False)
-        if self.aseconf.normalize_value:
-            value = self.value_mean_std(value)
         sigma = torch.exp(logstd)
         
         #在这里面，amp_obs_demo就是数据集
@@ -910,6 +911,35 @@ def get_activation(act_name):
         return None
 
 def get_initializer(initialization, **kwargs):
+    """
+    获取神经网络权重的初始化函数。
+
+    Args:
+        initialization (str): 初始化方法的名称，支持的选项包括：
+            - "xavier_uniform": 使用 Xavier 均匀分布初始化
+            - "xavier_normal": 使用 Xavier 正态分布初始化
+            - "const_initializer": 使用常量初始化
+            - "kaiming_uniform": 使用 Kaiming 均匀分布初始化
+            - "kaiming_normal": 使用 Kaiming 正态分布初始化
+            - "orthogonal": 使用正交初始化
+            - "normal": 使用标准正态分布初始化
+            - "default": 默认不进行初始化，直接返回输入
+        **kwargs: 其他关键字参数，这些参数将传递给具体的初始化函数
+
+    Returns:
+        function: 返回一个初始化函数，该函数接受一个张量作为输入，并对其进行初始化
+
+    Example:
+        # 创建一个初始化器
+        initializer = get_initializer("xavier_uniform", gain=1.0)
+        
+        # 获取一个张量
+        tensor = torch.empty(3, 5)
+        
+        # 使用初始化器对张量进行初始化
+        initializer(tensor)
+    """
+    
     initializers = {
         "xavier_uniform": lambda v: nn.init.xavier_uniform_(v, **kwargs),
         "xavier_normal": lambda v: nn.init.xavier_normal_(v, **kwargs),
@@ -921,7 +951,8 @@ def get_initializer(initialization, **kwargs):
         "default": lambda v: v  # nn.Identity 不是一个初始化函数，这里直接返回输入
     }
     
-    return initializers.get(initialization, lambda v: (print("invalid initializer function"), None))  # 返回默认处理
+    # 返回指定的初始化函数，如果初始化方法无效，则返回一个默认处理函数
+    return initializers.get(initialization, lambda v: (print("invalid initializer function"), None))
 
 class AMPMLPNet(torch.nn.Module):
     def __init__(self, obs_size, ase_latent_size, units, activation, initializer):

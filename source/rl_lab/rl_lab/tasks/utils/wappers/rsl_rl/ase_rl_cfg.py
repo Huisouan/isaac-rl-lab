@@ -20,10 +20,11 @@ class SpaceCfg:
 
 @configclass
 class ASENetcfg:
+    
     name:str = 'ase'
     separate_disc:bool = True
     
-    Spacecfg:SpaceCfg = SpaceCfg
+    Spacecfg:SpaceCfg = SpaceCfg()
     
     mlp_units:list = [1024, 1024, 512]
     disc_units:list = [1024, 1024, 512]
@@ -59,5 +60,7 @@ class ASECfg:
     bounds_loss_coef:int = 10
     
     amp_diversity_tar:float = 1.0
+    
+    normalize_amp_input:bool = True
     
     

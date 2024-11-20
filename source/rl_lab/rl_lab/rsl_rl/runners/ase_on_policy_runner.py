@@ -23,7 +23,6 @@ class ASEOnPolicyRunner:
     def __init__(self, env: VecEnv, train_cfg, log_dir=None, device="cpu"):
         self.cfg = train_cfg
         self.alg_cfg = train_cfg["algorithm"]
-        self.policy_cfg = train_cfg["policy"]
         self.device = device
         self.env = env
         obs, extras = self.env.get_observations()
@@ -32,9 +31,8 @@ class ASEOnPolicyRunner:
             num_critic_obs = extras["observations"]["critic"].shape[1]
         else:
             num_critic_obs = num_obs
-        actor_critic_class = eval(self.policy_cfg.pop("class_name"))  # ActorCritic
-        actor_critic: ActorCritic | ActorCriticRecurrent | PMC | ASEagent = actor_critic_class(
-            num_obs, num_critic_obs, self.env.num_actions,self.env.num_envs,**self.policy_cfg
+        actor_critic = ASEagent(
+            num_obs, num_critic_obs, self.env.num_actions,self.env.num_envs
         ).to(self.device)
         
         # load amp data

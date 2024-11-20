@@ -6,11 +6,12 @@
 from .pmc_on_policy_runner import PmcOnPolicyRunner
 from .amp_on_policy_runner import AmpOnPolicyRunner
 from .cvqvae_on_policy_runner import CvqvaeOnPolicyRunner
-
+from .ase_on_policy_runner import ASEOnPolicyRunner
 __all__ = [
     
         "PmcOnPolicyRunner",
         "AmpOnPolicyRunner",
         "CvqvaeOnPolicyRunner",
-           
+        "ASEOnPolicyRunner",
+        
            ]

@@ -37,7 +37,7 @@ class ASENetcfg:
 @configclass
 class ASECfg:
     # 获取ASE潜在形状
-
+    class_name: str = "ASEagent"
     normalize_value:bool = True
     normalize_input:bool = True    
 

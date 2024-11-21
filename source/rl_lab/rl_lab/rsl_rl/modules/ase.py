@@ -166,6 +166,7 @@ class ASENet(AMPNet):
             )
         super().__init__(num_actor_obs,num_actions,)
         #parameter init##############################
+        self.is_continuous = Asenetcfg.Spacecfg.iscontinuous
         self.initializer = get_initializer(Asenetcfg.initializer)
         self.activation = get_activation(Asenetcfg.activation)
         self._ase_latent_shape =  Asecfg.ase_latent_shape
@@ -736,7 +737,7 @@ class ASEagent(AMPagent):
         # logit reg
         logit_weights = self.a2c_network.get_disc_logit_weights()
         disc_logit_loss = torch.sum(torch.square(logit_weights))
-        disc_loss += self._disc_logit_reg * disc_logit_loss
+        disc_loss += self.aseconf.disc_logit_reg * disc_logit_loss
 
         # 计算梯度惩罚
         # grad penalty
@@ -745,15 +746,15 @@ class ASEagent(AMPagent):
         disc_demo_grad = disc_demo_grad[0]
         disc_demo_grad = torch.sum(torch.square(disc_demo_grad), dim=-1)
         disc_grad_penalty = torch.mean(disc_demo_grad)
-        disc_loss += self._disc_grad_penalty * disc_grad_penalty
+        disc_loss += self.aseconf.disc_grad_penalty * disc_grad_penalty
 
         # 计算权重衰减
         # weight decay
-        if (self._disc_weight_decay != 0):
+        if (self.aseconf.disc_weight_decay != 0):
             disc_weights = self.a2c_network.get_disc_weights()
             disc_weights = torch.cat(disc_weights, dim=-1)
             disc_weight_decay = torch.sum(torch.square(disc_weights))
-            disc_loss += self._disc_weight_decay * disc_weight_decay
+            disc_loss += self.aseconf.disc_weight_decay * disc_weight_decay
 
         # 计算判别器准确率
         disc_agent_acc, disc_demo_acc = self._compute_disc_acc(disc_agent_logit, disc_demo_logit)
@@ -854,6 +855,7 @@ class ASEagent(AMPagent):
         #use_hidden_latents = True时，aselatents会多经过一个隐藏层
         mu, logstd = self.a2c_network(observations,ase_latents,use_hidden_latents = False)
         sigma = torch.exp(logstd)
+        self.std = sigma
         # 使用均值和标准差创建一个正态分布对象
         # 其中标准差为均值乘以0（即不改变均值）再加上self.std
         self.distribution = Normal(mu, sigma, validate_args=False)
@@ -866,7 +868,7 @@ class ASEagent(AMPagent):
         #use_hidden_latents = True时，aselatents会多经过一个隐藏层
         mu, logstd = self.a2c_network(observations,ase_latent_batch,use_hidden_latents = False)
         sigma = torch.exp(logstd)
-        
+        self.std = sigma
         #在这里面，amp_obs_demo就是数据集
         self.disc_agent_logit = self.a2c_network.eval_disc(rl_state_trans)
 
@@ -897,9 +899,13 @@ class ASEagent(AMPagent):
         return actions_mean
 
     def evaluate(self, critic_observations, **kwargs):
-        value = self.a2c_network.eval_critic(critic_observations, self._ase_latents,)
+        if 'ase_latents' in kwargs:
+            ase_latents = kwargs['ase_latents']
+        else:
+            ase_latents = self._ase_latents
+        value = self.a2c_network.eval_critic(critic_observations, ase_latents,)
         if self.aseconf.normalize_value:
-            value = self.value_mean_std(value)        
+            value = self.value_mean_std(value,True)        
         return value
 
 
@@ -1118,7 +1124,7 @@ class RunningMeanStd(nn.Module):
             in_size = insize
 
         self.register_buffer("running_mean", torch.zeros(in_size, dtype = torch.float64))
-        self.register_buffer("running_var", torch.ones(in_size, dtype = torch.float64))
+        self.register_buffer("running_var", torch.ones(in_size, dtype = torch.float64))        
         self.register_buffer("count", torch.ones((), dtype = torch.float64))
 
     def _update_mean_var_count_from_moments(self, mean, var, count, batch_mean, batch_var, batch_count):
@@ -1128,8 +1134,8 @@ class RunningMeanStd(nn.Module):
         new_mean = mean + delta * batch_count / tot_count
         m_a = var * count
         m_b = batch_var * batch_count
-        M2 = m_a + m_b + delta**2 * count * batch_count / tot_count
-        new_var = M2 / tot_count
+        m2 = m_a + m_b + delta**2 * count * batch_count / tot_count
+        new_var = m2 / tot_count
         new_count = tot_count
         return new_mean, new_var, new_count
 
@@ -1137,9 +1143,10 @@ class RunningMeanStd(nn.Module):
         if self.training:
             mean = input.mean(self.axis) # along channel axis
             var = input.var(self.axis)
-            self.running_mean, self.running_var, self.count = self._update_mean_var_count_from_moments(self.running_mean, self.running_var, self.count, 
-                                                    mean, var, input.size()[0] )
-
+            self.running_mean, self.running_var, self.count = self._update_mean_var_count_from_moments(
+                self.running_mean.clone(), self.running_var.clone(), self.count.clone(), 
+                mean, var, input.size()[0]
+            )
         # change shape
         if self.per_channel:
             if len(self.insize) == 3:
@@ -1152,8 +1159,8 @@ class RunningMeanStd(nn.Module):
                 current_mean = self.running_mean.view([1, self.insize[0]]).expand_as(input)
                 current_var = self.running_var.view([1, self.insize[0]]).expand_as(input)        
         else:
-            current_mean = self.running_mean
-            current_var = self.running_var
+            current_mean = self.running_mean.detach()
+            current_var = self.running_var.detach()
         # get output
 
 

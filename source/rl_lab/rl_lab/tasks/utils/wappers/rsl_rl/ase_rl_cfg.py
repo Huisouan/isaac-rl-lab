@@ -62,6 +62,11 @@ class ASECfg:
     amp_diversity_tar:float = 1.0
     
     normalize_amp_input:bool = True
+
+    disc_logit_reg:float =  0.01
+    disc_grad_penalty:float =  5
+    disc_reward_scale:float = 2
+    disc_weight_decay:float = 0.0001
     
     disc_coef:float = 5.0
     enc_coef:float = 5.0

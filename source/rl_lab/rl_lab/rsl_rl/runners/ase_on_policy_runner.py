@@ -131,11 +131,10 @@ class ASEOnPolicyRunner:
             start = time.time()
             # Rollout
             with torch.inference_mode():
+                self.alg.actor_critic.set_eval()
                 for i in range(self.num_steps_per_env):
                     #设置模型推理
-                    self.alg.actor_critic.train_mod = False
-                    self.alg.actor_critic.set_eval()
-                    
+
                     actions = self.alg.act(obs,critic_obs,amp_obs,cur_episode_length)
                     obs, rewards, dones, infos = self.env.step(actions)
                     
@@ -264,13 +263,11 @@ class ASEOnPolicyRunner:
                 f"""{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs[
                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
                 f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
-                f"""{'VQVAE loss:':>{pad}} {locs['vqvae_loss']:.4f}\n"""
-                f"""{'perplexity:':>{pad}} {locs['perplexity_loss']:.4f}\n"""
                 f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
                 f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
                 f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""
                 f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n"""
-            )
+            ) 
             #   f"""{'Mean reward/step:':>{pad}} {locs['mean_reward']:.2f}\n"""
             #   f"""{'Mean episode length/episode:':>{pad}} {locs['mean_trajectory_length']:.2f}\n""")
         else:

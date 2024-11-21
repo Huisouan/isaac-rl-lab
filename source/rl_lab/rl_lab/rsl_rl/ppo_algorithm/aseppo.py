@@ -150,7 +150,7 @@ class ASEPPO:
         last_values = self.actor_critic.evaluate(last_critic_obs).detach()
         self.storage.compute_returns(last_values, self.gamma, self.lam)
 
-    def update(self,):
+    def update(self,env):
         mean_value_loss = 0
         mean_surrogate_loss = 0
         
@@ -192,11 +192,20 @@ class ASEPPO:
             #使用ase_forward
             
             
+            #预处理amp obs
+            policy_state, policy_next_state = rl_state_trans
+            expert_state, expert_next_state = data_state_trans 
+            rl_state_trans = torch.cat([policy_state, policy_next_state], dim=-1)
+            data_state_trans = torch.cat([expert_state, expert_next_state], dim=-1)     
+            rl_state_trans = self.actor_critic._preproc_amp_obs(rl_state_trans)
+            data_state_trans = self.actor_critic._preproc_amp_obs(data_state_trans)
+            data_state_trans.requires_grad_(True)
+            
             self.actor_critic.ase_forward(obs_batch,ase_latent_batch,rl_state_trans,data_state_trans)
             
             actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
             value_batch = self.actor_critic.evaluate(
-                critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1]
+                critic_obs_batch, masks=masks_batch, ase_latents = ase_latent_batch,hidden_states=hid_states_batch[1]
             )
             mu_batch = self.actor_critic.action_mean
             sigma_batch = self.actor_critic.action_std
@@ -250,18 +259,18 @@ class ASEPPO:
             disc_loss = disc_info['disc_loss'] 
 
             # 计算编码器损失
-            enc_latents = self.actor_critic._ase_latents
+            enc_latents = ase_latent_batch
             enc_info = self.actor_critic._enc_loss(self.actor_critic.enc_pred, enc_latents, rl_state_trans)
             enc_loss = enc_info['enc_loss']
 
 
             loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean() \
-                +self.actor_critic.aseconf.bounds_loss_coef * bound_loss +\
+                +self.actor_critic.aseconf.bounds_loss_coef * bound_loss.mean() +\
                 self.actor_critic.aseconf.disc_coef * disc_loss + self.actor_critic.aseconf.enc_coef * enc_loss
 
             if self.actor_critic._enable_amp_diversity_bonus():
                 diversity_loss = self.actor_critic._diversity_loss(obs_batch, mu_batch, ase_latent_batch)
-                loss += self.actor_critic.aseconf.amp_diversity_bonus* diversity_loss
+                loss += self.actor_critic.aseconf.amp_diversity_bonus* diversity_loss.mean()
                 
 
             # Gradient step

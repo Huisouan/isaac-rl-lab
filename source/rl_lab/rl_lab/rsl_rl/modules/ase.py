@@ -56,14 +56,16 @@ class AMPNet(nn.Module):
         
         #build actor
         self.actor_mlp = self._build_mlp(self.mlp_input_num,self.mlp_units)   
+        print('build actor_mlp:', self.actor_mlp)
+
         #build critic 
         if self.seperate_actor_critic == True:
             self.critic_mlp = self._build_mlp(self.mlp_input_num,self.mlp_units)
-
+            print('build critic_mlp:', self.actor_mlp)
         #build value
         self.value = self._build_value_layer(input_size=self.mlp_units[-1], output_size=1)
         self.value_activation =  nn.Identity()
-    
+        print('build value:', self.value)
 
         
     def _build_disc(self, input_shape):
@@ -75,12 +77,12 @@ class AMPNet(nn.Module):
             'units' : self.disc_units, 
         }
         self._disc_mlp = self._build_mlp(**mlp_args)
-        
+        print('_build_disc:', self._disc_mlp)
         # 获取MLP输出的大小
         mlp_out_size = self.disc_units[-1]
         # 初始化判别器的对数概率层
         self._disc_logits = torch.nn.Linear(mlp_out_size, 1)
-
+        print('_disc_logits:', self._disc_logits)
         # 初始化MLP的权重
         mlp_init = self.initializer
         for m in self._disc_mlp.modules():
@@ -100,6 +102,7 @@ class AMPNet(nn.Module):
         input = num_input
         mlp_layers = []
         print('build mlp:', input)
+        print('build mlp:', units)
         in_size = input        
         for unit in units:
             mlp_layers.append(nn.Linear(in_size, unit))
@@ -183,6 +186,7 @@ class ASENet(AMPNet):
         
         #build value net#############################
         self.value = torch.nn.Linear(critic_out_size, self.value_size)  # 价值层
+        print("ase value: ", self.value)
         self.value_act = get_activation('none')
         #build action head############################
         self._build_action_head(actor_out_size, num_actions)
@@ -219,7 +223,7 @@ class ASENet(AMPNet):
                 'units': self.enc_units, 
             }
             self._enc_mlp = self._build_mlp(**mlp_args)  # 构建编码器MLP
-
+            print("ase enc_mlp:",self._enc_mlp)
             mlp_init = self.initializer  # 编码器初始化器
             for m in self._enc_mlp.modules():
                 if isinstance(m, nn.Linear):
@@ -228,10 +232,11 @@ class ASENet(AMPNet):
                         torch.nn.init.zeros_(m.bias)  # 初始化偏置
         else:
             self._enc_mlp = self._disc_mlp  # 使用判别器MLP
-
+            print("ase enc_mlp:",self._enc_mlp)
         mlp_out_layer = list(self._enc_mlp.modules())[-1]  # 获取MLP的倒数第二层
         mlp_out_size = mlp_out_layer.out_features  # 获取输出特征数
         self._enc = torch.nn.Linear(mlp_out_size, self._ase_latent_shape)  # 编码器线性层
+        print("ase enc:",self._enc)
         
         torch.nn.init.uniform_(self._enc.weight, -ENC_LOGIT_INIT_SCALE, ENC_LOGIT_INIT_SCALE)  # 初始化权重
         torch.nn.init.zeros_(self._enc.bias)  # 初始化偏置
@@ -279,7 +284,7 @@ class ASENet(AMPNet):
             style_dim=style_dim,
             initializer=initializer
         )  # 演员MLP
-
+        print("ase actor_mlp:",self.actor_mlp)
         if self.separate:
             self.critic_mlp = AMPMLPNet(
                 obs_size=input_shape,
@@ -288,10 +293,10 @@ class ASENet(AMPNet):
                 activation=act_fn,
                 initializer=initializer
             )  # 评论家MLP
-
+        print("ase critic_mlp:",self.critic_mlp)
         actor_out_size = self.actor_mlp.get_out_size()  # 演员输出大小
         critic_out_size = self.critic_mlp.get_out_size()  # 评论家输出大小
-
+        
         return actor_out_size, critic_out_size
 
     def get_enc_weights(self):

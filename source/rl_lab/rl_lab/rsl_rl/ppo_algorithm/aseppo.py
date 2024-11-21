@@ -244,8 +244,10 @@ class ASEPPO:
             bound_loss = self.actor_critic.bound_loss(mu_batch)
             
             # 计算判别器损失
-            disc_info = self.actor_critic._disc_loss(self.actor_critic.disc_agent_logit, self.actor_critic.disc_demo_logit, data_state_trans)
-            disc_loss = disc_info['disc_loss']
+            disc_info = self.actor_critic._disc_loss(self.actor_critic.disc_agent_logit,
+                                                     self.actor_critic.disc_demo_logit, 
+                                                     data_state_trans)
+            disc_loss = disc_info['disc_loss'] 
 
             # 计算编码器损失
             enc_latents = self.actor_critic._ase_latents
@@ -255,11 +257,11 @@ class ASEPPO:
 
             loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean() \
                 +self.actor_critic.aseconf.bounds_loss_coef * bound_loss +\
-                self._disc_coef * disc_loss + self._enc_coef * enc_loss
+                self.actor_critic.aseconf.disc_coef * disc_loss + self.actor_critic.aseconf.enc_coef * enc_loss
 
-            if self._enable_amp_diversity_bonus():
-                diversity_loss = self.actor_critic._diversity_loss(obs_batch, mu, ase_latent_batch)
-                loss += self._amp_diversity_bonus * diversity_loss
+            if self.actor_critic._enable_amp_diversity_bonus():
+                diversity_loss = self.actor_critic._diversity_loss(obs_batch, mu_batch, ase_latent_batch)
+                loss += self.actor_critic.aseconf.amp_diversity_bonus* diversity_loss
                 
 
             # Gradient step

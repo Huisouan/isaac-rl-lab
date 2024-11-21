@@ -815,7 +815,9 @@ class ASEagent(AMPagent):
 
         return diversity_loss    
 
-    
+    def _enable_amp_diversity_bonus(self):
+        # 检查是否启用了AMP多样性奖励
+        return self.aseconf.amp_diversity_bonus != 0    
     
     
     @staticmethod

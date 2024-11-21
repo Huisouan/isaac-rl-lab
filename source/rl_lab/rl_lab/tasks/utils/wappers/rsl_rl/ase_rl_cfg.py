@@ -63,4 +63,8 @@ class ASECfg:
     
     normalize_amp_input:bool = True
     
+    disc_coef:float = 5.0
+    enc_coef:float = 5.0
     
+    amp_diversity_bonus:float = 0.01
+

@@ -310,7 +310,7 @@ class ASENet(AMPNet):
 
     def sample_latents(self, n):
         device = next(self._enc.parameters()).device  # 获取设备
-        z = torch.normal(torch.zeros([n, self._ase_latent_shape[-1]], device=device))  # 生成正态分布的潜在变量
+        z = torch.normal(torch.zeros([n, self._ase_latent_shape], device=device))  # 生成正态分布的潜在变量
         z = torch.nn.functional.normalize(z, dim=-1)  # 归一化潜在变量
         return z
                 
@@ -550,6 +550,16 @@ class ASEagent(AMPagent):
                                          device=self.device)        
         env_ids = torch.tensor(np.arange(num_envs), dtype=torch.long, device=self.device)
         self._reset_latent_step_count(env_ids)
+
+    def set_eval(self):
+        if self.aseconf.normalize_amp_input:
+            self.amp_input_mean_std.eval()
+        return
+
+    def set_train(self):
+        if self.aseconf.normalize_amp_input:
+            self.amp_input_mean_std.train()
+        return
 ###########LATENTS#################################################################
     def init_all_ase_latents(self,num_envs ):
         # 初始化所有环境的潜在变量
@@ -572,11 +582,9 @@ class ASEagent(AMPagent):
     
     def _reset_latents(self, env_ids):
         # 为指定环境ID重置潜在变量
-        if env_ids is None:
-            n = len(env_ids)
-            z = self._sample_latents(n)
-            self._ase_latents[env_ids] = z
-
+        n = len(env_ids)
+        z = self._sample_latents(n)
+        self._ase_latents[env_ids] = z
 
     def _sample_latents(self, n):
         # 从模型中采样潜在变量
@@ -600,8 +608,9 @@ class ASEagent(AMPagent):
 ###########AMP_REWARDS#############################################################    
     def _calc_amp_rewards(self, amp_obs):
         # 计算AMP奖励
-        disc_r = self._calc_disc_rewards(amp_obs)
-        enc_r = self._calc_enc_rewards(amp_obs, self._ase_latents)
+        disc_r = self._calc_disc_rewards(amp_obs).squeeze(-1)
+        
+        enc_r = self._calc_enc_rewards(amp_obs, self._ase_latents).squeeze(-1)
         output = {
             'disc_rewards': disc_r,
             'enc_rewards': enc_r

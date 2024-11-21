@@ -100,8 +100,8 @@ class ASEOnPolicyRunner:
             self.env.episode_length_buf = torch.randint_like(
                 self.env.episode_length_buf, high=int(self.env.max_episode_length)
             )
-        #初始化所有的latents
-        self.alg.init_ase_latents(self.env.num_envs)
+            
+
         
         obs, extras = self.env.get_observations()
         critic_obs = extras["observations"].get("critic", obs)
@@ -112,7 +112,8 @@ class ASEOnPolicyRunner:
         amp_obs = self.env.unwrapped.get_amp_observations()
         amp_obs = amp_obs.to(self.device)        
         # AMPOBS############################################
-        
+        #初始化所有的latents
+        self.alg.init_ase_latents(self.env.num_envs)        
         
         
         self.train_mode()  # switch to train mode (for dropout for example)
@@ -131,8 +132,9 @@ class ASEOnPolicyRunner:
             # Rollout
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
+                    #设置模型推理
                     self.alg.actor_critic.train_mod = False
-                    
+                    self.alg.actor_critic.set_eval()
                     
                     actions = self.alg.act(obs,critic_obs,amp_obs,cur_episode_length)
                     obs, rewards, dones, infos = self.env.step(actions)
@@ -187,6 +189,8 @@ class ASEOnPolicyRunner:
                 start = stop
                 self.alg.compute_returns(critic_obs)
 
+
+            self.alg.actor_critic.set_train()
             mean_value_loss, mean_surrogate_loss = self.alg.update(self.env.unwrapped)
             stop = time.time()
             learn_time = stop - start

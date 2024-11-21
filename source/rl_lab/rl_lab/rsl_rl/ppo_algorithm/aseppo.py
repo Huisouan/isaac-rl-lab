@@ -122,7 +122,7 @@ class ASEPPO:
         
         amp_reward = self.actor_critic._calc_amp_rewards(amp_obs_trans)
         #把amp reward加到reward上，此处reward会进入到advantage的计算中，从而影响ppo算法的损失
-        self.transition.rewards = self.actor_critic._combine_rewards(rewards.clone(),amp_reward)
+        self.transition.rewards = self.actor_critic.combine_rewards(rewards.clone(),amp_reward)
         
         self.transition.dones = dones
         
@@ -150,7 +150,7 @@ class ASEPPO:
         last_values = self.actor_critic.evaluate(last_critic_obs).detach()
         self.storage.compute_returns(last_values, self.gamma, self.lam)
 
-    def update(self):
+    def update(self,):
         mean_value_loss = 0
         mean_surrogate_loss = 0
         
@@ -244,12 +244,12 @@ class ASEPPO:
             bound_loss = self.actor_critic.bound_loss(mu_batch)
             
             # 计算判别器损失
-            disc_info = self.actor_critic._disc_loss(self.actor_critic.disc_agent_logit, self.actor_critic.disc_demo_logit, datasets)
+            disc_info = self.actor_critic._disc_loss(self.actor_critic.disc_agent_logit, self.actor_critic.disc_demo_logit, data_state_trans)
             disc_loss = disc_info['disc_loss']
 
             # 计算编码器损失
             enc_latents = self.actor_critic._ase_latents
-            enc_info = self.actor_critic._enc_loss(self.actor_critic.enc_pred, enc_latents, self.amp_obs)
+            enc_info = self.actor_critic._enc_loss(self.actor_critic.enc_pred, enc_latents, rl_state_trans)
             enc_loss = enc_info['enc_loss']
 
 

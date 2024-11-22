@@ -150,9 +150,14 @@ class ASEPPO:
         last_values = self.actor_critic.evaluate(last_critic_obs).detach()
         self.storage.compute_returns(last_values, self.gamma, self.lam)
 
-    def update(self,env):
+    def update(self, env):
         mean_value_loss = 0
         mean_surrogate_loss = 0
+        mean_entropy_loss = 0
+        mean_bound_loss = 0
+        mean_disc_loss = 0
+        mean_enc_loss = 0
+        mean_diversity_loss = 0
         
         
         if self.actor_critic.is_recurrent:
@@ -265,13 +270,12 @@ class ASEPPO:
 
 
             loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean() \
-                +self.actor_critic.aseconf.bounds_loss_coef * bound_loss.mean() +\
+                + self.actor_critic.aseconf.bounds_loss_coef * bound_loss.mean() + \
                 self.actor_critic.aseconf.disc_coef * disc_loss + self.actor_critic.aseconf.enc_coef * enc_loss
 
             if self.actor_critic._enable_amp_diversity_bonus():
                 diversity_loss = self.actor_critic._diversity_loss(obs_batch, mu_batch, ase_latent_batch)
-                loss += self.actor_critic.aseconf.amp_diversity_bonus* diversity_loss.mean()
-                
+                loss += self.actor_critic.aseconf.amp_diversity_bonus * diversity_loss.mean()
 
             # Gradient step
             self.optimizer.zero_grad()
@@ -281,10 +285,31 @@ class ASEPPO:
 
             mean_value_loss += value_loss.item()
             mean_surrogate_loss += surrogate_loss.item()
+            mean_entropy_loss += entropy_batch.mean().item()
+            mean_bound_loss += bound_loss.mean().item()
+            mean_disc_loss += disc_loss.item()
+            mean_enc_loss += enc_loss.item()
+            if self.actor_critic._enable_amp_diversity_bonus():
+                mean_diversity_loss += diversity_loss.mean().item()
+            else:
+                mean_diversity_loss = 0.0
 
         num_updates = self.num_learning_epochs * self.num_mini_batches
         mean_value_loss /= num_updates
         mean_surrogate_loss /= num_updates
-        self.storage.clear()
+        mean_entropy_loss /= num_updates
+        mean_bound_loss /= num_updates
+        mean_disc_loss /= num_updates
+        mean_enc_loss /= num_updates
+        mean_diversity_loss /= num_updates
 
-        return mean_value_loss, mean_surrogate_loss
+        self.storage.clear()
+        return (
+            mean_value_loss,
+            mean_surrogate_loss,
+            mean_entropy_loss,
+            mean_bound_loss,
+            mean_disc_loss,
+            mean_enc_loss,
+            mean_diversity_loss
+        )

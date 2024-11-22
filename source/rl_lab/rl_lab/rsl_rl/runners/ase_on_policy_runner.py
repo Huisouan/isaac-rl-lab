@@ -240,6 +240,11 @@ class ASEOnPolicyRunner:
 
         self.writer.add_scalar("Loss/value_function", locs["mean_value_loss"], locs["it"])
         self.writer.add_scalar("Loss/surrogate", locs["mean_surrogate_loss"], locs["it"])
+        self.writer.add_scalar("Loss/entropy", locs["mean_entropy_loss"], locs["it"])
+        self.writer.add_scalar("Loss/bound", locs["mean_bound_loss"], locs["it"])
+        self.writer.add_scalar("Loss/disc", locs["mean_disc_loss"], locs["it"])
+        self.writer.add_scalar("Loss/enc", locs["mean_enc_loss"], locs["it"])
+        self.writer.add_scalar("Loss/diversity", locs["mean_diversity_loss"], locs["it"])
         self.writer.add_scalar("Loss/learning_rate", self.alg.learning_rate, locs["it"])
         self.writer.add_scalar("Policy/mean_noise_std", mean_std.item(), locs["it"])
         self.writer.add_scalar("Perf/total_fps", fps, locs["it"])

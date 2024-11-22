@@ -127,17 +127,17 @@ def main():
             actions = policy(obs)
             # env stepping
             obs, _, _, _ = env.step(actions)
-            print(obs[0][3:6].tolist())
+            
             readings = joystick.advance()
             if readings[0] < 0:
                 readings[0] = readings[0]
             else :
-                readings[0] = 2*readings[0]
+                readings[0] = 1.5*readings[0]
             readings[1] = 0.3*readings[1]
             readings[2] = 1.53*readings[2]
             readings_tensor = torch.from_numpy(readings*2).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
-            #obs[0][3:6] = readings_tensor.float()
-            
+            obs[0][3:6] = readings_tensor.float()
+            print(obs[0][3:6].tolist())
             
             
         if args_cli.video:

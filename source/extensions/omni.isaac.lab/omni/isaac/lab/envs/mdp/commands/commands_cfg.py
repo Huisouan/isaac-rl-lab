@@ -38,11 +38,9 @@ class UniformVelocityCommandCfg(CommandTermCfg):
     asset_name: str = MISSING
     """Name of the asset in the environment for which the commands are generated."""
     heading_command: bool = MISSING
-    """Whether to use heading command or angular velocity command.
+    """是否使用航向指令或角速度指令。
 
-    If True, the angular velocity command is computed from the heading error, where the
-    target heading is sampled uniformly from provided range. Otherwise, the angular velocity
-    command is sampled uniformly from provided range.
+    如果为 True，则角速度指令将根据航向误差计算，其中目标航向从提供的范围内均匀采样。否则，角速度指令将从提供的范围内均匀采样。
     """
     heading_control_stiffness: float = MISSING
     """Scale factor to convert the heading error to angular velocity command."""

@@ -28,19 +28,19 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # ------------------------------Sence------------------------------
         # switch robot to unitree-a1
         self.scene.robot = UNITREE_GO2_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/root"
+        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/base"
         # scale down the terrains because the robot is small
         self.scene.terrain.terrain_generator.sub_terrains["boxes"].grid_height_range = (0.025, 0.1)
         self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_range = (0.01, 0.06)
         self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_step = 0.01
 
         # ------------------------------Observations------------------------------
-        #self.observations.policy.base_lin_vel.scale = 2.0
-        #self.observations.policy.base_ang_vel.scale = 0.25
+        self.observations.policy.base_lin_vel.scale = 2.0
+        self.observations.policy.base_ang_vel.scale = 0.25
         self.observations.policy.joint_pos.scale = 1.0
         self.observations.policy.joint_vel.scale = 0.05
-        #self.observations.policy.base_lin_vel = None
-        #self.observations.policy.base_ang_vel = None
+        self.observations.policy.base_lin_vel = None
+        self.observations.policy.base_ang_vel = None
         self.observations.policy.height_scan = None
         self.observations.AMP = create_obsgroup_class('AMPCfg',{
             'base_pos_z': ObsTerm(func=mdp.base_pos_z),
@@ -60,8 +60,8 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.physics_material = None
         self.events.add_base_mass = None
         self.events.base_external_force_torque = None
-        #self.events.reset_base = None
-        #self.events.reset_robot_joints = None
+        self.events.reset_base = None
+        self.events.reset_robot_joints = None
         self.events.randomize_actuator_gains = None
         self.events.randomize_joint_parameters = None
         self.events.push_robot = None
@@ -95,8 +95,8 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.contact_forces.weight = 0
 
         # Velocity-tracking rewards
-        self.rewards.track_lin_vel_xy_exp.weight = 1.0 * 1.0 / (0.005 * 4)
-        self.rewards.track_ang_vel_z_exp.weight = 0.5 * 1.0 / (0.005 * 4)
+        self.rewards.track_lin_vel_xy_exp.weight = 1.0 * 1.0 / (0.005 * 6)
+        self.rewards.track_ang_vel_z_exp.weight = 0.5 * 1.0 / (0.005 * 6)
 
         # Others
         self.rewards.feet_air_time.weight = 0
@@ -118,7 +118,6 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.3, 0.3)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.57, 1.57)
-        self.commands.base_velocity.ranges.heading = (-3.14, 3.14)
         # ------------------------------AMP------------------------------
         self.urdf_path = "datasets/go2_description/urdf/go2_description.urdf"
         self.ee_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]

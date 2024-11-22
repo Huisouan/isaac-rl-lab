@@ -167,34 +167,30 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        velocity_commands = ObsTerm(
-            func=mdp.generated_commands,
-            params={"command_name": "base_velocity"},
-            clip=(-100.0, 100.0),
-            scale=1.0,
-        )
-        """
         base_lin_vel = ObsTerm(
             func=mdp.base_lin_vel,
             noise=Unoise(n_min=-0.1, n_max=0.1),
             clip=(-100.0, 100.0),
             scale=1.0,
         )
-        """
         base_ang_vel = ObsTerm(
             func=mdp.base_ang_vel,
             noise=Unoise(n_min=-0.2, n_max=0.2),
             clip=(-100.0, 100.0),
             scale=1.0,
         )
-        
         projected_gravity = ObsTerm(
             func=mdp.projected_gravity,
             noise=Unoise(n_min=-0.05, n_max=0.05),
             clip=(-100.0, 100.0),
             scale=1.0,
         )
-
+        velocity_commands = ObsTerm(
+            func=mdp.generated_commands,
+            params={"command_name": "base_velocity"},
+            clip=(-100.0, 100.0),
+            scale=1.0,
+        )
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel,
             noise=Unoise(n_min=-0.01, n_max=0.01),
@@ -479,7 +475,7 @@ class TerminationsCfg:
     # Contact sensor
     illegal_contact = DoneTerm(
         func=mdp.illegal_contact,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"), "threshold": 0.1},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"), "threshold": 1.0},
     )
 
 
@@ -522,10 +518,10 @@ class LocomotionVelocityRoughEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self):
         """Post initialization."""
         # general settings
-        self.decimation = 1
+        self.decimation = 6
         self.episode_length_s = 20.0
         # simulation settings
-        self.sim.dt = 1/120
+        self.sim.dt = 0.005
         self.sim.render_interval = self.decimation
         self.sim.disable_contact_processing = True
         self.sim.physics_material = self.scene.terrain.physics_material

@@ -470,8 +470,7 @@ class TerminationsCfg:
     # joint_vel_out_of_limit
     # joint_vel_out_of_manual_limit
     # joint_effort_out_of_limit
-    
-    
+
     # Contact sensor
     illegal_contact = DoneTerm(
         func=mdp.illegal_contact,
@@ -518,7 +517,7 @@ class LocomotionVelocityRoughEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self):
         """Post initialization."""
         # general settings
-        self.decimation = 6
+        self.decimation = 4
         self.episode_length_s = 20.0
         # simulation settings
         self.sim.dt = 0.005

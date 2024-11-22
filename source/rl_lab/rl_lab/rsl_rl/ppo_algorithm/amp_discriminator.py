@@ -31,6 +31,18 @@ class AMPDiscriminator(nn.Module):
         return d
 
     def compute_grad_pen(self, expert_state, expert_next_state, lambda_=10):
+        """
+        计算梯度惩罚项。
+        
+        Args:
+            expert_state (torch.Tensor): 专家策略的状态数据。
+            expert_next_state (torch.Tensor): 专家策略的下一个状态数据。
+            lambda_ (float): 梯度惩罚项的权重，默认为10。
+        
+        Returns:
+            torch.Tensor: 梯度惩罚项的值。
+        
+        """
         expert_data = torch.cat([expert_state, expert_next_state], dim=-1)
         expert_data.requires_grad = True
 

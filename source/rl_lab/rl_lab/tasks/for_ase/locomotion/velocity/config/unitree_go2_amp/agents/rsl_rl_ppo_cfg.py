@@ -11,7 +11,7 @@ from tasks.utils.wappers.rsl_rl import (
 @configclass
 class UnitreeA1AmpRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 10000
+    max_iterations = 100000
     save_interval = 100
     experiment_name = "unitree_a1_ase_rough"
     empirical_normalization = False

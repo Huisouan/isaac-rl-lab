@@ -95,7 +95,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.contact_forces.weight = 0
 
         # Velocity-tracking rewards
-        self.rewards.track_lin_vel_xy_exp.weight = 1.0 * 1.0 / (0.005 * 6)
+        self.rewards.track_lin_vel_xy_exp.weight = 1.5 * 1.0 / (0.005 * 6)
         self.rewards.track_ang_vel_z_exp.weight = 0.5 * 1.0 / (0.005 * 6)
 
         # Others

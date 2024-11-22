@@ -190,7 +190,13 @@ class ASEOnPolicyRunner:
 
 
             self.alg.actor_critic.set_train()
-            mean_value_loss, mean_surrogate_loss = self.alg.update(self.env.unwrapped)
+            (mean_value_loss, 
+             mean_surrogate_loss, 
+             mean_entropy_loss, 
+             mean_bound_loss, 
+             mean_disc_loss, 
+             mean_enc_loss, 
+             mean_diversity_loss) = self.alg.update(self.env.unwrapped)
             stop = time.time()
             learn_time = stop - start
             self.current_learning_iteration = it
@@ -269,6 +275,11 @@ class ASEOnPolicyRunner:
                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
                 f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
                 f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
+                f"""{'Entropy loss:':>{pad}} {locs['mean_entropy_loss']:.4f}\n"""
+                f"""{'Bound loss:':>{pad}} {locs['mean_bound_loss']:.4f}\n"""
+                f"""{'Discriminator loss:':>{pad}} {locs['mean_disc_loss']:.4f}\n"""
+                f"""{'Encoder loss:':>{pad}} {locs['mean_enc_loss']:.4f}\n"""
+                f"""{'Diversity loss:':>{pad}} {locs['mean_diversity_loss']:.4f}\n"""
                 f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
                 f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""
                 f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n"""

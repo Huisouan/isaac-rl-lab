@@ -51,7 +51,7 @@ Joint Index: 37, Joint Name: RR_hip_rotor_joint, Joint Type: 4
 Joint Index: 38, Joint Name: imu_joint, Joint Type: 4
 Joint Index: 39, Joint Name: radar_joint, Joint Type: 4
     """
-
+#FR FL RR RL
 SIM_TOE_JOINT_IDS = [16, 7, 34, 25]
 SIM_HIP_JOINT_IDS = [11, 2, 29, 20]
 SIM_ROOT_OFFSET = np.array([0, 0, -0.04])

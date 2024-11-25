@@ -13,7 +13,7 @@ import csv
 from ... import rsl_rl
 from ..ppo_algorithm import PMCPPO as PPO
 from ..env import VecEnv
-from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization, PMC
+from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization, PMC,CVQVAE
 from ..utils import store_code_state
 
 class PmcOnPolicyRunner:
@@ -28,13 +28,15 @@ class PmcOnPolicyRunner:
         self.env = env
         obs, extras = self.env.get_observations()
         num_obs = obs.shape[1]
+        if "dataset" in extras:
+            num_dataset = extras["observations"]["dataset"].shape[1]
         if "critic" in extras["observations"]:
             num_critic_obs = extras["observations"]["critic"].shape[1]
         else:
             num_critic_obs = num_obs
         actor_critic_class = eval(self.policy_cfg.pop("class_name"))  # ActorCritic
-        actor_critic: ActorCritic | ActorCriticRecurrent | PMC = actor_critic_class(
-            num_obs, num_critic_obs, self.env.num_actions,**self.z_settings,**self.policy_cfg
+        actor_critic: ActorCritic | ActorCriticRecurrent | PMC | CVQVAE = actor_critic_class(
+            num_obs, num_critic_obs, self.env.num_actions,num_dataset,**self.z_settings,**self.policy_cfg
         ).to(self.device)
         alg_class = eval(self.alg_cfg.pop("class_name"))  # PPO
         self.alg: PPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)

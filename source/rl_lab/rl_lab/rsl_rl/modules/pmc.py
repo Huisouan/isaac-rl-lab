@@ -24,6 +24,7 @@ class PMC(nn.Module):
         num_actor_obs,
         num_critic_obs,
         num_actions,
+        num_dataset,
         encoder_hidden_dims=[256, 256],
         decoder_hidden_dims=[256, 256],
         critic_hidden_dims=[256,256],
@@ -46,11 +47,14 @@ class PMC(nn.Module):
         activation = get_activation(activation)
         value_activation = get_activation(value_activation)
         
+        num_actor_obs = num_actor_obs*3 + num_dataset
         
         self.z_length = z_settings.z_length
         self.input_init = False
         self.State_Dimentions = State_Dimentions
         self.num_embeddings = z_settings.num_embeddings
+        
+        
         #Decoder 
         mlp_input_dim_c = num_critic_obs
         #######################################RMS#################################################################

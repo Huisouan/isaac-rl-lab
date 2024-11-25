@@ -78,10 +78,6 @@ class PMCEnv(DirectRLEnv):
         self.pmc_data_frameinplay = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.pmc_data_maxtime = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.pmc_data_selected = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.int)
-        #recore history observation
-        self.last_observation = None
-        self.second_last_observation = None
-        
         
         self.robot_foot_id = self.robot.find_bodies(['FL_foot','FR_foot','RL_foot','RR_foot'])         
         
@@ -102,11 +98,6 @@ class PMCEnv(DirectRLEnv):
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.actions = self.action_scale * actions.clone()
         
-    def _pd_control(self,):
-        tgt_joint_vel = torch.zeros_like(self.actions)
-        #这里为了不更改action的输出值，因此新增一个变量
-        self.pdaction = self.cfg.kp*(self.actions-self.robot.data.joint_pos) + self.cfg.kd*(tgt_joint_vel - self.robot.data.joint_vel)
-
     def _apply_action(self) -> None:
         # apply action
         #self._pd_control()
@@ -120,6 +111,39 @@ class PMCEnv(DirectRLEnv):
         self.marker.write_joint_state_to_sim(self.motiondata.joint_position_w(frame),self.motiondata.joint_velocity_w(frame))
         
     def _get_observations(self) -> dict:      
+        obs = torch.cat(#45 in total
+            (
+                
+                self.robot.data.joint_pos,#12
+                self.robot.data.joint_vel,#12
+                self.robot.data.root_lin_vel_b,
+                self.robot.data.root_ang_vel_b,
+                self.robot.data.projected_gravity_b,
+                self.actions,#12
+            ),
+            dim=-1,
+        )
+        
+        robot_state = self.robot.data.root_state_w
+        robot_state[:, :2] = robot_state[:, :2] - self.scene.env_origins[:, :2]
+        
+        # 获取数据集get dataset
+        dataset = self.motiondata.get_frame_batch_by_timelist(#72
+            self.pmc_data_selected,
+            self.pmc_data_frameinplay,
+            robot_state
+        )
+        # concat data and obs as observation
+        observations = {"policy": obs,
+                        "dataset": dataset,
+                        }
+
+    
+        return observations
+
+
+
+    def _get_encoder_obs(self) -> dict:      
         obs = torch.cat(#45 in total
             (
                 
@@ -150,11 +174,10 @@ class PMCEnv(DirectRLEnv):
         observation = torch.cat([obs,dataset], dim=1)
         # concat data and obs as observation
         observations = {"policy": observation}
-        # update last_observation and second_last_observation
-        self.second_last_observation = self.last_observation
-        self.last_observation = obs
+
     
         return observations
+
 
     def _get_rewards(self) -> torch.Tensor:
 
@@ -312,6 +335,8 @@ class PMCEnv(DirectRLEnv):
 
         # -- reset envs that terminated/timed-out and log the episode information
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
+        
+        
         if len(reset_env_ids) > 0:
             self._reset_idx(reset_env_ids)
             # if sensors are added to the scene, make sure we render to reflect changes in reset
@@ -330,7 +355,7 @@ class PMCEnv(DirectRLEnv):
         # note: we apply no noise to the state space (since it is used for critic networks)
         if self.cfg.observation_noise_model:
             self.obs_buf["policy"] = self._observation_noise_model.apply(self.obs_buf["policy"])
-
+            
         # return observations, rewards, resets and extras
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras
 

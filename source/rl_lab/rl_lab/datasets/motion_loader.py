@@ -114,7 +114,7 @@ class DATALoader:
                 self.trajectory_lens.append(traj_len)
                 self.trajectory_num_frames.append(float(motion_data.shape[0]))
 
-            print(f"Loaded {traj_len}s. motion from {motion_file}.")
+            #print(f"Loaded {traj_len}s. motion from {motion_file}.")
 
         # 轨迹权重用于比其他轨迹更多地采样一些轨迹。
 

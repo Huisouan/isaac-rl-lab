@@ -179,12 +179,20 @@ class ObservationsCfg:
             clip=(-100.0, 100.0),
             scale=1.0,
         )
+        root_quat_w = ObsTerm(
+            func=mdp.root_quat_w,
+            noise=Unoise(n_min=-0.05, n_max=0.05),
+            clip=(-100.0, 100.0),
+            scale=1.0,
+        )
+        '''
         projected_gravity = ObsTerm(
             func=mdp.projected_gravity,
             noise=Unoise(n_min=-0.05, n_max=0.05),
             clip=(-100.0, 100.0),
             scale=1.0,
         )
+        '''
         velocity_commands = ObsTerm(
             func=mdp.generated_commands,
             params={"command_name": "base_velocity"},

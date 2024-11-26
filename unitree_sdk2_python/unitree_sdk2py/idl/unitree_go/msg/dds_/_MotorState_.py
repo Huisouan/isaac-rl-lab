@@ -34,4 +34,3 @@ class MotorState_(idl.IdlStruct, typename="unitree_go.msg.dds_.MotorState_"):
     lost: types.uint32
     reserve: types.array[types.uint32, 2]
 
-

@@ -115,9 +115,9 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.terminations.illegal_contact.params["sensor_cfg"].body_names = "base"
 
         # ------------------------------Commands------------------------------
-        self.commands.base_velocity.ranges.lin_vel_x = (0, 2.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.3, 0.3)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.57, 1.57)
+        self.commands.base_velocity.ranges.ang_vel_z = (-3, 3)
         # ------------------------------AMP------------------------------
         self.urdf_path = "datasets/go2_description/urdf/go2_description.urdf"
         self.ee_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]

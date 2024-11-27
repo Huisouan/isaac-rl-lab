@@ -35,12 +35,12 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_step = 0.01
 
         # ------------------------------Observations------------------------------
-        #self.observations.policy.base_lin_vel.scale = 2.0
-        #self.observations.policy.base_ang_vel.scale = 0.25
+        self.observations.policy.base_lin_vel.scale = 2.0
+        self.observations.policy.base_ang_vel.scale = 0.25
         self.observations.policy.joint_pos.scale = 1.0
         self.observations.policy.joint_vel.scale = 0.05
-        #self.observations.policy.base_lin_vel = None
-        #self.observations.policy.base_ang_vel = None
+        self.observations.policy.base_lin_vel = None
+        self.observations.policy.base_ang_vel = None
         self.observations.policy.height_scan = None
         self.observations.AMP = create_obsgroup_class('AMPCfg',{
             'base_pos_z': ObsTerm(func=mdp.base_pos_z),
@@ -65,7 +65,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.randomize_actuator_gains = None
         self.events.randomize_joint_parameters = None
         self.events.push_robot = None
-        self.events.reset_amp = EventTerm(func=reset_amp, mode="reset")
+        #self.events.reset_amp = EventTerm(func=reset_amp, mode="reset")
 
         # ------------------------------Rewards------------------------------
         # General
@@ -95,7 +95,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.contact_forces.weight = 0
 
         # Velocity-tracking rewards
-        self.rewards.track_lin_vel_xy_exp.weight = 1.0 * 1.0 / (0.005 * 6)
+        self.rewards.track_lin_vel_xy_exp.weight = 1.5 * 1.0 / (0.005 * 6)
         self.rewards.track_ang_vel_z_exp.weight = 0.5 * 1.0 / (0.005 * 6)
 
         # Others

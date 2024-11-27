@@ -67,7 +67,7 @@ def main():
     
     if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
         print("[INFO] Using AmpOnPolicyRunner")
-        env_cfg.amp_num_preload_transitions = 10
+        env_cfg.amp_num_preload_transitions = 1
     
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)

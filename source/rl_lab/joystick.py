@@ -74,14 +74,6 @@ def main():
     agent_cfg: RslRlOnPolicyRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
 
 
-
-
-
-
-
-
-
-
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
@@ -144,14 +136,14 @@ def main():
             
             readings = joystick.advance()
             if readings[0] < 0:
-                readings[0] = readings[0]
+                readings[0] = 0.5 * readings[0]
             else :
                 readings[0] = 1*readings[0]
-            readings[1] = readings[1]
+            readings[1] = 0.15 * readings[1]
             readings[2] = -1.5*readings[2]
             readings_tensor = torch.from_numpy(readings*2).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
-            obs[0][3:6] = readings_tensor.float()
-            print(obs[0][3:6].tolist())
+            obs[0][4:7] = readings_tensor.float()
+            print(obs[0][4:7].tolist())
             
             
         if args_cli.video:

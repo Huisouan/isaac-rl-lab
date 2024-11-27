@@ -9,7 +9,7 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
 @configclass
 class UnitreeA1AmpRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 30000
+    max_iterations = 100000
     save_interval = 100
     experiment_name = "unitree_a1_amp_rough"
     empirical_normalization = False

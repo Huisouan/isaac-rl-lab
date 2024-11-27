@@ -75,7 +75,7 @@ class Go2_PD_Control:
         self.duration_2 = 500
         self.duration_3 = 1000
         self.duration_4 = 900
-        self.net_duration = 20
+        self.net_duration = 30
         # 初始化各阶段完成百分比
         self.percent_1 = 0
         self.percent_2 = 0
@@ -209,6 +209,8 @@ class Go2_PD_Control:
                 self.low_cmd.motor_cmd[i].kd = self.Kd  # 设置速度控制增益
                 self.low_cmd.motor_cmd[i].tau = 0  # 设置力矩为0              
         if self.control_mode == 'walk':
+            self.Kp = 2.0
+            self.Kd = 0.5
             self.percent_1 += 1.0 / self.net_duration  # 每次调用增加百分比
             self.percent_1 = min(self.percent_1, 1)  # 确保百分比不超过1
             if self.percent_1 < 1:  # 如果第一阶段未完成

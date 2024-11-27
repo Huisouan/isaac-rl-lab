@@ -124,15 +124,27 @@ def main():
     timestep = 0
     
     joystick = Se2Gamepad()
-    
+    print_count = 0
     # simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
+        
         with torch.inference_mode():
             # agent stepping
+            
             actions = policy(obs)
+
             # env stepping
             obs, _, _, _ = env.step(actions)
+            
+            if print_count % 200 == 0:
+                # 限制打印的精度到小数点后三位
+                print([f"{x:.3f}" for x in actions[0].tolist()])
+                print("pos:",env.unwrapped.action_manager._terms['joint_pos']._processed_actions)
+                print_count = 0
+            else :
+                print_count += 1            
+
             
             readings = joystick.advance()
             if readings[0] < 0:

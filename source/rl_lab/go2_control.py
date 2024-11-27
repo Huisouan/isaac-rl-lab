@@ -118,7 +118,7 @@ def go2_obs_process(imu_state,motor_state):
         joint_vel[i] = motor_state[i].dq
     # 对关节角度进行重排序
     joint_pos =joint_reorder(joint_pos,go2_joint_current_order,model_joint_order)
-    
+    joint_vel = joint_reorder(joint_vel,go2_joint_current_order,model_joint_order)
     return quaternion,joint_pos,joint_vel
 
 
@@ -193,36 +193,63 @@ def main(go2):
     obs[0][:31] = torch.cat([quat, torch.tensor([0, 0, 0]), joint_pos, joint_vel]).cuda()
     joystick = Se2Gamepad()
     
+    scale = 0.25
+    offset = torch.tensor([[ 0.1000, -0.1000,  0.1000, -0.1000,  0.8000,  0.8000,  1.0000,  1.0000,
+         -1.5000, -1.5000, -1.5000, -1.5000]], device='cuda:0').cuda()
+    print_count = 0
     # simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
+        
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
+            #venvobs, _, _, _ = env.step(actions)
+            processed_actions = actions * scale + offset
             # env stepping
-            #obs, _, _, _ = env.step(actions)
+            
             # 对动作进行重排序
-            actions = joint_reorder(actions,model_joint_order,go2_joint_current_order)
+            actions_reordered = joint_reorder(processed_actions[0],model_joint_order,go2_joint_current_order)
             #将动作输出给机器人
-            go2.extent_targetPos = actions.cpu().numpy()
+            
+            go2.extent_targetPos = actions_reordered.cpu().numpy()
+            
             #从机器人读取状态数据
             imu_state,motor_state = go2.return_obs()     
             quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
+            quat = quat.cuda()
+            joint_pos = joint_pos.cuda()
+            joint_vel = joint_vel.cuda()
             env.unwrapped.robot_twin(quat,joint_pos,joint_vel)
             
             readings = joystick.advance()
             if readings[0] < 0:
-                readings[0] = 0.5 * readings[0]
+                readings[0] = 0.6 * readings[0]
             else :
-                readings[0] = 1*readings[0]
-            readings[1] = 0.15 * readings[1]
-            readings[2] = -1.5*readings[2]
-            readings_tensor = torch.from_numpy(readings*2).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
-            obs[0][4:7] = readings_tensor.float()
+                readings[0] = 2*readings[0]
+            readings[1] = 0.3 * readings[1]
+            readings[2] = -2*readings[2]
+            readings_tensor = torch.from_numpy(readings).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
             
-            print(obs[0][4:7].tolist())
+            obs[0] = torch.cat([quat, readings_tensor.float(), joint_pos, joint_vel,actions[0]]).cuda()
             
-            
+            actions = policy(obs)
+            if print_count % 200 == 0:
+                # 限制打印的精度到小数点后三位
+                # 确保 actions_reordered 是一个张量
+                if isinstance(actions_reordered, torch.Tensor):
+                    actions_list = actions_reordered.tolist()
+                    if isinstance(actions_list, float):
+                        print(f"{actions_list:.3f}")
+                    else:
+                        print([f"{x:.3f}" for x in actions_list])
+                else:
+                    print("actions_reordered is not a tensor")
+                
+                print("command:",obs[0].tolist())
+                print_count = 0
+            print_count += 1            
+            time.sleep(0.01)
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video

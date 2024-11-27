@@ -46,7 +46,7 @@ class Go2_PD_Control:
         # 设置控制循环周期
         self.dt = 0.002  # 0.001~0.01
 
-        #['stand','lay','walk',]
+        #['standby','stand','lay','walk',]
         self.control_mode = 'standby'
 
 
@@ -75,7 +75,7 @@ class Go2_PD_Control:
         self.duration_2 = 500
         self.duration_3 = 1000
         self.duration_4 = 900
-        self.net_duration = 10
+        self.net_duration = 20
         # 初始化各阶段完成百分比
         self.percent_1 = 0
         self.percent_2 = 0
@@ -260,13 +260,16 @@ def get_key():
     return ch
 
 def process_key(key):
+    if key == 'w':
+        print("Set control_mod to 'standby'")
+        return 'walk',True
     if key == 's':
         print("Set control_mod to 'standby'")
         return 'standby',True
     if key == 'u':
         print("Set control_mod to 'stand'")
         return 'stand',True
-    elif key == 'd':
+    if key == 'd':
         print("Set control_mod to 'lay'")   
         return 'lay' ,True
     else:

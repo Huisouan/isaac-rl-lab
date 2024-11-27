@@ -7,7 +7,7 @@ setup(name='unitree_sdk2py',
       long_description=open('README.md').read(),
       long_description_content_type="text/markdown",
       license="BSD-3-Clause",
-      packages=find_packages(include=['unitree_sdk2py','unitree_sdk2py.*']),
+      packages=find_packages(include=['unitree_sdk2py','unitree_sdk2py.*','example']),
       description='Unitree robot sdk version 2 for python',
       project_urls={
             "Source Code": "https://github.com/unitreerobotics/unitree_sdk2_python",

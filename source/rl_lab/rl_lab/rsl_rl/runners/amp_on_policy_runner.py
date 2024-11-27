@@ -323,16 +323,31 @@ class AmpOnPolicyRunner:
             self.writer.save_model(path, self.current_learning_iteration)
 
     def load(self, path, load_optimizer=True):
+        # 加载模型和优化器的状态字典
         loaded_dict = torch.load(path)
+        
+        # 加载策略网络（actor_critic）的模型状态字典
         self.alg.actor_critic.load_state_dict(loaded_dict["model_state_dict"])
+        
+        # 如果启用了经验归一化，则加载观察值归一化器的状态字典
         if self.empirical_normalization:
             self.obs_normalizer.load_state_dict(loaded_dict["obs_norm_state_dict"])
             self.critic_obs_normalizer.load_state_dict(loaded_dict["critic_obs_norm_state_dict"])
+        
+        # 如果需要加载优化器，则加载优化器的状态字典
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
+        
+        # 设置当前的学习迭代次数
         self.current_learning_iteration = loaded_dict["iter"]
+        
+        # 加载判别器（discriminator）的模型状态字典
         self.alg.discriminator.load_state_dict(loaded_dict["discriminator_state_dict"])
+        
+        # 加载AMP归一化器
         self.alg.amp_normalizer = loaded_dict["amp_normalizer"]
+        
+        # 返回加载的信息
         return loaded_dict["infos"]
 
     def get_inference_policy(self, device=None):

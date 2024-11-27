@@ -11,6 +11,9 @@
 import time
 # 导入系统模块，用于处理命令行参数
 import sys
+
+import threading
+
 import argparse
 
 from omni.isaac.lab.app import AppLauncher
@@ -59,18 +62,67 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     export_policy_as_jit,
     export_policy_as_onnx,
 )
-from unitree_sdk2_python.example.go2.low_level.go2_pd_control import Go2_PD_Control
 
 from omni.isaac.lab.devices import Se2Gamepad
-# 从unitree_sdk2py核心模块导入ChannelPublisher类，用于发布消息
-from unitree_sdk2_python.unitree_sdk2py.core.channel import  ChannelFactoryInitialize
-# 从unitree_sdk2py核心模块导入ChannelSubscriber类，用于订阅消息
-from unitree_sdk2_python.unitree_sdk2py.core.channel import  ChannelFactoryInitialize
+from unitree_sdk2py.core.channel import  ChannelFactoryInitialize
 
+from unitree_sdk2py.go2.low_level.go2_pd_control import Go2_PD_Control,get_key,process_key
 # 默认网络接口名称
 default_network = 'enp0s31f6'
 
-def main():
+model_joint_order = (
+    "FL_hip",
+    "FR_hip",
+    "RL_hip",
+    "RR_hip",
+    "FL_thigh",
+    "FR_thigh",
+    "RL_thigh",
+    "RR_thigh",
+    "FL_calf",
+    "FR_calf",
+    "RL_calf",
+    "RR_calf",
+)
+go2_joint_current_order = (
+    "FR_hip",   # hip
+    "FR_thigh", # thigh
+    "FR_calf",  # calf
+    "FL_hip",   # hip
+    "FL_thigh", # thigh
+    "FL_calf",  # calf
+    "RR_hip",   # hip
+    "RR_thigh", # thigh
+    "RR_calf",  # calf
+    "RL_hip",   # hip
+    "RL_thigh", # thigh
+    "RL_calf"   # calf
+)
+
+def joint_reorder(tensor, src_order, tgt_order):
+    assert len(src_order) == len(tgt_order), f"src_order and tgt_order must have same length."
+    index_map = [src_order.index(joint) for joint in tgt_order]
+    tensor_new = tensor[index_map]
+    return tensor_new
+
+def go2_obs_process(imu_state,motor_state):
+
+    quaternion = torch.zeros(4)
+    for i in range(4):
+        quaternion[i] = imu_state.quaternion[i]
+
+    joint_pos = torch.zeros(12)
+    joint_vel = torch.zeros(12)
+    for i in range(12):
+        joint_pos[i] = motor_state[i].q
+        joint_vel[i] = motor_state[i].dq
+    # 对关节角度进行重排序
+    joint_pos =joint_reorder(joint_pos,go2_joint_current_order,model_joint_order)
+    
+    return quaternion,joint_pos,joint_vel
+
+
+def main(go2):
     """Play with RSL-RL agent."""
     # parse configuration
     env_cfg = parse_env_cfg(
@@ -79,16 +131,20 @@ def main():
     
     if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
         print("[INFO] Using AmpOnPolicyRunner")
-        env_cfg.amp_num_preload_transitions = 10
+        env_cfg.amp_num_preload_transitions = 1
     
     agent_cfg: RslRlOnPolicyRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
 
 
-    # specify directory for logging experiments
-    log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
+    # 指定实验日志的目录路径
+    log_root_path = os.path.join("weights", agent_cfg.experiment_name)
+    # 将路径转换为绝对路径
     log_root_path = os.path.abspath(log_root_path)
+    # 打印日志目录路径信息
     print(f"[INFO] Loading experiment from directory: {log_root_path}")
+    # 获取检查点路径，根据配置加载特定的运行和检查点
     resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+    # 获取检查点路径的父目录，作为日志目录
     log_dir = os.path.dirname(resume_path)
 
     # create isaac environment
@@ -132,7 +188,9 @@ def main():
     # reset environment
     obs, _ = env.get_observations()
     timestep = 0
-    
+    imu_state,motor_state = go2.return_obs()  
+    quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
+    obs[0][:31] = torch.cat([quat, torch.tensor([0, 0, 0]), joint_pos, joint_vel]).cuda()
     joystick = Se2Gamepad()
     
     # simulate environment
@@ -142,7 +200,15 @@ def main():
             # agent stepping
             actions = policy(obs)
             # env stepping
-            obs, _, _, _ = env.step(actions)
+            #obs, _, _, _ = env.step(actions)
+            # 对动作进行重排序
+            actions = joint_reorder(actions,model_joint_order,go2_joint_current_order)
+            #将动作输出给机器人
+            go2.extent_targetPos = actions.cpu().numpy()
+            #从机器人读取状态数据
+            imu_state,motor_state = go2.return_obs()     
+            quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
+            env.unwrapped.robot_twin(quat,joint_pos,joint_vel)
             
             readings = joystick.advance()
             if readings[0] < 0:
@@ -153,6 +219,7 @@ def main():
             readings[2] = -1.5*readings[2]
             readings_tensor = torch.from_numpy(readings*2).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
             obs[0][4:7] = readings_tensor.float()
+            
             print(obs[0][4:7].tolist())
             
             
@@ -164,6 +231,19 @@ def main():
 
     # close the simulator
     env.close()
+
+def control_loop(go2):
+    while True:
+        timestart = time.time()
+        key = get_key()
+        if key is not None:
+            go2.control_mode, reset_mode = process_key(key)
+            if reset_mode:
+                go2.reset()
+            if key == 'q':
+                time.sleep(1)
+                print("Done!")
+                sys.exit(-1)
 
 
 if __name__ == "__main__":
@@ -180,12 +260,19 @@ if __name__ == "__main__":
         ChannelFactoryInitialize(0,default_network)
 
     # 创建Custom对象
-    custom = Go2_PD_Control()
+    go2 = Go2_PD_Control()
     # 初始化Custom对象
-    custom.Init()
+    go2.Init()
     # 启动Custom对象
-    custom.Start()    
-    main()
+    go2.Start()    
+
+    # 创建线程
+    control_thread = threading.Thread(target=control_loop, args=(go2,))
+    # 启动线程
+    control_thread.start()    
+    
+    main(go2)
+    
     time.sleep(1)
     print("Done!")
     sys.exit(-1) 

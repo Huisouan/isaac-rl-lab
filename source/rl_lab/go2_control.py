@@ -186,6 +186,11 @@ def main(go2):
     #)
 
     # reset environment
+    
+    action_scale = 0.25
+    joint_vel_scale = 0.05
+    
+    
     obs, _ = env.get_observations()
     timestep = 0
     imu_state,motor_state = go2.return_obs()  
@@ -193,7 +198,10 @@ def main(go2):
     obs[0][:31] = torch.cat([quat, torch.tensor([0, 0, 0]), joint_pos, joint_vel]).cuda()
     joystick = Se2Gamepad()
     
-    scale = 0.25
+
+    
+    
+    
     offset = torch.tensor([[ 0.1000, -0.1000,  0.1000, -0.1000,  0.8000,  0.8000,  1.0000,  1.0000,
          -1.5000, -1.5000, -1.5000, -1.5000]], device='cuda:0').cuda()
     print_count = 0
@@ -205,7 +213,7 @@ def main(go2):
             # agent stepping
             actions = policy(obs)
             #venvobs, _, _, _ = env.step(actions)
-            processed_actions = actions * scale + offset
+            processed_actions = actions * action_scale + offset
             # env stepping
             
             # 对动作进行重排序
@@ -219,6 +227,9 @@ def main(go2):
             quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
             quat = quat.cuda()
             joint_pos = joint_pos.cuda()
+            # 对关节速度进行缩放
+            joint_vel = joint_vel * joint_vel_scale
+            
             joint_vel = joint_vel.cuda()
             env.unwrapped.robot_twin(quat,joint_pos,joint_vel)
             

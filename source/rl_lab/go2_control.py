@@ -186,26 +186,33 @@ def main(go2):
     #)
 
     # reset environment
-    
-    action_scale = 0.25
-    joint_vel_scale = 0.05
-    
+    effort_limit = torch.tensor(23.5).to(env.device).unsqueeze(0).repeat(env.num_actions)
+    action_scale = torch.tensor(0.25).to(env.device).unsqueeze(0).repeat(env.num_actions)
+    joint_vel_scale = torch.tensor(0.05).to(env.device).unsqueeze(0).repeat(env.num_actions)
+    epoch_time_target = 0.02
     
     obs, _ = env.get_observations()
     timestep = 0
     imu_state,motor_state = go2.return_obs()  
+    
     quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
-    obs[0][:31] = torch.cat([quat, torch.tensor([0, 0, 0]), joint_pos, joint_vel]).cuda()
+    quat = quat.to(env.device)
+    joint_pos = joint_pos.to(env.device)
+    joint_vel = joint_vel.to(env.device)
+    
+    
+    obs[0][:31] = torch.cat([quat, torch.tensor([0, 0, 0],device=env.device), joint_pos, joint_vel])
+    
+    
+    
     joystick = Se2Gamepad()
     
-
+    offset = torch.tensor([ 0.1000, -0.1000,  0.1000, -0.1000,  0.8000,  0.8000,  1.0000,  1.0000,
+         -1.5000, -1.5000, -1.5000, -1.5000], device='cuda:0').to(env.device)
     
-    
-    
-    offset = torch.tensor([[ 0.1000, -0.1000,  0.1000, -0.1000,  0.8000,  0.8000,  1.0000,  1.0000,
-         -1.5000, -1.5000, -1.5000, -1.5000]], device='cuda:0').cuda()
     print_count = 0
-    # simulate environment
+    timestamp = time.time()
+    
     while simulation_app.is_running():
         # run everything in inference mode
         
@@ -213,24 +220,41 @@ def main(go2):
             # agent stepping
             actions = policy(obs)
             #venvobs, _, _, _ = env.step(actions)
-            processed_actions = actions * action_scale + offset
+            processed_actions = actions[0] * action_scale + offset
             # env stepping
+
+            # 将 ctrl_kd 和 ctrl_kp 调整为 [action_dim]
+            ctrl_kd = torch.tensor(go2.ctrl_kd).to(env.device).unsqueeze(0).repeat(env.num_actions)
+            ctrl_kp = torch.tensor(go2.ctrl_kp).to(env.device).unsqueeze(0).repeat(env.num_actions)
+
+            # 计算 action_max 和 action_min
+            action_max = joint_pos + (effort_limit + ctrl_kd * joint_vel) / ctrl_kp
+            action_min = joint_pos + (-effort_limit + ctrl_kd * joint_vel) / ctrl_kp
+            
+            
+            clipped_actions = torch.clamp(processed_actions, min=action_min, max=action_max)
             
             # 对动作进行重排序
-            actions_reordered = joint_reorder(processed_actions[0],model_joint_order,go2_joint_current_order)
+            actions_reordered = joint_reorder(clipped_actions,model_joint_order,go2_joint_current_order)
             #将动作输出给机器人
             
+            
+            time_remain = epoch_time_target - (time.time() - timestamp)
+            
             go2.extent_targetPos = actions_reordered.cpu().numpy()
+            
+            timestamp = time.time()
+            time.sleep(max(time_remain,0))
             
             #从机器人读取状态数据
             imu_state,motor_state = go2.return_obs()     
             quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
-            quat = quat.cuda()
-            joint_pos = joint_pos.cuda()
-            # 对关节速度进行缩放
+            quat = quat.to(env.device)
+            joint_pos = joint_pos.to(env.device)
+            joint_vel = joint_vel.to(env.device)
+            
             joint_vel = joint_vel * joint_vel_scale
             
-            joint_vel = joint_vel.cuda()
             env.unwrapped.robot_twin(quat,joint_pos,joint_vel)
             
             readings = joystick.advance()
@@ -240,27 +264,27 @@ def main(go2):
                 readings[0] = 2*readings[0]
             readings[1] = 0.3 * readings[1]
             readings[2] = -2*readings[2]
-            readings_tensor = torch.from_numpy(readings).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
+            readings_tensor = torch.from_numpy(readings).to(env.device)  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
             
-            obs[0] = torch.cat([quat, readings_tensor.float(), joint_pos, joint_vel,actions[0]]).cuda()
+            obs[0] = torch.cat([quat, readings_tensor.float(), joint_pos, joint_vel,actions[0]])
             
-            actions = policy(obs)
-            if print_count % 20 == 0:
+            if print_count % 50 == 0:
                 # 限制打印的精度到小数点后三位
                 # 确保 actions_reordered 是一个张量
                 if isinstance(actions_reordered, torch.Tensor):
+                    
                     actions_list = actions_reordered.tolist()
                     if isinstance(actions_list, float):
-                        print(f"{actions_list:.3f}")
+                        print(f"actions:{actions_list:.3f}\n")
+                        print(f"time:{time_remain:.3f}\n")
                     else:
-                        print([f"{x:.3f}" for x in actions_list])
+                        print([f"{x:.3f}" for x in actions_list], "\n")
                 else:
-                    print("actions_reordered is not a tensor")
+                    print("actions_reordered is not a tensor\n")
                 
-                print("command:",obs[0].tolist())
+                print("command:", obs[0][4:7].tolist(), "\n")
                 print_count = 0
             print_count += 1            
-            time.sleep(0.01)
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video

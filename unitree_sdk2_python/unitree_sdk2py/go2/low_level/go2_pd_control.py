@@ -36,7 +36,7 @@ class Go2_PD_Control:
         self.Kp = 30.0
         self.Kd = 2
         
-        self.ctrl_kp = 0
+        self.ctrl_kp = 0.5
         self.ctrl_kd = 0.5
         
         # 初始化时间消耗计数器
@@ -79,7 +79,7 @@ class Go2_PD_Control:
         self.duration_2 = 500
         self.duration_3 = 1000
         self.duration_4 = 900
-        self.net_duration = 4
+        self.net_duration = 2
         # 初始化各阶段完成百分比
         self.percent_1 = 0
         self.percent_2 = 0
@@ -213,17 +213,12 @@ class Go2_PD_Control:
                 self.low_cmd.motor_cmd[i].kd = self.Kd  # 设置速度控制增益
                 self.low_cmd.motor_cmd[i].tau = 0  # 设置力矩为0              
         if self.control_mode == 'walk':
-            self.percent_1 += 1.0 / self.net_duration  # 每次调用增加百分比
-            self.percent_1 = min(self.percent_1, 1)  # 确保百分比不超过1
-            if self.percent_1 < 1:  # 如果第一阶段未完成
-                for i in range(12):  # 遍历12个电机
-                    self.low_cmd.motor_cmd[i].q = (1 - self.percent_1) * self.startPos[i] + self.percent_1 * self.extent_targetPos[i]  # 线性插值计算目标位置
-                    self.low_cmd.motor_cmd[i].dq = 0  # 设置速度为0
-                    self.low_cmd.motor_cmd[i].kp = self.ctrl_kp  # 设置位置控制增益
-                    self.low_cmd.motor_cmd[i].kd = self.ctrl_kd  # 设置速度控制增益
-                    self.low_cmd.motor_cmd[i].tau = 0  # 设置力矩为0
-            else:# 如果第一阶段已完成，则重置
-                self.reset()
+            for i in range(12):  # 遍历12个电机
+                self.low_cmd.motor_cmd[i].q = self.extent_targetPos[i]  # 线性插值计算目标位置
+                self.low_cmd.motor_cmd[i].dq = 0  # 设置速度为0
+                self.low_cmd.motor_cmd[i].kp = self.ctrl_kp  # 设置位置控制增益
+                self.low_cmd.motor_cmd[i].kd = self.ctrl_kd  # 设置速度控制增益
+                self.low_cmd.motor_cmd[i].tau = 0  # 设置力矩为0
             
             pass                 
         # 计算CRC校验值

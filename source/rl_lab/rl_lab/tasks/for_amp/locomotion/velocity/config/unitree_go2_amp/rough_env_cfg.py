@@ -79,10 +79,10 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.body_lin_acc_l2.weight = 0
 
         # Joint penaltie
-        self.rewards.joint_torques_l2.weight = 0
+        self.rewards.joint_torques_l2.weight = -1*0.0001 / (0.005 * 6)
         # UNUESD self.rewards.joint_vel_l1.weight = 0.0
         self.rewards.joint_vel_l2.weight = 0
-        self.rewards.joint_acc_l2.weight = 0
+        self.rewards.joint_acc_l2.weight = -2.5*0.0000001 / (0.005 * 6)
         self.rewards.joint_pos_limits.weight = 0
         self.rewards.joint_vel_limits.weight = 0
 
@@ -91,12 +91,12 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # UNUESD self.rewards.action_l2.weight = 0.0
 
         # Contact sensor
-        self.rewards.undesired_contacts.weight = 0
+        self.rewards.undesired_contacts.weight = -0.1 * 1.0 / (0.005 * 6)
         self.rewards.contact_forces.weight = 0
 
         # Velocity-tracking rewards
-        self.rewards.track_lin_vel_xy_exp.weight = 1.5 * 1.0 / (0.005 * 6)
-        self.rewards.track_ang_vel_z_exp.weight = 0.8 * 1.0 / (0.005 * 6)
+        self.rewards.track_lin_vel_xy_exp.weight = 1.0 * 1.0 / (0.005 * 6)
+        self.rewards.track_ang_vel_z_exp.weight = 0.5 * 1.0 / (0.005 * 6)
 
         # Others
         self.rewards.feet_air_time.weight = 0
@@ -104,7 +104,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.base_height_rough_l2.weight = 0
         self.rewards.feet_slide.weight = 0
         self.rewards.joint_power.weight = 0
-        self.rewards.stand_still_when_zero_command.weight = 0
+        self.rewards.stand_still_when_zero_command.weight = 0.3 * 1.0 / (0.005 * 6)
 
 
         # If the weight of rewards is 0, set rewards to None

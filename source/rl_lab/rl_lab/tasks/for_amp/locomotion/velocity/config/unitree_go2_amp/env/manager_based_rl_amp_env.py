@@ -184,4 +184,4 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         if self._sim_step_counter % self.cfg.sim.render_interval == 0 and is_rendering:
             self.sim.render()
         # update buffers at sim dt
-        self.scene.update(dt=self.physics_dt)        
+        self.scene.update(dt=0.000001)        

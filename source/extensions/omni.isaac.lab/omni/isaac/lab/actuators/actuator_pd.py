@@ -117,6 +117,19 @@ class IdealPDActuator(ActuatorBase):
     def compute(
         self, control_action: ArticulationActions, joint_pos: torch.Tensor, joint_vel: torch.Tensor
     ) -> ArticulationActions:
+        """处理执行器组的动作并计算关节动作。
+
+        对于隐式执行器，控制动作将直接作为计算后的动作返回。
+        此函数不执行任何输入控制动作的计算，但会计算执行关节的近似力矩，因为 PhysX 不显式计算此数量。
+
+        参数:
+            control_action: 包含所需关节位置、关节速度和（前馈）关节力的关节动作实例。
+            joint_pos: 组中关节的当前关节位置。形状为 (num_envs, num_joints)。
+            joint_vel: 组中关节的当前关节速度。形状为 (num_envs, num_joints)。
+
+        返回:
+            计算后的所需关节位置、关节速度和关节力。
+        """
         # compute errors
         error_pos = control_action.joint_positions - joint_pos
         error_vel = control_action.joint_velocities - joint_vel

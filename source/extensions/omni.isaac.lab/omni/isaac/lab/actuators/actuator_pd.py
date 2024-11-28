@@ -132,43 +132,34 @@ class IdealPDActuator(ActuatorBase):
 
 
 class DCMotor(IdealPDActuator):
-    r"""Direct control (DC) motor actuator model with velocity-based saturation model.
+    r"""具有基于速度的饱和模型的直接控制（DC）电机执行器模型。
 
-    It uses the same model as the :class:`IdealActuator` for computing the torques from input commands.
-    However, it implements a saturation model defined by DC motor characteristics.
+    该模型使用与 :class:`IdealActuator` 相同的模型来从输入命令计算扭矩。然而，它实现了一个由直流电机特性定义的饱和模型。
 
-    A DC motor is a type of electric motor that is powered by direct current electricity. In most cases,
-    the motor is connected to a constant source of voltage supply, and the current is controlled by a rheostat.
-    Depending on various design factors such as windings and materials, the motor can draw a limited maximum power
-    from the electronic source, which limits the produced motor torque and speed.
+    直流电机是一种由直流电驱动的电动机。在大多数情况下，电机连接到恒定的电压源，电流由变阻器控制。根据绕组和材料等各种设计因素，电机可以从电子源中汲取有限的最大功率，这限制了电机产生的扭矩和速度。
 
-    A DC motor characteristics are defined by the following parameters:
+    直流电机的特性由以下参数定义：
 
-    * Continuous-rated speed (:math:`\dot{q}_{motor, max}`) : The maximum-rated speed of the motor.
-    * Continuous-stall torque (:math:`\tau_{motor, max}`): The maximum-rated torque produced at 0 speed.
-    * Saturation torque (:math:`\tau_{motor, sat}`): The maximum torque that can be outputted for a short period.
+    * 连续额定速度 (:math:`\dot{q}_{motor, max}`)：电机的最大额定速度。
+    * 连续堵转扭矩 (:math:`\tau_{motor, max}`)：在零速度时产生的最大额定扭矩。
+    * 饱和扭矩 (:math:`\tau_{motor, sat}`)：可以在短时间内输出的最大扭矩。
 
-    Based on these parameters, the instantaneous minimum and maximum torques are defined as follows:
+    基于这些参数，瞬时最小和最大扭矩定义如下：
 
     .. math::
 
-        \tau_{j, max}(\dot{q}) & = clip \left (\tau_{j, sat} \times \left(1 -
+        \tau_{j, max}(\dot{q}) & = \text{clip} \left (\tau_{j, sat} \times \left(1 -
             \frac{\dot{q}}{\dot{q}_{j, max}}\right), 0.0, \tau_{j, max} \right) \\
-        \tau_{j, min}(\dot{q}) & = clip \left (\tau_{j, sat} \times \left( -1 -
+        \tau_{j, min}(\dot{q}) & = \text{clip} \left (\tau_{j, sat} \times \left( -1 -
             \frac{\dot{q}}{\dot{q}_{j, max}}\right), - \tau_{j, max}, 0.0 \right)
 
-    where :math:`\gamma` is the gear ratio of the gear box connecting the motor and the actuated joint ends,
-    :math:`\dot{q}_{j, max} = \gamma^{-1} \times  \dot{q}_{motor, max}`, :math:`\tau_{j, max} =
-    \gamma \times \tau_{motor, max}` and :math:`\tau_{j, peak} = \gamma \times \tau_{motor, peak}`
-    are the maximum joint velocity, maximum joint torque and peak torque, respectively. These parameters
-    are read from the configuration instance passed to the class.
+    其中 :math:`\gamma` 是连接电机和被驱动关节末端的齿轮箱的传动比，:math:`\dot{q}_{j, max} = \gamma^{-1} \times  \dot{q}_{motor, max}`，:math:`\tau_{j, max} = \gamma \times \tau_{motor, max}` 和 :math:`\tau_{j, peak} = \gamma \times \tau_{motor, peak}` 分别是最大关节速度、最大关节扭矩和峰值扭矩。这些参数从传递给类的配置实例中读取。
 
-    Using these values, the computed torques are clipped to the minimum and maximum values based on the
-    instantaneous joint velocity:
+    使用这些值，计算的扭矩根据瞬时关节速度被裁剪到最小和最大值之间：
 
     .. math::
 
-        \tau_{j, applied} = clip(\tau_{computed}, \tau_{j, min}(\dot{q}), \tau_{j, max}(\dot{q}))
+        \tau_{j, applied} = \text{clip}(\tau_{computed}, \tau_{j, min}(\dot{q}), \tau_{j, max}(\dot{q}))
 
     """
 

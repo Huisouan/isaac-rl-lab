@@ -245,7 +245,7 @@ def main(go2):
             obs[0] = torch.cat([quat, readings_tensor.float(), joint_pos, joint_vel,actions[0]]).cuda()
             
             actions = policy(obs)
-            if print_count % 200 == 0:
+            if print_count % 20 == 0:
                 # 限制打印的精度到小数点后三位
                 # 确保 actions_reordered 是一个张量
                 if isinstance(actions_reordered, torch.Tensor):
@@ -272,17 +272,26 @@ def main(go2):
 
 def control_loop(go2):
     while True:
-        timestart = time.time()
         key = get_key()
         if key is not None:
-            go2.control_mode, reset_mode = process_key(key)
-            if reset_mode:
-                go2.reset()
-            if key == 'q':
+            if key == 'z':
+                go2.ctrl_kp += 0.01
+                print('KP:',go2.ctrl_kp)
+                print('state:',go2.control_mode)
+            elif key == 'x':
+                go2.ctrl_kp -= 0.01
+                print('KP:',go2.ctrl_kp)
+                print('state:',go2.control_mode)
+            elif key == 'q':
                 time.sleep(1)
                 print("Done!")
                 sys.exit(-1)
-
+            else:
+                go2.control_mode, reset_mode = process_key(key)
+                print('state:',go2.control_mode)
+                if reset_mode:
+                    go2.reset()
+                
 
 if __name__ == "__main__":
     # run the main function

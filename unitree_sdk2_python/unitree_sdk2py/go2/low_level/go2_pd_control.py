@@ -33,8 +33,12 @@ default_network = 'enp0s31f6'
 class Go2_PD_Control:
     def __init__(self):
         # 初始化PID控制器参数
-        self.Kp = 50.0
-        self.Kd = 5.0
+        self.Kp = 30.0
+        self.Kd = 2
+        
+        self.ctrl_kp = 0
+        self.ctrl_kd = 0.5
+        
         # 初始化时间消耗计数器
         self.time_consume = 0
         # 初始化速率计数器
@@ -44,7 +48,7 @@ class Go2_PD_Control:
         # 初始化运动时间计数器
         self.motiontime = 0
         # 设置控制循环周期
-        self.dt = 0.002  # 0.001~0.01
+        self.dt = 0.005  # 0.001~0.01
 
         #['standby','stand','lay','walk',]
         self.control_mode = 'standby'
@@ -75,7 +79,7 @@ class Go2_PD_Control:
         self.duration_2 = 500
         self.duration_3 = 1000
         self.duration_4 = 900
-        self.net_duration = 30
+        self.net_duration = 4
         # 初始化各阶段完成百分比
         self.percent_1 = 0
         self.percent_2 = 0
@@ -127,7 +131,7 @@ class Go2_PD_Control:
     def Start(self):
         # 启动低级命令写入线程
         self.lowCmdWriteThreadPtr = RecurrentThread(
-            interval=0.002, target=self.LowCmdWrite, name="writebasiccmd"
+            interval=0.005, target=self.LowCmdWrite, name="writebasiccmd"
         )
         self.lowCmdWriteThreadPtr.Start()
 
@@ -164,7 +168,7 @@ class Go2_PD_Control:
         if self.firstRun:
             for i in range(12):  # 遍历12个电机
                 self.startPos[i] = self.low_state.motor_state[i].q  # 记录每个电机的初始位置
-            print(self.startPos)
+            
             self.firstRun = False  # 标记首次运行已完成
         if self.control_mode == 'stand':
             # 计算第一阶段完成百分比
@@ -205,20 +209,18 @@ class Go2_PD_Control:
             for i in range(12):  # 遍历12个电机
                 self.low_cmd.motor_cmd[i].q = self.startPos[i]  # 设置目标位置为初始位置
                 self.low_cmd.motor_cmd[i].dq = 0  # 设置速度为0了
-                self.low_cmd.motor_cmd[i].kp = self.Kp  # 设置位置控制增益
+                self.low_cmd.motor_cmd[i].kp = 0  # 设置位置控制增益
                 self.low_cmd.motor_cmd[i].kd = self.Kd  # 设置速度控制增益
                 self.low_cmd.motor_cmd[i].tau = 0  # 设置力矩为0              
         if self.control_mode == 'walk':
-            self.Kp = 2.0
-            self.Kd = 0.5
             self.percent_1 += 1.0 / self.net_duration  # 每次调用增加百分比
             self.percent_1 = min(self.percent_1, 1)  # 确保百分比不超过1
             if self.percent_1 < 1:  # 如果第一阶段未完成
                 for i in range(12):  # 遍历12个电机
                     self.low_cmd.motor_cmd[i].q = (1 - self.percent_1) * self.startPos[i] + self.percent_1 * self.extent_targetPos[i]  # 线性插值计算目标位置
                     self.low_cmd.motor_cmd[i].dq = 0  # 设置速度为0
-                    self.low_cmd.motor_cmd[i].kp = self.Kp  # 设置位置控制增益
-                    self.low_cmd.motor_cmd[i].kd = self.Kd  # 设置速度控制增益
+                    self.low_cmd.motor_cmd[i].kp = self.ctrl_kp  # 设置位置控制增益
+                    self.low_cmd.motor_cmd[i].kd = self.ctrl_kd  # 设置速度控制增益
                     self.low_cmd.motor_cmd[i].tau = 0  # 设置力矩为0
             else:# 如果第一阶段已完成，则重置
                 self.reset()

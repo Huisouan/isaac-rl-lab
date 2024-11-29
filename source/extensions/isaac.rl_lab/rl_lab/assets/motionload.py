@@ -92,7 +92,7 @@ import torch
 #from omni.isaac.lab.utils.math import *
 #from omni.isaac.lab.utils.math import axis_angle_from_quat ,quat_from_angle_axis,quat_error_magnitude
 class MotionData:
-    def __init__(self, data_dir,frame_duration = 1/120,datatype="isaaclab",file_type="csv"):
+    def __init__(self, data_dir,datatype="isaaclab",file_type="csv",data_spaces = None,**kwargs):
         """
         初始化方法，设置数据目录。
         
@@ -100,28 +100,23 @@ class MotionData:
         """
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.data_dir = data_dir
-        self.frame_duration = torch.tensor(frame_duration).to(self.device)
+        
         self.datatype = datatype#TODO 此处定义了数据的类型，如果后面需要从其他的仿真平台导入数据，则根据这个类型来选择不同的数据格式转换函数
-        if self.datatype == "isaaclab":
-            self.data_spaces = {
-                'root_state': 13,
-                'joint_pos': 12,
-                'joint_vel': 12,
-                'foot_pos': 12,
-                'foot_vel': 24,
-            }
+        if data_spaces == None:
+            self.load_preset_datatype()
         self.calculate_cumulative_indices()  #初始化data的顺序  
 
-        self.original_data_tensors = []
-        self.data_tensors = []
-        self.data_names = []
-        self.data_length = []
-        self.data_time_length = []
-        self.data_header = []
-        
-        #最后的121帧为了不超出范围，不会在初始化的时候被载入
-        self.motion_bias = 122
-        self.time_list = [1. / 30., 1. / 15., 1. / 3., 1.]
+        self.original_data_tensors = []#存储原始数据的列表
+        self.data_tensors = []#存储插值处理后的数据的列表
+        self.data_names = []#存储数据名称的列表
+        self.data_length = []#存储数据长度的列表
+        self.frame_duration = []#存储帧持续时间的列表
+        self.data_time_length = []#存储数据时间长度的列表
+        self.data_weights = []#存储数据权重的列表
+
+        # 将 kwargs 中的所有键值对初始化为类的属性
+        for key, value in kwargs.items():
+            setattr(self, key, value)
         
         if file_type == "csv":
             self.load_csv_data()
@@ -133,6 +128,29 @@ class MotionData:
         #self.re_calculate_velocity()
         print('Motion Data Loaded Successfully')
 
+    def load_preset_datatype(self):
+        if self.datatype == "isaaclab"|"vqvae":
+            self.data_spaces = {
+                'root_state': 13,
+                'joint_pos': 12,
+                'joint_vel': 12,
+                'foot_pos': 12,
+                'foot_vel': 12,
+            }
+        if self.datatype == "amp" or self.datatype == "ase":
+            self.data_spaces = {
+                'root_pos': 3,
+                'root_quat': 4,
+                'root_lin_vel': 3,
+                'root_ang_vel': 3,
+                'joint_pos': 12,
+                'joint_vel': 12,
+                'foot_pos': 12,
+                'foot_vel': 12,
+            }
+
+        if self.datatype == "vqvae":
+            self.
     def load_txt_data(self):
         """
         从指定目录加载所有txt文件，并将每个文件转换为一个不包含表头的二维Tensor。
@@ -142,59 +160,30 @@ class MotionData:
                 file_path = os.path.join(self.data_dir, filename)
             with open(file_path) as f:
                 motion_json = json.load(f)
-                motion_data = np.array(motion_json["Frames"])
-                # motion_data = self.reorder_from_pybullet_to_isaac(motion_data)
-
+                motion_data = torch.tensor(motion_json["Frames"])
                 # Normalize and standardize quaternions.
-                for f_i in range(motion_data.shape[0]):
-                    root_rot = AMPLoader.get_root_rot(motion_data[f_i])
-                    root_rot = pose3d.QuaternionNormalize(root_rot)
-                    root_rot = motion_util.standardize_quaternion(root_rot)
-                    motion_data[f_i, AMPLoader.POS_SIZE : (AMPLoader.POS_SIZE + AMPLoader.ROT_SIZE)] = root_rot
-
-                # Remove first 7 observation dimensions (root_pos and root_orn).
-                self.trajectories.append(
-                    torch.tensor(
-                        motion_data[:, AMPLoader.ROOT_ROT_END_IDX : AMPLoader.JOINT_VEL_END_IDX],
-                        dtype=torch.float32,
-                        device=device,
-                    )
-                )
-                self.trajectories_full.append(
-                    torch.tensor(motion_data[:, : AMPLoader.JOINT_VEL_END_IDX], dtype=torch.float32, device=device)
-                )
-                self.trajectory_idxs.append(i)
-                self.trajectory_weights.append(float(motion_json["MotionWeight"]))
+                root_rot = self.root_quat_w(motion_data)
+                root_rot = QuaternionNormalize(root_rot)
+                root_rot = standardize_quaternion(root_rot)
+                motion_data = self.write_root_quat(motion_data, root_rot)
                 frame_duration = float(motion_json["FrameDuration"])
-                self.trajectory_frame_durations.append(frame_duration)
-                traj_len = (motion_data.shape[0] - 1) * frame_duration
-                self.trajectory_lens.append(traj_len)
-                self.trajectory_num_frames.append(float(motion_data.shape[0]))
-
+                data_time_length = (motion_data.shape[0] - 1) * frame_duration
+                
+                #将数据加入到数据列表中
+                self.original_data_tensors.append(motion_data)
+                self.data_names.append(filename)
+                self.data_length.append(motion_data.shape[0]-1)#从0开始索引的帧数
+                self.frame_duration.append(frame_duration)
+                self.data_time_length.append(data_time_length)
+                self.data_weights.append(float(motion_json["MotionWeight"]))
+                
             #print(f"Loaded {traj_len}s. motion from {motion_file}.")
-
-        # Trajectory weights are used to sample some trajectories more than others.
-        self.trajectory_weights = np.array(self.trajectory_weights) / np.sum(self.trajectory_weights)
-        self.trajectory_frame_durations = np.array(self.trajectory_frame_durations)
-        self.trajectory_lens = np.array(self.trajectory_lens)
-        self.trajectory_num_frames = np.array(self.trajectory_num_frames)
-
-        # Preload transitions.
-        self.preload_transitions = preload_transitions
-        if self.preload_transitions:
-            print(f"Preloading {num_preload_transitions} transitions")
-            traj_idxs = self.weighted_traj_idx_sample_batch(num_preload_transitions)
-            times = self.traj_time_sample_batch(traj_idxs)
-            self.preloaded_s = self.get_full_frame_at_time_batch(traj_idxs, times)
-            self.preloaded_s_next = self.get_full_frame_at_time_batch(traj_idxs, times + self.time_between_frames)
-
-            print(self.get_joint_pose_batch(self.preloaded_s).mean(dim=0))
-            print("Finished preloading")        
 
     def load_csv_data(self):
         """
         从指定目录加载所有CSV文件，并将每个文件转换为一个不包含表头的二维Tensor。
         """
+        self.data_header = []
         for filename in os.listdir(self.data_dir):
             if filename.endswith('.csv'):
                 file_path = os.path.join(self.data_dir, filename)
@@ -271,8 +260,6 @@ class MotionData:
             # 将校正后的张量添加到列表中
             self.data_tensors.append(new_tensor)
 
-
-    
     def get_random_frame_batch(self,batch_size):
         """
         从数据集中获取随即的一批数据，记录下随机的帧数和对应的motion_id以及数据的长度。
@@ -293,7 +280,6 @@ class MotionData:
 
         frame = torch.stack([self.original_data_tensors[i][int(j)] for i,j in zip(random_frame_id,rand_frames)])
         return frame,random_frame_id,rand_frames,datalength
-
 
     def get_frame_batch_by_timelist(self, motion_id, frame_num, robot_state) -> torch.Tensor:  
         #按照timelist提供的时间提取4帧动作数据，如下[root_pos_error,root_rot_error,joint_pos]
@@ -321,9 +307,6 @@ class MotionData:
         
         # 最后一次性拼接  
         return torch.cat(frame_parts, dim=1)
-    
-    
-
     
     def get_frame_batch(self,motion_id,frame_num):
         """
@@ -355,9 +338,7 @@ class MotionData:
 
         # 返回堆叠后的张量
         return torch.stack(batch)
-        
-        
-        
+            
     def get_frame_by_header(self, frame, header):
         """
         从给定的二维frame矩阵中，根据header列表返回对应的列。
@@ -374,8 +355,6 @@ class MotionData:
         
         return selected_columns
         
-
-
     def _get_states_info_by_interpolation(self, frame_data_c: torch.Tensor, frame_data_n: torch.Tensor, 
                                         frame_frac: float, free_joint=True, interpolation=True):
         if interpolation:
@@ -395,7 +374,7 @@ class MotionData:
                                                             self.frame_duration, free_joint)  
             
             return base_pos, base_orn, base_lin_vel, base_ang_vel, joint_pos, joint_vel
-    
+
     @staticmethod
     def base_orn_interpolation(base_orn_c: torch.Tensor, base_orn_n: torch.Tensor, frac: torch.Tensor) -> torch.Tensor:
         """
@@ -559,8 +538,6 @@ class MotionData:
         return self.original_data_tensors[motion_id][frame_num]    
     
     #############################PROPERTY############################
-    
-
     @property    
     def get_tensors(self):
         """
@@ -570,8 +547,8 @@ class MotionData:
         """
         return self.original_data_tensors    
     
-     ############READ######### 
-    
+    #############READ############################
+    #############ROOT############################
     def root_state_w(self, frame: torch.Tensor) -> torch.Tensor:
         """
         提取根状态向量。
@@ -587,6 +564,67 @@ class MotionData:
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
 
+    def root_pos_w(self, frame: torch.Tensor) -> torch.Tensor:
+        """
+        提取根状态向量。
+        
+        :param frame: 一维或二维张量
+        :return: 根状态向量
+        """
+        start, end = self.cumulative_indices['root_pos']
+        if frame.dim() == 1:
+            return frame[start:end]
+        elif frame.dim() == 2:
+            return frame[:, start:end]
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+
+    def root_quat_w(self, frame: torch.Tensor) -> torch.Tensor:
+        """
+        提取根状态向量。
+        
+        :param frame: 一维或二维张量
+        :return: 根状态向量
+        """
+        start, end = self.cumulative_indices['root_quat']
+        if frame.dim() == 1:
+            return frame[start:end]
+        elif frame.dim() == 2:
+            return frame[:, start:end]
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')    
+
+    def root_lin_vel_w(self, frame: torch.Tensor) -> torch.Tensor:
+        """
+        提取根状态向量。
+        
+        :param frame: 一维或二维张量
+        :return: 根状态向量
+        """
+        start, end = self.cumulative_indices['root_lin_vel']
+        if frame.dim() == 1:
+            return frame[start:end]
+        elif frame.dim() == 2:
+            return frame[:, start:end]
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')  
+
+    def root_ang_vel_w(self, frame: torch.Tensor) -> torch.Tensor:
+        """
+        提取根状态向量。
+        
+        :param frame: 一维或二维张量
+        :return: 根状态向量
+        """
+        start, end = self.cumulative_indices['root_ang_vel']
+        if frame.dim() == 1:
+            return frame[start:end]
+        elif frame.dim() == 2:
+            return frame[:, start:end]
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+    #############ROOT############################
+    #############JOINT###########################
     def joint_position_w(self, frame: torch.Tensor) -> torch.Tensor:
         """
         提取关节位置向量。
@@ -616,7 +654,7 @@ class MotionData:
             return frame[:, start:end]
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
-
+    #############JOINT###########################
     def foot_position_w(self, frame: torch.Tensor) -> torch.Tensor:
         """
         提取脚趾位置向量。
@@ -661,7 +699,7 @@ class MotionData:
         # 最后一次性拼接  
         return torch.cat(frame_parts, dim=1)
 
-    ############WRITE#########  
+    ############WRITE############################  
 
     def write_root_state(self, frame: torch.Tensor, root_state: torch.Tensor) -> torch.Tensor:
         """
@@ -676,6 +714,57 @@ class MotionData:
             frame[start:end] = root_state
         elif frame.dim() == 2:
             frame[:, start:end] = root_state
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+        return frame
+
+    def write_root_pos(self, frame: torch.Tensor, root_pos: torch.Tensor) -> torch.Tensor:
+        """
+        将根位置向量写入帧中。
+        
+        :param frame: 一维或二维张量
+        :param root_pos: 根位置向量
+        :return: 经过改写的帧
+        """
+        start, end = self.cumulative_indices['root_pos']
+        if frame.dim() == 1:
+            frame[start:end] = root_pos
+        elif frame.dim() == 2:
+            frame[:, start:end] = root_pos
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+        return frame
+
+    def write_root_quat(self, frame: torch.Tensor, root_quat: torch.Tensor) -> torch.Tensor:
+        """
+        将根四元数向量写入帧中。
+        
+        :param frame: 一维或二维张量
+        :param root_quat: 根四元数向量
+        :return: 经过改写的帧
+        """
+        start, end = self.cumulative_indices['root_quat']
+        if frame.dim() == 1:
+            frame[start:end] = root_quat
+        elif frame.dim() == 2:
+            frame[:, start:end] = root_quat
+        else:
+            raise ValueError('Input tensor must be either one or two dimensional.')
+        return frame
+
+    def write_root_lin_vel(self, frame: torch.Tensor, root_lin_vel: torch.Tensor) -> torch.Tensor:
+        """
+        将根线速度向量写入帧中。
+        
+        :param frame: 一维或二维张量
+        :param root_lin_vel: 根线速度向量
+        :return: 经过改写的帧
+        """
+        start, end = self.cumulative_indices['root_lin_vel']
+        if frame.dim() == 1:
+            frame[start:end] = root_lin_vel
+        elif frame.dim() == 2:
+            frame[:, start:end] = root_lin_vel
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
         return frame
@@ -750,7 +839,6 @@ class MotionData:
 
 
 #######################MATH##############################################
-
 @torch.jit.script
 def axis_angle_from_quat(quat: torch.Tensor, eps: float = 1.0e-6) -> torch.Tensor:
     """将四元数表示的旋转转换为轴角表示。
@@ -848,5 +936,40 @@ def quat_error_magnitude(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
     quat_diff = quat_mul(q1, quat_conjugate(q2))
     return axis_angle_from_quat(quat_diff)
     
-    
+@torch.jit.script
+def QuaternionNormalize(q: torch.Tensor) -> torch.Tensor:
+    """Normalizes the quaternion to length 1.
 
+    Divides the quaternion by its magnitude.  If the magnitude is too
+    small, raises a ValueError.
+
+    Args:
+      q: A tensor of shape (N, 4) representing N quaternions to be normalized.
+
+    Raises:
+      ValueError: If any input quaternion has length near zero.
+
+    Returns:
+      A tensor of shape (N, 4) with each quaternion having magnitude 1.
+    """
+    q_norm = torch.norm(q, dim=1, keepdim=True)
+    if torch.any(torch.isclose(q_norm, torch.tensor(0.0))):
+        raise ValueError(f"Quaternion may not be zero in QuaternionNormalize: |q| = {q_norm}, q = {q}")
+    return q / q_norm
+
+@torch.jit.script
+def standardize_quaternion(q: torch.Tensor) -> torch.Tensor:
+    """
+    返回一个标准化的四元数，其中 q.w >= 0，以消除 q = -q 的冗余。
+
+    Args:
+      q: 要标准化的四元数，形状为 (N, 4)，其中 N 是四元数的数量。
+
+    Returns:
+      标准化后的四元数，形状为 (N, 4)。
+    """
+    # 检查 q 的最后一个维度是否小于 0
+    mask = q[:, -1] < 0
+    # 对于满足条件的四元数，取其负值
+    q[mask] = -q[mask]
+    return q

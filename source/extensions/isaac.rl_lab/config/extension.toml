@@ -37,4 +37,4 @@ modules = [
 use_online_index=true
 
 [[python.module]]
-name = "omni.isaac.lab_tasks"
+name = "rl_lab"

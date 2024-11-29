@@ -134,13 +134,14 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # ------------------------------Commands------------------------------
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.3, 0.3)
-        self.commands.base_velocity.ranges.ang_vel_z = (-3, 3)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.5, 1.5)
         # ------------------------------AMP------------------------------
         self.urdf_path = "datasets/go2_description/urdf/go2_description.urdf"
         self.ee_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
         self.base_name = "base"
         self.reference_state_initialization = True
         self.amp_motion_files = glob.glob(f"datasets/mocap_motions_go2/*")
+        self.amp_num_preload_transitions = 5000000
         self.amp_replay_buffer_size = 100000
 
 

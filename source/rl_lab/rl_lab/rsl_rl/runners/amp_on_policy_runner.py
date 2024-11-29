@@ -42,7 +42,8 @@ class AmpOnPolicyRunner:
             device=self.device,
             motion_files=self.env.unwrapped.cfg.amp_motion_files,
             time_between_frames=self.env.unwrapped.cfg.sim.dt * self.env.unwrapped.cfg.sim.render_interval,
-            preload_transitions=False,
+            preload_transitions=True,
+            num_preload_transitions = self.env.cfg.amp_num_preload_transitions,
         )
         amp_normalizer = Normalizer(amp_data.observation_dim)
         discriminator = AMPDiscriminator(

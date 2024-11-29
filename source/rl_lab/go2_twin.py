@@ -24,7 +24,7 @@ simulation_app = app_launcher.app
 import glob
 import numpy as np
 import torch
-from rl_lab.datasets.go2_model import GO2_MARKER_CFG
+from rl_lab.assets.go2_model import GO2_MARKER_CFG
 from omni.isaac.lab.markers import VisualizationMarkers, VisualizationMarkersCfg
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation

@@ -17,7 +17,7 @@ simulation_app = app_launcher.app
 import glob
 import numpy as np
 import torch
-from rl_lab.datasets.go2_model import GO2_MARKER_CFG
+from rl_lab.assets.go2_model import GO2_MARKER_CFG
 from omni.isaac.lab.markers import VisualizationMarkers, VisualizationMarkersCfg
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation
@@ -29,7 +29,7 @@ from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.utils.math import subtract_frame_transforms
 folder_path = "source/rl_lab/data/go2"
-from rl_lab.datasets.motionload import MotionData
+from rl_lab.assets.motionload import MotionData
 from omni.isaac.lab.utils.math import quat_rotate
 from rl_lab.utils import PMC_UTILS_DIR
 import csv

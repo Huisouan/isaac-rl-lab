@@ -86,11 +86,13 @@ _summary_
 
 import os
 import csv
+import json
 import torch
+
 #from omni.isaac.lab.utils.math import *
 #from omni.isaac.lab.utils.math import axis_angle_from_quat ,quat_from_angle_axis,quat_error_magnitude
 class MotionData:
-    def __init__(self, data_dir,frame_duration = 1/120,datatype="isaaclab"):
+    def __init__(self, data_dir,frame_duration = 1/120,datatype="isaaclab",file_type="csv"):
         """
         初始化方法，设置数据目录。
         
@@ -109,21 +111,87 @@ class MotionData:
                 'foot_vel': 24,
             }
         self.calculate_cumulative_indices()  #初始化data的顺序  
-        
+
         self.original_data_tensors = []
         self.data_tensors = []
         self.data_names = []
         self.data_length = []
         self.data_time_length = []
         self.data_header = []
+        
         #最后的121帧为了不超出范围，不会在初始化的时候被载入
         self.motion_bias = 122
         self.time_list = [1. / 30., 1. / 15., 1. / 3., 1.]
-        self.load_data()
+        
+        if file_type == "csv":
+            self.load_csv_data()
+        elif file_type == "txt":
+            self.load_txt_data()
+        else:
+            raise ValueError("Invalid file type specified.")
+        
         #self.re_calculate_velocity()
         print('Motion Data Loaded Successfully')
-        
-    def load_data(self):
+
+    def load_txt_data(self):
+        """
+        从指定目录加载所有txt文件，并将每个文件转换为一个不包含表头的二维Tensor。
+        """
+        for filename in os.listdir(self.data_dir):
+            if filename.endswith('.txt'):
+                file_path = os.path.join(self.data_dir, filename)
+            with open(file_path) as f:
+                motion_json = json.load(f)
+                motion_data = np.array(motion_json["Frames"])
+                # motion_data = self.reorder_from_pybullet_to_isaac(motion_data)
+
+                # Normalize and standardize quaternions.
+                for f_i in range(motion_data.shape[0]):
+                    root_rot = AMPLoader.get_root_rot(motion_data[f_i])
+                    root_rot = pose3d.QuaternionNormalize(root_rot)
+                    root_rot = motion_util.standardize_quaternion(root_rot)
+                    motion_data[f_i, AMPLoader.POS_SIZE : (AMPLoader.POS_SIZE + AMPLoader.ROT_SIZE)] = root_rot
+
+                # Remove first 7 observation dimensions (root_pos and root_orn).
+                self.trajectories.append(
+                    torch.tensor(
+                        motion_data[:, AMPLoader.ROOT_ROT_END_IDX : AMPLoader.JOINT_VEL_END_IDX],
+                        dtype=torch.float32,
+                        device=device,
+                    )
+                )
+                self.trajectories_full.append(
+                    torch.tensor(motion_data[:, : AMPLoader.JOINT_VEL_END_IDX], dtype=torch.float32, device=device)
+                )
+                self.trajectory_idxs.append(i)
+                self.trajectory_weights.append(float(motion_json["MotionWeight"]))
+                frame_duration = float(motion_json["FrameDuration"])
+                self.trajectory_frame_durations.append(frame_duration)
+                traj_len = (motion_data.shape[0] - 1) * frame_duration
+                self.trajectory_lens.append(traj_len)
+                self.trajectory_num_frames.append(float(motion_data.shape[0]))
+
+            #print(f"Loaded {traj_len}s. motion from {motion_file}.")
+
+        # Trajectory weights are used to sample some trajectories more than others.
+        self.trajectory_weights = np.array(self.trajectory_weights) / np.sum(self.trajectory_weights)
+        self.trajectory_frame_durations = np.array(self.trajectory_frame_durations)
+        self.trajectory_lens = np.array(self.trajectory_lens)
+        self.trajectory_num_frames = np.array(self.trajectory_num_frames)
+
+        # Preload transitions.
+        self.preload_transitions = preload_transitions
+        if self.preload_transitions:
+            print(f"Preloading {num_preload_transitions} transitions")
+            traj_idxs = self.weighted_traj_idx_sample_batch(num_preload_transitions)
+            times = self.traj_time_sample_batch(traj_idxs)
+            self.preloaded_s = self.get_full_frame_at_time_batch(traj_idxs, times)
+            self.preloaded_s_next = self.get_full_frame_at_time_batch(traj_idxs, times + self.time_between_frames)
+
+            print(self.get_joint_pose_batch(self.preloaded_s).mean(dim=0))
+            print("Finished preloading")        
+
+    def load_csv_data(self):
         """
         从指定目录加载所有CSV文件，并将每个文件转换为一个不包含表头的二维Tensor。
         """

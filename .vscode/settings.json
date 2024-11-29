@@ -94,7 +94,8 @@
     "python.analysis.extraPaths": [
         "${workspaceFolder}/source/extensions/omni.isaac.lab",
         "${workspaceFolder}/source/extensions/omni.isaac.lab_tasks",
-        "${workspaceFolder}/source/extensions/omni.isaac.lab_assets"
+        "${workspaceFolder}/source/extensions/omni.isaac.lab_assets",
+        "${workspaceFolder}/source/rl_lab/rl_lab",
     ],
     "MicroPython.executeButton": [
         {

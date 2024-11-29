@@ -5,23 +5,6 @@
 
 """包含针对各种机器人环境的任务实现的包。"""
 
-import os
-import toml
-
-# 通过相对路径方便地指向其他模块目录
-ISAACLAB_TASKS_EXT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
-"""扩展源目录的路径。"""
-
-ISAACLAB_TASKS_METADATA = toml.load(os.path.join(ISAACLAB_TASKS_EXT_DIR, "config", "extension.toml"))
-"""从 extension.toml 文件解析出的扩展元数据字典。"""
-
-# 配置模块级别的变量
-__version__ = ISAACLAB_TASKS_METADATA["package"]["version"]
-
-##
-# 注册 Gym 环境。
-##
-
 from omni.isaac.lab_tasks.utils import import_packages
 
 # 黑名单用于防止从子包导入配置

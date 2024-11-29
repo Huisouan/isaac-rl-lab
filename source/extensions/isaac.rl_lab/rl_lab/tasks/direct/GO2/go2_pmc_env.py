@@ -15,7 +15,7 @@ from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.sim import SimulationCfg
 from omni.isaac.lab.terrains import TerrainImporterCfg
 from omni.isaac.lab.utils import configclass
-from assets.go2_model import GO2_MARKER_CFG
+from rl_lab.assets.go2_model import GO2_MARKER_CFG
 from omni.isaac.lab_assets.unitree import UNITREE_GO2_CFG  # isort: skip
 from omni.isaac.lab.sensors import ContactSensor,ContactSensorCfg
 import math
@@ -25,7 +25,7 @@ from omni.isaac.lab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_
 from omni.isaac.lab.utils.math import sample_uniform,matrix_from_quat
 from omni.isaac.lab.managers import SceneEntityCfg
 import glob
-from assets.motionload import MotionData
+from rl_lab.assets.motionload import MotionData
 from omni.isaac.lab.utils.math import quat_rotate,compute_pose_error
 @configclass
 class PMCEnvCfg(DirectRLEnvCfg):

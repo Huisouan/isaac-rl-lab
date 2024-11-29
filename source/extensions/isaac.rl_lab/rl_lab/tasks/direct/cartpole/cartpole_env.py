@@ -19,7 +19,7 @@ from omni.isaac.lab.sim import SimulationCfg
 from omni.isaac.lab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.utils.math import sample_uniform
-from assets.motionload import MotionData
+from rl_lab.assets.motionload import MotionData
 
 @configclass
 class CartpoleEnvCfg(DirectRLEnvCfg):

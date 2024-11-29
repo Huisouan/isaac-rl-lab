@@ -3,7 +3,7 @@
 "FrameDuration": 0.01677,
 "EnableCycleOffsetPosition": true,
 "EnableCycleOffsetRotation": true,
-"MotionWeight": 1.5,
+"MotionWeight": 1,
 
 "Frames":
 [

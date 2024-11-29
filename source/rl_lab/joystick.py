@@ -133,7 +133,7 @@ def main():
             # agent stepping
             
             actions = policy(obs)
-
+            
             # env stepping
             obs, _, _, _ = env.step(actions)
             

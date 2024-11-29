@@ -417,15 +417,22 @@ class AMPLoader:
                 # 从轨迹时间中采样一个批次
                 times = self.traj_time_sample_batch(traj_idxs)
                 # 遍历轨迹索引和时间
-                for traj_idx, frame_time in zip(traj_idxs, times):
-                    # 获取指定轨迹和时间的帧
-                    s.append(self.get_frame_at_time(traj_idx, frame_time))
-                    # 获取下一个帧（时间加上帧间时间间隔）
-                    s_next.append(self.get_frame_at_time(traj_idx, frame_time + self.time_between_frames))
-
-                # 将状态向量和下一个状态向量垂直堆叠
-                s = torch.vstack(s)
-                s_next = torch.vstack(s_next)
+                # 获取指定轨迹和时间的帧
+                s = self.get_full_frame_at_time_batch(traj_idxs, times)
+                s = torch.cat(
+                    [s[:,AMPLoader.JOINT_POSE_START_IDX : AMPLoader.JOINT_VEL_END_IDX], 
+                     s[:, AMPLoader.ROOT_POS_START_IDX + 2 : AMPLoader.ROOT_POS_START_IDX + 3]],
+                    dim=-1,
+                )
+                # 获取下一个帧（时间加上帧间时间间隔）
+                s_next = self.get_full_frame_at_time_batch(traj_idxs, times + self.time_between_frames)
+                s_next = torch.cat(
+                    [
+                        s_next[:,AMPLoader.JOINT_POSE_START_IDX : AMPLoader.JOINT_VEL_END_IDX], 
+                        s_next[:, AMPLoader.ROOT_POS_START_IDX + 2 : AMPLoader.ROOT_POS_START_IDX + 3]
+                    ],
+                    dim=-1,
+                )
             # 产出状态和下一个状态
             yield s, s_next
 

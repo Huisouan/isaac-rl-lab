@@ -330,6 +330,7 @@ class EventCfg:
     )
 
 
+
 @configclass
 class RewardsCfg:
     """Reward terms for the MDP."""

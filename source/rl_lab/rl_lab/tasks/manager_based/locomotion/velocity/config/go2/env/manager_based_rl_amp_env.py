@@ -14,7 +14,7 @@ from omni.isaac.lab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from omni.isaac.lab.envs.manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
 
 from robot_lab.third_party.amp_utils.kinematics import urdf
-from robot_lab.third_party.rsl_rl_amp.datasets.motion_loader import AMPLoader
+from ........rsl_rl.datasets_for_txt.motion_loader import AMPLoader
 
 
 class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):

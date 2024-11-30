@@ -29,7 +29,7 @@ from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.utils.math import subtract_frame_transforms
 folder_path = "source/rl_lab/data/go2"
-from rl_lab.assets.motionload import MotionData
+from rl_lab.assets.base_motionloader import MotionData_Base
 from omni.isaac.lab.utils.math import quat_rotate
 from rl_lab.utils import PMC_UTILS_DIR
 import csv
@@ -191,7 +191,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot = scene["robot"]
         env_ids = torch.tensor([0], device='cuda')
         
-        data = MotionData("source/rl_lab/data/go2")
+        data = MotionData_Base("source/rl_lab/data/go2")
         dt = 1/120
 
         for traj_idx in range(len(data.data_length)):

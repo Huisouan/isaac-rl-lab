@@ -25,7 +25,7 @@ from omni.isaac.lab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_
 from omni.isaac.lab.utils.math import sample_uniform,matrix_from_quat
 from omni.isaac.lab.managers import SceneEntityCfg
 import glob
-from rl_lab.assets.motionload import MotionData
+from rl_lab.assets.base_motionloader import MotionData_Base
 from omni.isaac.lab.utils.math import quat_rotate,compute_pose_error
 @configclass
 class PMCEnvCfg(DirectRLEnvCfg):
@@ -73,7 +73,7 @@ class PMCEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
         self.action_scale = cfg.action_scale
         
-        self.motiondata = MotionData("source/rl_lab/data/go2")
+        self.MotionData_Base = MotionData_Base("source/rl_lab/data/go2")
         #init data index
         self.pmc_data_frameinplay = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.pmc_data_maxtime = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
@@ -104,11 +104,11 @@ class PMCEnv(DirectRLEnv):
         self.robot.set_joint_position_target(self.actions) 
         #self.robot.set_joint_position_target(self.actions)
         #update marker
-        frame = self.motiondata.get_frame_batch(self.pmc_data_selected,self.pmc_data_frameinplay)
-        rootstate = self.motiondata.root_state_w(frame)
+        frame = self.MotionData_Base.get_frame_batch(self.pmc_data_selected,self.pmc_data_frameinplay)
+        rootstate = self.MotionData_Base.root_state_w(frame)
         rootstate[:,:2] = rootstate[:,:2] + self.scene.env_origins[:,:2]
         self.marker.write_root_state_to_sim(rootstate)
-        self.marker.write_joint_state_to_sim(self.motiondata.joint_position_w(frame),self.motiondata.joint_velocity_w(frame))
+        self.marker.write_joint_state_to_sim(self.MotionData_Base.joint_position_w(frame),self.MotionData_Base.joint_velocity_w(frame))
         
     def _get_observations(self) -> dict:      
         obs = torch.cat(#45 in total
@@ -128,7 +128,7 @@ class PMCEnv(DirectRLEnv):
         robot_state[:, :2] = robot_state[:, :2] - self.scene.env_origins[:, :2]
         
         # 获取数据集get dataset
-        dataset = self.motiondata.get_frame_batch_by_timelist(#72
+        dataset = self.MotionData_Base.get_frame_batch_by_timelist(#72
             self.pmc_data_selected,
             self.pmc_data_frameinplay,
             robot_state
@@ -166,7 +166,7 @@ class PMCEnv(DirectRLEnv):
         robot_state[:, :2] = robot_state[:, :2] - self.scene.env_origins[:, :2]
         
         # 获取数据集get dataset
-        dataset = self.motiondata.get_frame_batch_by_timelist(#72
+        dataset = self.MotionData_Base.get_frame_batch_by_timelist(#72
             self.pmc_data_selected,
             self.pmc_data_frameinplay,
             robot_state
@@ -181,11 +181,11 @@ class PMCEnv(DirectRLEnv):
 
     def _get_rewards(self) -> torch.Tensor:
 
-        reference_frame = self.motiondata.get_frame_batch(
+        reference_frame = self.MotionData_Base.get_frame_batch(
         self.pmc_data_selected, 
         self.pmc_data_frameinplay)  
         # base position
-        root_state = self.motiondata.root_state_w(reference_frame)
+        root_state = self.MotionData_Base.root_state_w(reference_frame)
         root_state[:, :2] = root_state[:, :2] + self.scene.env_origins[:, :2] 
    
         root_pos = root_state[:, :3] 
@@ -195,11 +195,11 @@ class PMCEnv(DirectRLEnv):
         lin_vel = root_state[:,7:10]
         ang_vel = root_state[:,10:13]
         #joint position
-        joint_pos = self.motiondata.joint_position_w(reference_frame)
-        joint_vel = self.motiondata.joint_velocity_w(reference_frame)   
+        joint_pos = self.MotionData_Base.joint_position_w(reference_frame)
+        joint_vel = self.MotionData_Base.joint_velocity_w(reference_frame)   
         
         #foot_position
-        foot_positions = self.motiondata.foot_position_w(reference_frame)
+        foot_positions = self.MotionData_Base.foot_position_w(reference_frame)
         foot_positions[:,0:2] = foot_positions[:,0:2] + self.scene.env_origins[:, 0:2]
         foot_positions[:,3:5] = foot_positions[:,3:5] + self.scene.env_origins[:, 0:2]
         foot_positions[:,6:8] = foot_positions[:,6:8] + self.scene.env_origins[:, 0:2]
@@ -250,13 +250,13 @@ class PMCEnv(DirectRLEnv):
             
         super()._reset_idx(env_ids)
         
-        frames,data_idx,rand_frame,data_length = self.motiondata.get_random_frame_batch(len(env_ids))
-        root_state = self.motiondata.root_state_w(frames)
+        frames,data_idx,rand_frame,data_length = self.MotionData_Base.get_random_frame_batch(len(env_ids))
+        root_state = self.MotionData_Base.root_state_w(frames)
         root_state[:, :2] = root_state[:, :2] + self.scene.env_origins[env_ids, :2]        
 
         #joint position
-        joint_pos = self.motiondata.joint_position_w(frames)
-        joint_vel = self.motiondata.joint_velocity_w(frames)
+        joint_pos = self.MotionData_Base.joint_position_w(frames)
+        joint_vel = self.MotionData_Base.joint_velocity_w(frames)
         
         # set into the physics simulation
         self.robot.write_root_state_to_sim(root_state,env_ids=env_ids)

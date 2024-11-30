@@ -25,7 +25,7 @@ from omni.isaac.lab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_
 from omni.isaac.lab.utils.math import sample_uniform
 from omni.isaac.lab.managers import SceneEntityCfg
 import glob
-from rl_lab.assets.motionload import MotionData
+from rl_lab.assets.base_motionloader import MotionData_Base
 from omni.isaac.lab.utils.math import quat_rotate,compute_pose_error
 @configclass
 class EPMCEnvCfg(DirectRLEnvCfg):
@@ -69,7 +69,7 @@ class EPMCEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
         self.action_scale = 1
 
-        self.motiondata = MotionData("source/Mycode/data")
+        self.motiondata = MotionData_Base("source/Mycode/data")
         #初始化数据集采样的时间
         self.pmc_data_frameinplay = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.pmc_data_maxtime = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)

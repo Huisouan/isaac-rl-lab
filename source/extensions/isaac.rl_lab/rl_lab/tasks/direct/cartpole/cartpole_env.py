@@ -19,7 +19,7 @@ from omni.isaac.lab.sim import SimulationCfg
 from omni.isaac.lab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.utils.math import sample_uniform
-from rl_lab.assets.motionload import MotionData
+from rl_lab.assets.base_motionloader import MotionData_Base
 
 @configclass
 class CartpoleEnvCfg(DirectRLEnvCfg):
@@ -62,7 +62,7 @@ class CartpoleEnv(DirectRLEnv):
 
         self.joint_pos = self.cartpole.data.joint_pos
         self.joint_vel = self.cartpole.data.joint_vel
-        self.motiondata = MotionData("source/rl_lab/data/cartpole")
+        self.motiondata = MotionData_Base("source/rl_lab/data/cartpole")
         
         #初始化数据集采样的时间
         

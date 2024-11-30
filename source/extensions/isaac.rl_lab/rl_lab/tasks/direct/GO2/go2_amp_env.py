@@ -24,7 +24,7 @@ from omni.isaac.lab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_
 from omni.isaac.lab.utils.math import sample_uniform,matrix_from_quat
 from omni.isaac.lab.managers import SceneEntityCfg
 import glob
-from rl_lab.assets.motionload import MotionData
+from rl_lab.assets.base_motionloader import MotionData
 from omni.isaac.lab.utils.math import quat_rotate,compute_pose_error
 @configclass
 class AMPEnvCfg(DirectRLEnvCfg):

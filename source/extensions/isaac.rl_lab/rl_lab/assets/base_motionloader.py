@@ -6,7 +6,8 @@ _EPS = torch.finfo(float).eps * 4.0
 
 #from omni.isaac.lab.utils.math import *
 #from omni.isaac.lab.utils.math import axis_angle_from_quat ,quat_from_angle_axis,quat_error_magnitude
-class MotionData:
+
+class MotionData_Base:
     def __init__(self, 
                  data_dir,
                  datatype="isaaclab",
@@ -46,6 +47,7 @@ class MotionData:
             self.load_txt_data()
         else:
             raise ValueError("Invalid file type specified.")
+        #从original_data_tensors进行插值，让离散数据的时间间隔与env_step_duration一致，并保存到
         self.data_discretization()
         #self.re_calculate_velocity()
         print('Motion Data Loaded Successfully')
@@ -107,6 +109,19 @@ class MotionData:
                     
                     print(f"Loaded {data_time_length}s. motion from {filename}.")
 
+        # 将列表转换为张量
+        self.data_length = torch.tensor(self.data_length, device=self.device)
+        self.frame_duration = torch.tensor(self.frame_duration, device=self.device)
+        self.data_time_length = torch.tensor(self.data_time_length, device=self.device)
+        self.data_weights = torch.tensor(self.data_weights, device=self.device)
+
+        # 归一化权重
+        total_weight = self.data_weights.sum()
+        if total_weight > 0:
+            self.data_weights /= total_weight
+        else:
+            self.data_weights = torch.full_like(self.data_weights, 1.0 / len(self.data_weights))  # 如果总权重为0，均匀分配权重 
+
     def load_csv_data(self):
         """
         从指定目录加载所有CSV文件，并将每个文件转换为一个不包含表头的二维Tensor。
@@ -145,7 +160,7 @@ class MotionData:
                 interpolation_time_list.append(interpolation_time)
                 interpolation_time += self.env_step_duration
                 
-            interpolation_time_tensor = torch.tensor(interpolation_time_list,dtype=torch.float64)
+            interpolation_time_tensor = torch.tensor(interpolation_time_list,dtype=torch.float64,device=self.device)
             intermidate_data = torch.zeros((len(interpolation_time_tensor),original_data_tensor.shape[1]),device=self.device)
             # 计算 idx_low 和 idx_high
             percentage = interpolation_time_tensor / data_time_length
@@ -165,7 +180,7 @@ class MotionData:
                     intermidate_data[:,start:end] = interpolatec_element
             print(f"Converted : {name}.")
             self.data_tensors.append(intermidate_data)           
-                
+
     def interpole_frame_at_time(self,interpolation_time,):
         #TODO
         pass
@@ -186,6 +201,65 @@ class MotionData:
             # 更新累计索引值
             cumulative_index += value
 
+    def quaternion_slerp(self,q0: torch.Tensor, q1: torch.Tensor, fraction: torch.Tensor, spin: int = 0, shortestpath: bool = True) -> torch.Tensor:
+        """Batch quaternion spherical linear interpolation."""
+        
+        out = torch.zeros_like(q0)
+
+        # 处理特殊情况
+        zero_mask = torch.isclose(fraction, torch.zeros_like(fraction)).squeeze()
+        ones_mask = torch.isclose(fraction, torch.ones_like(fraction)).squeeze()
+        out[zero_mask] = q0[zero_mask]
+        out[ones_mask] = q1[ones_mask]
+
+        # 计算点积
+        d = torch.sum(q0 * q1, dim=-1, keepdim=True)
+        # 限制 d 的取值范围
+        d = torch.clamp(d, min=-1.0 + _EPS, max=1.0 - _EPS)
+
+        # 计算 delta
+        delta = torch.abs(torch.abs(d) - 1.0)
+        dist_mask = (delta < _EPS).squeeze()
+
+        # 处理接近 ±1 的情况
+        out[dist_mask] = q0[dist_mask]
+
+        # 计算角度
+        angle = torch.acos(d) + spin * torch.pi
+
+        # 处理角度接近0的情况
+        angle_mask = (torch.abs(angle) < _EPS).squeeze()
+        out[angle_mask] = q0[angle_mask]
+
+        # 选择最短路径
+        if shortestpath:
+            d_old = torch.clone(d)
+            d = torch.where(d_old < 0, -d, d)
+            q1 = torch.where(d_old < 0, -q1, q1)
+
+        # 处理剩余情况
+        final_mask = torch.logical_or(zero_mask, ones_mask)
+        final_mask = torch.logical_or(final_mask, dist_mask)
+        final_mask = torch.logical_or(final_mask, angle_mask)
+        final_mask = torch.logical_not(final_mask)
+
+        # 计算 1.0 / angle
+        isin = 1.0 / angle
+
+        # 计算插值
+        q0 *= torch.sin((1.0 - fraction) * angle) * isin
+        q1 *= torch.sin(fraction * angle) * isin
+        q0 += q1
+        out[final_mask] = q0[final_mask]
+
+        return out
+
+    def slerp(self, val0: torch.Tensor, val1: torch.Tensor, blend: torch.Tensor) -> torch.Tensor:
+        return (1.0 - blend) * val0 + blend * val1 
+    
+
+    #banished codes
+    '''
     def re_calculate_velocity(self):
         # 矫正数据集中的速度
         # Root state [pos, quat, lin_vel, ang_vel] in simulation world frame. Shape is (num_instances, 13)
@@ -492,80 +566,160 @@ class MotionData:
         base_pos = base_pos_c + frac * (base_pos_n - base_pos_c)
         
         return base_pos   
+    '''
+    '''
+    #######################MATH##############################################
+    @torch.jit.script
+    def axis_angle_from_quat(quat: torch.Tensor, eps: float = 1.0e-6) -> torch.Tensor:
+        """将四元数表示的旋转转换为轴角表示。
 
+        参数:
+            quat: 四元数的方向，表示为 (w, x, y, z)。形状为 (..., 4)。
+            eps: 泰勒近似的容差。默认值为 1.0e-6。
 
-    def quaternion_slerp(self,q0: torch.Tensor, q1: torch.Tensor, fraction: torch.Tensor, spin: int = 0, shortestpath: bool = True) -> torch.Tensor:
-        """Batch quaternion spherical linear interpolation."""
+        返回:
+            以轴角形式表示的旋转。形状为 (..., 3)。
+            向量的大小表示绕向量方向逆时针旋转的角度（以弧度为单位）。
+
+        参考:
+            https://github.com/facebookresearch/pytorch3d/blob/main/pytorch3d/transforms/rotation_conversions.py#L526-L554
+        """
+        # 修改为接受四元数 [q_w, q_x, q_y, q_z]
+        # 四元数 [q_w, q_x, q_y, q_z] = [cos(theta/2), n_x * sin(theta/2), n_y * sin(theta/2), n_z * sin(theta/2)]
+        # 轴角表示 [a_x, a_y, a_z] = [theta * n_x, theta * n_y, theta * n_z]
+        # 因此，轴角表示为 [q_x, q_y, q_z] / (sin(theta/2) / theta)
+        # 当 theta = 0 时，(sin(theta/2) / theta) 是未定义的
+        # 但是，当 theta 趋近于 0 时，可以使用泰勒近似 1/2 - theta^2 / 48
+        quat = quat * (1.0 - 2.0 * (quat[..., 0:1] < 0.0))
+        mag = torch.linalg.norm(quat[..., 1:], dim=-1)
+        half_angle = torch.atan2(mag, quat[..., 0])
+        angle = 2.0 * half_angle
+        # check whether to apply Taylor approximation
+        sin_half_angles_over_angles = torch.where(
+            angle.abs() > eps, torch.sin(half_angle) / angle, 0.5 - angle * angle / 48
+        )
+        return quat[..., 1:4] / sin_half_angles_over_angles.unsqueeze(-1)
+
+    @torch.jit.script
+    def quat_conjugate(q: torch.Tensor) -> torch.Tensor:
+        """计算四元数的共轭。
+
+        参数:
+            q: 四元数的方向，表示为 (w, x, y, z)。形状为 (..., 4)。
+
+        返回:
+            四元数的共轭，表示为 (w, x, y, z)。形状为 (..., 4)。
+        """
+        shape = q.shape
+        q = q.reshape(-1, 4)
+        return torch.cat((q[:, 0:1], -q[:, 1:]), dim=-1).view(shape)
+
+    @torch.jit.script
+    def quat_mul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
+        """将两个四元数相乘。
+
+        参数:
+            q1: 第一个四元数，表示为 (w, x, y, z)。形状为 (..., 4)。
+            q2: 第二个四元数，表示为 (w, x, y, z)。形状为 (..., 4)。
+
+        返回:
+            两个四元数的乘积，表示为 (w, x, y, z)。形状为 (..., 4)。
+
+        异常:
+            ValueError: 输入 `q1` 和 `q2` 的形状不匹配。
+        """
+        # check input is correct
+        if q1.shape != q2.shape:
+            msg = f"Expected input quaternion shape mismatch: {q1.shape} != {q2.shape}."
+            raise ValueError(msg)
+        # reshape to (N, 4) for multiplication
+        shape = q1.shape
+        q1 = q1.reshape(-1, 4)
+        q2 = q2.reshape(-1, 4)
+        # extract components from quaternions
+        w1, x1, y1, z1 = q1[:, 0], q1[:, 1], q1[:, 2], q1[:, 3]
+        w2, x2, y2, z2 = q2[:, 0], q2[:, 1], q2[:, 2], q2[:, 3]
+        # perform multiplication
+        ww = (z1 + x1) * (x2 + y2)
+        yy = (w1 - y1) * (w2 + z2)
+        zz = (w1 + y1) * (w2 - z2)
+        xx = ww + yy + zz
+        qq = 0.5 * (xx + (z1 - x1) * (x2 - y2))
+        w = qq - ww + (z1 - y1) * (y2 - z2)
+        x = qq - xx + (x1 + w1) * (x2 + w2)
+        y = qq - yy + (w1 - x1) * (y2 + z2)
+        z = qq - zz + (z1 + y1) * (w2 - x2)
+
+        return torch.stack([w, x, y, z], dim=-1).view(shape)
+
+    @torch.jit.script
+    def quat_error_magnitude(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
+        """Computes the rotation difference between two quaternions.
+
+        Args:
+            q1: The first quaternion in (w, x, y, z). Shape is (..., 4).
+            q2: The second quaternion in (w, x, y, z). Shape is (..., 4).
+
+        Returns:
+            Angular error between input quaternions in radians.
+        """
+        quat_diff = quat_mul(q1, quat_conjugate(q2))
+        return axis_angle_from_quat(quat_diff)
         
-        out = torch.zeros_like(q0)
+    @torch.jit.script
+    def QuaternionNormalize(q: torch.Tensor) -> torch.Tensor:
+        """Normalizes the quaternion to length 1.
 
-        # 处理特殊情况
-        zero_mask = torch.isclose(fraction, torch.zeros_like(fraction)).squeeze()
-        ones_mask = torch.isclose(fraction, torch.ones_like(fraction)).squeeze()
-        out[zero_mask] = q0[zero_mask]
-        out[ones_mask] = q1[ones_mask]
+        Divides the quaternion by its magnitude.  If the magnitude is too
+        small, raises a ValueError.
 
-        # 计算点积
-        d = torch.sum(q0 * q1, dim=-1, keepdim=True)
-        # 限制 d 的取值范围
-        d = torch.clamp(d, min=-1.0 + _EPS, max=1.0 - _EPS)
+        Args:
+        q: A tensor of shape (N, 4) representing N quaternions to be normalized.
 
-        # 计算 delta
-        delta = torch.abs(torch.abs(d) - 1.0)
-        dist_mask = (delta < _EPS).squeeze()
+        Raises:
+        ValueError: If any input quaternion has length near zero.
 
-        # 处理接近 ±1 的情况
-        out[dist_mask] = q0[dist_mask]
+        Returns:
+        A tensor of shape (N, 4) with each quaternion having magnitude 1.
+        """
+        q_norm = torch.norm(q, dim=1, keepdim=True)
+        if torch.any(torch.isclose(q_norm, torch.tensor(0.0))):
+            raise ValueError(f"Quaternion may not be zero in QuaternionNormalize: |q| = {q_norm}, q = {q}")
+        return q / q_norm
 
-        # 计算角度
-        angle = torch.acos(d) + spin * torch.pi
+    @torch.jit.script
+    def standardize_quaternion(q: torch.Tensor) -> torch.Tensor:
+        """
+        返回一个标准化的四元数，其中 q.w >= 0，以消除 q = -q 的冗余。
 
-        # 处理角度接近0的情况
-        angle_mask = (torch.abs(angle) < _EPS).squeeze()
-        out[angle_mask] = q0[angle_mask]
+        Args:
+        q: 要标准化的四元数，形状为 (N, 4)，其中 N 是四元数的数量。
 
-        # 选择最短路径
-        if shortestpath:
-            d_old = torch.clone(d)
-            d = torch.where(d_old < 0, -d, d)
-            q1 = torch.where(d_old < 0, -q1, q1)
+        Returns:
+        标准化后的四元数，形状为 (N, 4)。
+        """
+        # 检查 q 的最后一个维度是否小于 0
+        mask = q[:, -1] < 0
+        # 对于满足条件的四元数，取其负值
+        q[mask] = -q[mask]
+        return q
 
-        # 处理剩余情况
-        final_mask = torch.logical_or(zero_mask, ones_mask)
-        final_mask = torch.logical_or(final_mask, dist_mask)
-        final_mask = torch.logical_or(final_mask, angle_mask)
-        final_mask = torch.logical_not(final_mask)
+    '''
 
-        # 计算 1.0 / angle
-        isin = 1.0 / angle
-
-        # 计算插值
-        q0 *= torch.sin((1.0 - fraction) * angle) * isin
-        q1 *= torch.sin(fraction * angle) * isin
-        q0 += q1
-        out[final_mask] = q0[final_mask]
-
-        return out
-
-    def slerp(self, val0: torch.Tensor, val1: torch.Tensor, blend: torch.Tensor) -> torch.Tensor:
-       
-        return    (1.0 - blend) * val0 + blend * val1 
-    
+    #############################PROPERTY############################
     def get_frames(self,motion_id,frame_num):
         """
         读取数据tensor，返回一个frame
         """
-        return self.original_data_tensors[motion_id][frame_num]    
-    
-    #############################PROPERTY############################
-    @property    
+        return self.data_tensors[motion_id][frame_num]   
+     
     def get_tensors(self):
         """
         返回加载的所有数据的列表。
         
         :return: 包含所有CSV文件数据的二维Tensor列表
         """
-        return self.original_data_tensors    
+        return self.data_tensors    
     
     #############READ############################
     #############ROOT############################
@@ -856,143 +1010,3 @@ class MotionData:
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
         return frame
-
-
-#######################MATH##############################################
-@torch.jit.script
-def axis_angle_from_quat(quat: torch.Tensor, eps: float = 1.0e-6) -> torch.Tensor:
-    """将四元数表示的旋转转换为轴角表示。
-
-    参数:
-        quat: 四元数的方向，表示为 (w, x, y, z)。形状为 (..., 4)。
-        eps: 泰勒近似的容差。默认值为 1.0e-6。
-
-    返回:
-        以轴角形式表示的旋转。形状为 (..., 3)。
-        向量的大小表示绕向量方向逆时针旋转的角度（以弧度为单位）。
-
-    参考:
-        https://github.com/facebookresearch/pytorch3d/blob/main/pytorch3d/transforms/rotation_conversions.py#L526-L554
-    """
-    # 修改为接受四元数 [q_w, q_x, q_y, q_z]
-    # 四元数 [q_w, q_x, q_y, q_z] = [cos(theta/2), n_x * sin(theta/2), n_y * sin(theta/2), n_z * sin(theta/2)]
-    # 轴角表示 [a_x, a_y, a_z] = [theta * n_x, theta * n_y, theta * n_z]
-    # 因此，轴角表示为 [q_x, q_y, q_z] / (sin(theta/2) / theta)
-    # 当 theta = 0 时，(sin(theta/2) / theta) 是未定义的
-    # 但是，当 theta 趋近于 0 时，可以使用泰勒近似 1/2 - theta^2 / 48
-    quat = quat * (1.0 - 2.0 * (quat[..., 0:1] < 0.0))
-    mag = torch.linalg.norm(quat[..., 1:], dim=-1)
-    half_angle = torch.atan2(mag, quat[..., 0])
-    angle = 2.0 * half_angle
-    # check whether to apply Taylor approximation
-    sin_half_angles_over_angles = torch.where(
-        angle.abs() > eps, torch.sin(half_angle) / angle, 0.5 - angle * angle / 48
-    )
-    return quat[..., 1:4] / sin_half_angles_over_angles.unsqueeze(-1)
-
-@torch.jit.script
-def quat_conjugate(q: torch.Tensor) -> torch.Tensor:
-    """计算四元数的共轭。
-
-    参数:
-        q: 四元数的方向，表示为 (w, x, y, z)。形状为 (..., 4)。
-
-    返回:
-        四元数的共轭，表示为 (w, x, y, z)。形状为 (..., 4)。
-    """
-    shape = q.shape
-    q = q.reshape(-1, 4)
-    return torch.cat((q[:, 0:1], -q[:, 1:]), dim=-1).view(shape)
-
-@torch.jit.script
-def quat_mul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
-    """将两个四元数相乘。
-
-    参数:
-        q1: 第一个四元数，表示为 (w, x, y, z)。形状为 (..., 4)。
-        q2: 第二个四元数，表示为 (w, x, y, z)。形状为 (..., 4)。
-
-    返回:
-        两个四元数的乘积，表示为 (w, x, y, z)。形状为 (..., 4)。
-
-    异常:
-        ValueError: 输入 `q1` 和 `q2` 的形状不匹配。
-    """
-    # check input is correct
-    if q1.shape != q2.shape:
-        msg = f"Expected input quaternion shape mismatch: {q1.shape} != {q2.shape}."
-        raise ValueError(msg)
-    # reshape to (N, 4) for multiplication
-    shape = q1.shape
-    q1 = q1.reshape(-1, 4)
-    q2 = q2.reshape(-1, 4)
-    # extract components from quaternions
-    w1, x1, y1, z1 = q1[:, 0], q1[:, 1], q1[:, 2], q1[:, 3]
-    w2, x2, y2, z2 = q2[:, 0], q2[:, 1], q2[:, 2], q2[:, 3]
-    # perform multiplication
-    ww = (z1 + x1) * (x2 + y2)
-    yy = (w1 - y1) * (w2 + z2)
-    zz = (w1 + y1) * (w2 - z2)
-    xx = ww + yy + zz
-    qq = 0.5 * (xx + (z1 - x1) * (x2 - y2))
-    w = qq - ww + (z1 - y1) * (y2 - z2)
-    x = qq - xx + (x1 + w1) * (x2 + w2)
-    y = qq - yy + (w1 - x1) * (y2 + z2)
-    z = qq - zz + (z1 + y1) * (w2 - x2)
-
-    return torch.stack([w, x, y, z], dim=-1).view(shape)
-
-@torch.jit.script
-def quat_error_magnitude(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
-    """Computes the rotation difference between two quaternions.
-
-    Args:
-        q1: The first quaternion in (w, x, y, z). Shape is (..., 4).
-        q2: The second quaternion in (w, x, y, z). Shape is (..., 4).
-
-    Returns:
-        Angular error between input quaternions in radians.
-    """
-    quat_diff = quat_mul(q1, quat_conjugate(q2))
-    return axis_angle_from_quat(quat_diff)
-    
-@torch.jit.script
-def QuaternionNormalize(q: torch.Tensor) -> torch.Tensor:
-    """Normalizes the quaternion to length 1.
-
-    Divides the quaternion by its magnitude.  If the magnitude is too
-    small, raises a ValueError.
-
-    Args:
-      q: A tensor of shape (N, 4) representing N quaternions to be normalized.
-
-    Raises:
-      ValueError: If any input quaternion has length near zero.
-
-    Returns:
-      A tensor of shape (N, 4) with each quaternion having magnitude 1.
-    """
-    q_norm = torch.norm(q, dim=1, keepdim=True)
-    if torch.any(torch.isclose(q_norm, torch.tensor(0.0))):
-        raise ValueError(f"Quaternion may not be zero in QuaternionNormalize: |q| = {q_norm}, q = {q}")
-    return q / q_norm
-
-@torch.jit.script
-def standardize_quaternion(q: torch.Tensor) -> torch.Tensor:
-    """
-    返回一个标准化的四元数，其中 q.w >= 0，以消除 q = -q 的冗余。
-
-    Args:
-      q: 要标准化的四元数，形状为 (N, 4)，其中 N 是四元数的数量。
-
-    Returns:
-      标准化后的四元数，形状为 (N, 4)。
-    """
-    # 检查 q 的最后一个维度是否小于 0
-    mask = q[:, -1] < 0
-    # 对于满足条件的四元数，取其负值
-    q[mask] = -q[mask]
-    return q
-
-
-

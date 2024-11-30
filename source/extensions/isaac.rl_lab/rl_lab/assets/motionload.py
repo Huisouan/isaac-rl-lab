@@ -8,7 +8,8 @@ _EPS = torch.finfo(float).eps * 4.0
 #from omni.isaac.lab.utils.math import axis_angle_from_quat ,quat_from_angle_axis,quat_error_magnitude
 class MotionData:
     def __init__(self, 
-                 data_dir,datatype="isaaclab",
+                 data_dir,
+                 datatype="isaaclab",
                  file_type="csv",
                  data_spaces = None,
                  env_step_duration = 0.005,**kwargs):
@@ -30,7 +31,7 @@ class MotionData:
         self.original_data_tensors = []#存储原始数据的列表
         self.data_tensors = []#存储插值处理后的数据的列表
         self.data_names = []#存储数据名称的列表
-        self.data_length = []#存储数据长度的列表
+        self.data_length = []#总可索引帧数
         self.frame_duration = []#存储帧持续时间的列表
         self.data_time_length = []#存储数据时间长度的列表
         self.data_weights = []#存储数据权重的列表
@@ -45,7 +46,7 @@ class MotionData:
             self.load_txt_data()
         else:
             raise ValueError("Invalid file type specified.")
-        
+        self.data_discretization()
         #self.re_calculate_velocity()
         print('Motion Data Loaded Successfully')
 
@@ -72,7 +73,7 @@ class MotionData:
 
         if self.datatype == "vqvae":
             pass
-        
+
     def load_txt_data(self):
         """
         从指定目录加载所有txt文件，并将每个文件转换为一个不包含表头的二维Tensor。
@@ -80,26 +81,31 @@ class MotionData:
         for filename in os.listdir(self.data_dir):
             if filename.endswith('.txt'):
                 file_path = os.path.join(self.data_dir, filename)
-            with open(file_path) as f:
-                motion_json = json.load(f)
-                motion_data = torch.tensor(motion_json["Frames"])
-                # Normalize and standardize quaternions.
-                root_rot = self.root_quat_w(motion_data)
-                root_rot = QuaternionNormalize(root_rot)
-                root_rot = standardize_quaternion(root_rot)
-                motion_data = self.write_root_quat(motion_data, root_rot)
-                duration = float(motion_json["FrameDuration"])
-                data_time_length = (motion_data.shape[0] - 1) * duration
-                
-                #将数据加入到数据列表中
-                self.original_data_tensors.append(motion_data)
-                self.data_names.append(filename)
-                self.data_length.append(motion_data.shape[0])#总帧数
-                self.frame_duration.append(duration)
-                self.data_time_length.append(data_time_length)
-                self.data_weights.append(float(motion_json["MotionWeight"]))
-                
-                print(f"Loaded {data_time_length}s. motion from {filename}.")
+                with open(file_path) as f:
+                    motion_json = json.load(f)
+                    motion_data = torch.tensor(motion_json["Frames"], device=self.device)
+                    # Normalize and standardize quaternions.
+                    root_rot = self.root_quat_w(motion_data)
+                    root_rot = QuaternionNormalize(root_rot)
+                    root_rot = standardize_quaternion(root_rot)
+                    motion_data = self.write_root_quat(motion_data, root_rot)
+                    duration = float(motion_json["FrameDuration"])
+                    data_time_length = (motion_data.shape[0] - 1) * duration
+                    
+                    # 检查 data_time_length 是否为 0
+                    if data_time_length <= 0:
+                        print(f"Skipping {filename} because data_time_length is 0.")
+                        continue  # 跳出当前循环，继续下一个文件      
+                                
+                    # 将数据加入到数据列表中
+                    self.original_data_tensors.append(motion_data)
+                    self.data_names.append(filename)
+                    self.data_length.append(motion_data.shape[0] - 1)  # 总索引帧数
+                    self.frame_duration.append(duration)
+                    self.data_time_length.append(data_time_length)
+                    self.data_weights.append(float(motion_json["MotionWeight"]))
+                    
+                    print(f"Loaded {data_time_length}s. motion from {filename}.")
 
     def load_csv_data(self):
         """
@@ -129,23 +135,39 @@ class MotionData:
         将数据进行离散化，在MotionData初始化的时候调用，将数据按照仿真环境的step时间间隔进行插值
         以减少强化学习中的计算量
         """
-        for original_data_tensor,data_time_length,data_length in zip(self.original_data_tensors,self.data_time_length,self.data_length):
+        for original_data_tensor,data_time_length,data_length,name in zip(self.original_data_tensors,self.data_time_length,self.data_length,self.data_names):
+            # 创建一个列表来存储插值时间
+            interpolation_time_list = []
             interpolation_time = 0
+            
             while interpolation_time < data_time_length:
-                # 计算 idx_low 和 idx_high
-                percentage = interpolation_time / data_time_length
-                idx_low = torch.floor(percentage * data_length).to(torch.int64)
-                idx_high = torch.ceil(percentage * data_length).to(torch.int64)    
-                frame_stats = original_data_tensor[idx_low]
-                frame_ends = original_data_tensor[idx_high]
+                # 将所有插值的时间点添加到插值时间列表中
+                interpolation_time_list.append(interpolation_time)
+                interpolation_time += self.env_step_duration
                 
-                for key, (start,end) in self.cumulative_indices.items():
-                    if key == 'root_quat':
-                #TODO
-                        
-                
+            interpolation_time_tensor = torch.tensor(interpolation_time_list,dtype=torch.float64)
+            intermidate_data = torch.zeros((len(interpolation_time_tensor),original_data_tensor.shape[1]),device=self.device)
+            # 计算 idx_low 和 idx_high
+            percentage = interpolation_time_tensor / data_time_length
+            #(data_length-1) 是为了确保idx_low和idx_high的范围都在0到data_length-1之间,索引值不能超过data_length-1
+            idx_low = torch.floor(percentage *data_length).to(torch.int64)
+            idx_high = torch.ceil(percentage * data_length).to(torch.int64)    
+            frame_stats = original_data_tensor[idx_low,:]
+            frame_ends = original_data_tensor[idx_high,:]
+            blend = (percentage * data_length - idx_low).clone().detach().unsqueeze(-1).to(self.device)
+           
+            for key, (start,end) in self.cumulative_indices.items():
+                if key == 'root_quat':
+                    interpolatec_quat = self.quaternion_slerp(frame_stats[:,start:end],frame_ends[:,start:end],blend)
+                    intermidate_data[:,start:end] = interpolatec_quat
+                else:
+                    interpolatec_element = self.slerp(frame_stats[:,start:end],frame_ends[:,start:end],blend)
+                    intermidate_data[:,start:end] = interpolatec_element
+            print(f"Converted : {name}.")
+            self.data_tensors.append(intermidate_data)           
                 
     def interpole_frame_at_time(self,interpolation_time,):
+        #TODO
         pass
 
     def calculate_cumulative_indices(self):
@@ -321,7 +343,6 @@ class MotionData:
             
             return base_pos, base_orn, base_lin_vel, base_ang_vel, joint_pos, joint_vel
 
-    @staticmethod
     def base_orn_interpolation(base_orn_c: torch.Tensor, base_orn_n: torch.Tensor, frac: torch.Tensor) -> torch.Tensor:
         """
         对给定的四元数进行插值计算。
@@ -350,7 +371,6 @@ class MotionData:
 
         return base_orn
 
-    @staticmethod
     def base_lin_vel_interpolation(base_pos_c: torch.Tensor, base_pos_n: torch.Tensor, delta_t: torch.Tensor) -> torch.Tensor:
         """
         计算基础线性速度的插值
@@ -380,7 +400,6 @@ class MotionData:
 
         return base_lin_vel
 
-    @staticmethod
     def base_ang_vel_interpolation(base_orn_c: torch.Tensor, base_orn_n: torch.Tensor, delta_t: torch.Tensor) -> torch.Tensor:
         """
         计算基础角速度插值。
@@ -415,7 +434,6 @@ class MotionData:
 
         return base_ang_vel
 
-    @staticmethod
     def joint_interpolation(joint_pos_c: torch.Tensor, joint_pos_n: torch.Tensor, frac: torch.Tensor, delta_t: torch.Tensor, free_joint: bool = True) -> (torch.Tensor, torch.Tensor):
         """
         实现关节空间的插值计算。
@@ -454,7 +472,6 @@ class MotionData:
         # 返回插值后的关节位置和速度
         return joint_pos, joint_vel     
 
-    @staticmethod
     def base_pos_interpolation(base_pos_c: torch.Tensor, base_pos_n: torch.Tensor, frac: torch.Tensor) -> torch.Tensor:
         """
         对给定的基础位置进行插值计算。
@@ -476,8 +493,8 @@ class MotionData:
         
         return base_pos   
 
-    @staticmethod
-    def quaternion_slerp(q0: torch.Tensor, q1: torch.Tensor, fraction: torch.Tensor, spin: int = 0, shortestpath: bool = True) -> torch.Tensor:
+
+    def quaternion_slerp(self,q0: torch.Tensor, q1: torch.Tensor, fraction: torch.Tensor, spin: int = 0, shortestpath: bool = True) -> torch.Tensor:
         """Batch quaternion spherical linear interpolation."""
         
         out = torch.zeros_like(q0)
@@ -530,9 +547,9 @@ class MotionData:
 
         return out
 
-    @staticmethod
     def slerp(self, val0: torch.Tensor, val1: torch.Tensor, blend: torch.Tensor) -> torch.Tensor:
-        return (1.0 - blend) * val0 + blend * val1   
+       
+        return    (1.0 - blend) * val0 + blend * val1 
     
     def get_frames(self,motion_id,frame_num):
         """

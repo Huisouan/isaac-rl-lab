@@ -257,7 +257,6 @@ class MotionData_Base:
     def slerp(self, val0: torch.Tensor, val1: torch.Tensor, blend: torch.Tensor) -> torch.Tensor:
         return (1.0 - blend) * val0 + blend * val1 
     
-
     #banished codes
     '''
     def re_calculate_velocity(self):
@@ -666,44 +665,6 @@ class MotionData_Base:
         quat_diff = quat_mul(q1, quat_conjugate(q2))
         return axis_angle_from_quat(quat_diff)
         
-    @torch.jit.script
-    def QuaternionNormalize(q: torch.Tensor) -> torch.Tensor:
-        """Normalizes the quaternion to length 1.
-
-        Divides the quaternion by its magnitude.  If the magnitude is too
-        small, raises a ValueError.
-
-        Args:
-        q: A tensor of shape (N, 4) representing N quaternions to be normalized.
-
-        Raises:
-        ValueError: If any input quaternion has length near zero.
-
-        Returns:
-        A tensor of shape (N, 4) with each quaternion having magnitude 1.
-        """
-        q_norm = torch.norm(q, dim=1, keepdim=True)
-        if torch.any(torch.isclose(q_norm, torch.tensor(0.0))):
-            raise ValueError(f"Quaternion may not be zero in QuaternionNormalize: |q| = {q_norm}, q = {q}")
-        return q / q_norm
-
-    @torch.jit.script
-    def standardize_quaternion(q: torch.Tensor) -> torch.Tensor:
-        """
-        返回一个标准化的四元数，其中 q.w >= 0，以消除 q = -q 的冗余。
-
-        Args:
-        q: 要标准化的四元数，形状为 (N, 4)，其中 N 是四元数的数量。
-
-        Returns:
-        标准化后的四元数，形状为 (N, 4)。
-        """
-        # 检查 q 的最后一个维度是否小于 0
-        mask = q[:, -1] < 0
-        # 对于满足条件的四元数，取其负值
-        q[mask] = -q[mask]
-        return q
-
     '''
 
     #############################PROPERTY############################
@@ -1010,3 +971,42 @@ class MotionData_Base:
         else:
             raise ValueError('Input tensor must be either one or two dimensional.')
         return frame
+
+
+@torch.jit.script
+def QuaternionNormalize(q: torch.Tensor) -> torch.Tensor:
+    """Normalizes the quaternion to length 1.
+
+    Divides the quaternion by its magnitude.  If the magnitude is too
+    small, raises a ValueError.
+
+    Args:
+    q: A tensor of shape (N, 4) representing N quaternions to be normalized.
+
+    Raises:
+    ValueError: If any input quaternion has length near zero.
+
+    Returns:
+    A tensor of shape (N, 4) with each quaternion having magnitude 1.
+    """
+    q_norm = torch.norm(q, dim=1, keepdim=True)
+    if torch.any(torch.isclose(q_norm, torch.tensor(0.0))):
+        raise ValueError(f"Quaternion may not be zero in QuaternionNormalize: |q| = {q_norm}, q = {q}")
+    return q / q_norm
+
+@torch.jit.script
+def standardize_quaternion(q: torch.Tensor) -> torch.Tensor:
+    """
+    返回一个标准化的四元数，其中 q.w >= 0，以消除 q = -q 的冗余。
+
+    Args:
+    q: 要标准化的四元数，形状为 (N, 4)，其中 N 是四元数的数量。
+
+    Returns:
+    标准化后的四元数，形状为 (N, 4)。
+    """
+    # 检查 q 的最后一个维度是否小于 0
+    mask = q[:, -1] < 0
+    # 对于满足条件的四元数，取其负值
+    q[mask] = -q[mask]
+    return q

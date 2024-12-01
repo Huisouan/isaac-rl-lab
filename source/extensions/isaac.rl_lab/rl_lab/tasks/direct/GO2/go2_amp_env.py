@@ -24,7 +24,7 @@ from omni.isaac.lab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_
 from omni.isaac.lab.utils.math import sample_uniform,matrix_from_quat
 from omni.isaac.lab.managers import SceneEntityCfg
 import glob
-from rl_lab.assets.base_motionloader import MotionData
+from rl_lab.assets.base_motionloader import MotionData_Base
 from omni.isaac.lab.utils.math import quat_rotate,compute_pose_error
 @configclass
 class AMPEnvCfg(DirectRLEnvCfg):
@@ -73,7 +73,7 @@ class AMPEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
         self.action_scale = cfg.action_scale
         
-        self.motiondata = MotionData("source/rl_lab/data")
+        self.motiondata = MotionData_Base("source/rl_lab/data")
         #初始化数据集采样的时间
         self.amp_data_frameinplay = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)
         self.amp_data_maxtime = torch.zeros(self.scene.num_envs, device=self.device,dtype=torch.float32)

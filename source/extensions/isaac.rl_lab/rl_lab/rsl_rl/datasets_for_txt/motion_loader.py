@@ -60,9 +60,6 @@ def quaternion_slerp(q0, q1, fraction, spin=0, shortestpath=True):
     out[final_mask] = q0[final_mask]
 
     return out
-
-
-
 class AMPLoader:
 
     # root_pos, root_rot, joint_pos, foot_pos, lin_vel, ang_vel, joint_vel, foot_vel

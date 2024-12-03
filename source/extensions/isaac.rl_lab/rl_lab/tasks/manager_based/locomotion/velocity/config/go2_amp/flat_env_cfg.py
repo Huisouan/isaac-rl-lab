@@ -22,3 +22,5 @@ class UnitreeA1AmpFlatEnvCfg(UnitreeA1AmpRoughEnvCfg):
 
         # Now executing disable_zerow_eight_rewards()
         self._run_disable_zero_weight_rewards = True
+        if self._run_disable_zero_weight_rewards:
+            self.disable_zero_weight_rewards()

@@ -64,7 +64,6 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
         self.events.add_base_mass.params["asset_cfg"].body_names = "base"
         self.events.base_external_force_torque.params["asset_cfg"].body_names = "base"
-        #self.events.reset_amp = EventTerm(func=reset_amp, mode="reset")
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
         self.events.reset_base.params = {
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
@@ -82,17 +81,9 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # ------------------------------Rewards------------------------------
 
-        # Root penalties 
-        self.rewards.lin_vel_z_l2.weight = 0
-        self.rewards.ang_vel_xy_l2.weight = 0
-        self.rewards.flat_orientation_l2 = None
-
         # Joint penaltie
         self.rewards.dof_torques_l2.weight = -0.0002 / (.005 * 6)
         self.rewards.dof_acc_l2.weight = -2.5e-7 / (.005 * 6)
-
-        # Contact sensor
-        self.rewards.undesired_contacts = None
 
         # Velocity-tracking rewards
         self.rewards.track_lin_vel_xy_exp.weight = 1.5 / (.005 * 6)
@@ -102,6 +93,10 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.feet_air_time.params["sensor_cfg"].body_names = ".*_foot"
         self.rewards.feet_air_time.weight = 0.01 / (.005 * 6)
         self.rewards.stand_still_when_zero_command.weight = 0.3/ (.005 * 6)
+
+        # If the weight of rewards is 0, set rewards to None
+        if self._run_disable_zero_weight_rewards:
+            self.disable_zero_weight_rewards()
 
         # ------------------------------Terminations------------------------------
         self.terminations.base_contact.params["sensor_cfg"].body_names = "base"

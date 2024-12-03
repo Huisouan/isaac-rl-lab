@@ -3,7 +3,7 @@ import glob
 from omni.isaac.lab.managers import EventTermCfg as EventTerm
 from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 from omni.isaac.lab.utils import configclass
-
+from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from ... import mdp
 from .env.events import reset_amp
 from ...velocity_env_cfg import LocomotionVelocityRoughEnvCfg
@@ -40,9 +40,11 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.observations.policy.base_ang_vel.scale = 0.25
         self.observations.policy.joint_pos.scale = 1.0
         self.observations.policy.joint_vel.scale = 0.05
+        self.observations.policy.projected_gravity = None
         self.observations.policy.base_lin_vel = None
         self.observations.policy.base_ang_vel = None
         self.observations.policy.height_scan = None
+
         self.observations.AMP = create_obsgroup_class('AMPCfg',{
             'base_pos_z': ObsTerm(func=mdp.base_pos_z),
             'base_lin_vel': ObsTerm(func=mdp.base_lin_vel),
@@ -60,7 +62,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # ------------------------------Events------------------------------
         self.events.physics_material = None
         
-        self.events.push_robot = None   
+        #self.events.push_robot = None   
         self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
         self.events.add_base_mass.params["asset_cfg"].body_names = "base"
         self.events.base_external_force_torque.params["asset_cfg"].body_names = "base"
@@ -111,7 +113,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.base_name = "base"
         self.reference_state_initialization = True
         self.amp_motion_files = glob.glob(f"datasets/mocap_motions_go2/*")
-        self.amp_num_preload_transitions = 50
+        self.amp_num_preload_transitions = 5000000
         self.amp_replay_buffer_size = 1000000
 
 

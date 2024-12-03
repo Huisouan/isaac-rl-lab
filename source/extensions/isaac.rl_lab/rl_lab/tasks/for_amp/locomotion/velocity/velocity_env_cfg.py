@@ -492,7 +492,7 @@ class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
-
+    
 
 ##
 # Environment configuration

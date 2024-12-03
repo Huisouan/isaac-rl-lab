@@ -5,7 +5,7 @@ from omni.isaac.lab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
 UNITREE_GO2_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"source/rl_lab/rl_lab/datasets/Robot_usds/Unitree/Go2/go2.usd",
+        usd_path=f"{ISAACLAB_NUCLEUS_DIR}/Robots/Unitree/Go2/go2.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -35,11 +35,11 @@ UNITREE_GO2_CFG = ArticulationCfg(
     actuators={
         "base_legs": DCMotorCfg(
             joint_names_expr=[".*_hip_joint", ".*_thigh_joint", ".*_calf_joint"],
-            effort_limit=23.5,
-            saturation_effort=23.5,
+            effort_limit=45,
+            saturation_effort=45,
             velocity_limit=30.0,
-            stiffness=25.0,
-            damping=0.5,
+            stiffness=25.0,#kp
+            damping=0.5,#kd
             friction=0.0,
         ),
     },

@@ -1,9 +1,9 @@
-from rl_lab.assets.base_motionloader import MotionData_Base
+from rl_lab.assets.loder_for_algs import AmpMotion
 import glob
 
 def main():
     # 初始化 AMPLoader 对象
-    loader = MotionData_Base(
+    loader = AmpMotion(
         data_dir = "datasets/mocap_motions_go2",
         datatype="amp",
         file_type="txt",

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.sensors import ContactSensor
 from omni.isaac.lab.utils.math import quat_rotate_inverse, yaw_quat
-
+from omni.isaac.lab.assets import Articulation
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
 
@@ -103,3 +103,14 @@ def track_ang_vel_z_world_exp(
     asset = env.scene[asset_cfg.name]
     ang_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_w[:, 2])
     return torch.exp(-ang_vel_error / std**2)
+
+def stand_still_when_zero_command(
+    env, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Penalize joint positions that deviate from the default one when no command."""
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    # compute out of limits constraints
+    diff_angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    command = torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) < 0.1
+    return torch.sum(torch.abs(diff_angle), dim=1) * command

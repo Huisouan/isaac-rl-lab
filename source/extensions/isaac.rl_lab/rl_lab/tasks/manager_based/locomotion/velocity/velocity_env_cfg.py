@@ -23,7 +23,7 @@ from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
-import omni.isaac.lab_tasks.manager_based.locomotion.velocity.mdp as mdp
+from . import mdp
 #import source.rl_lab.rl_lab.tasks.manager_based.locomotion.velocity.mdp as mdp
 ##
 # Pre-defined configs
@@ -146,6 +146,8 @@ class ObservationsCfg:
     policy: PolicyCfg = PolicyCfg()
 
 
+
+
 @configclass
 class EventCfg:
     """Configuration for events."""
@@ -250,6 +252,11 @@ class RewardsCfg:
         func=mdp.undesired_contacts,
         weight=-1.0,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*THIGH"), "threshold": 1.0},
+    )
+    stand_still_when_zero_command = RewTerm(
+        func=mdp.stand_still_when_zero_command,
+        weight=0,
+        params={"command_name": "base_velocity"},
     )
     
     # -- optional penalties

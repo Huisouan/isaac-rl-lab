@@ -6,10 +6,13 @@ class RslRlVecEnvWrapperextra(RslRlVecEnvWrapper):
     def __init__(self, env: ManagerBasedRLEnv | DirectRLEnv):
         super().__init__(env)
     
-    def get_extra_obs(self) -> tuple[torch.Tensor, dict]:
+    def get_observations(self) -> tuple[torch.Tensor, dict]:
         """Returns the current observations of the environment."""
         if hasattr(self.unwrapped, "observation_manager"):
-            obs_dict = self.unwrapped.
+            if hasattr(self.unwrapped, "compute_observations"):
+                obs_dict = self.unwrapped.compute_observations()
+            else:
+                obs_dict = self.unwrapped.observation_manager.compute()
         else:
             obs_dict = self.unwrapped._get_observations()
         return obs_dict["policy"], {"observations": obs_dict}

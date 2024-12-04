@@ -58,16 +58,12 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # ------------------------------Events------------------------------
         self.events.physics_material = None
-        #self.events.reset_base = None
-        #self.events.reset_robot_joints = None
         self.events.randomize_actuator_gains = None
         self.events.randomize_joint_parameters = None
-        
         self.events.push_robot = None   
         self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
         self.events.add_base_mass.params["asset_cfg"].body_names = "base"
         self.events.base_external_force_torque.params["asset_cfg"].body_names = "base"
-        #self.events.reset_amp = EventTerm(func=reset_amp, mode="reset")
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
         self.events.reset_base.params = {
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},

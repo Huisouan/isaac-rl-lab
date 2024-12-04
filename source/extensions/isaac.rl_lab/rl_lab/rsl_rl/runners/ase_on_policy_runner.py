@@ -27,13 +27,7 @@ class ASEOnPolicyRunner:
         self.env = env
         obs, extras = self.env.get_observations()
         num_obs = obs.shape[1]
-        amp_data = AMPLoader(
-            device=self.device,
-            motion_files=self.env.unwrapped.cfg.amp_motion_files,
-            time_between_frames=self.env.unwrapped.cfg.sim.dt * self.env.unwrapped.cfg.sim.render_interval,
-            preload_transitions=True,
-            num_preload_transitions=self.env.unwrapped.cfg.amp_num_preload_transitions,
-        )        
+        amp_data = self.env.unwrapped.amp_loader
         if "critic" in extras["observations"]:
             num_critic_obs = extras["observations"]["critic"].shape[1]
         else:
@@ -42,7 +36,7 @@ class ASEOnPolicyRunner:
             num_obs, 
             num_critic_obs, 
             self.env.num_actions,
-            amp_data.observation_dim * 2,
+            amp_data.amp_obs_num * 2,
             self.env.num_envs
         ).to(self.device)
         

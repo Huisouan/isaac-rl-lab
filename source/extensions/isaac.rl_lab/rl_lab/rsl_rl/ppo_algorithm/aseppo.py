@@ -10,7 +10,7 @@ import torch.optim as optim
 from ..modules import ASEagent
 from ..storage import ASERolloutStorage
 from ..storage.replay_buffer import ReplayBuffer
-from ..datasets_for_txt.motion_loader import AMPLoader
+from rl_lab.assets.loder_for_algs import AmpMotion
 from ..utils.amp_utils import Normalizer
 
 class ASEPPO:
@@ -32,7 +32,7 @@ class ASEPPO:
         schedule="fixed",
         desired_kl=0.01,
         device="cpu",
-        amp_data:AMPLoader = None,
+        amp_data:AmpMotion = None,
         amp_replay_buffer_size = 100000,
         *args, **kwargs
     ):
@@ -47,9 +47,9 @@ class ASEPPO:
         
         # load amp data
         
-        self.amp_storage = ReplayBuffer(amp_data.observation_dim, amp_replay_buffer_size, device)
+        self.amp_storage = ReplayBuffer(amp_data.amp_obs_num, amp_replay_buffer_size, device)
         self.amp_data = amp_data
-        self.amp_normalizer = Normalizer(amp_data.observation_dim)
+        self.amp_normalizer = Normalizer(amp_data.amp_obs_num)
 
         # PPO components
         self.actor_critic = actor_critic

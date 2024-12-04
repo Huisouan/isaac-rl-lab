@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.nn import RMSNorm
-from tasks.utils.wappers.rsl_rl import (
+from rl_lab.tasks.utils.wappers.rsl_rl import (
     ASECfg,ASENetcfg,AMPCfg,AMPNetcfg
 )
 

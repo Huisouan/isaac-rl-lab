@@ -11,7 +11,7 @@ from torch.distributions import Normal
 from torch.nn import RMSNorm
 from .Cvqvae.quantise import VectorQuantiser
 
-from tasks.utils.wappers.rsl_rl import (
+from rl_lab.tasks.utils.wappers.rsl_rl import (
     Z_settings,
 )
 

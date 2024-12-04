@@ -14,7 +14,7 @@ from omni.isaac.lab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from omni.isaac.lab.envs.manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
 
 from rl_lab.rsl_rl.utils.kinematics import urdf
-from rl_lab.rsl_rl.datasets_for_txt.motion_loader import AMPLoader
+from rl_lab.assets.loder_for_algs import AmpMotion
 
 
 class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
@@ -33,10 +33,12 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         if self.cfg.reference_state_initialization:
             print("motion_files dir: ")
             print(self.cfg.amp_motion_files)
-            self.amp_loader = AMPLoader(
-                device=self.device,
-                motion_files=self.cfg.amp_motion_files,
-                time_between_frames=self.cfg.sim.dt * self.cfg.sim.render_interval,
+            self.amp_loader = AmpMotion(
+                data_dir = self.cfg.amp_motion_files,                
+                datatype="amp",
+                file_type="txt",
+                data_spaces = None,
+                env_step_duration=self.cfg.sim.dt * self.cfg.sim.render_interval,
             )
 
         self.num_actions = self.action_manager.total_action_dim
@@ -48,59 +50,42 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
     """
 
     def get_amp_observations(self):
-        """
-        获取AMP环境的观测值。
-
-        Returns:
-            torch.Tensor: 观测值的张量。
-        """
         obs_manager = self.observation_manager
-        # 获取AMP组中的所有观测项名称
+        # iterate over all the terms in each group
         group_term_names = obs_manager._group_obs_term_names["AMP"]
-        # 初始化一个字典来存储每个观测项的值
+        # buffer to store obs per group
         group_obs = dict.fromkeys(group_term_names, None)
-        # 将观测项名称和配置项打包成元组
+        # read attributes for each term
         obs_terms = zip(group_term_names, obs_manager._group_obs_term_cfgs["AMP"])
-        
-        # 遍历每个观测项，计算其值并进行后处理
+        # evaluate terms: compute, add noise, clip, scale.
         for name, term_cfg in obs_terms:
-            # 计算观测项的值
+            # compute term's value
             obs: torch.Tensor = term_cfg.func(obs_manager._env, **term_cfg.params).clone()
-            # 如果配置中有噪声，添加噪声
+            # apply post-processing
             if term_cfg.noise:
                 obs = term_cfg.noise.func(obs, term_cfg.noise)
-            # 如果配置中有裁剪范围，进行裁剪
             if term_cfg.clip:
                 obs = obs.clip_(min=term_cfg.clip[0], max=term_cfg.clip[1])
-            # 如果配置中有缩放因子，进行缩放
             if term_cfg.scale:
                 obs = obs.mul_(term_cfg.scale)
-            # TODO: 引入延迟和滤波模型
-            # 参考: https://robosuite.ai/docs/modules/sensors.html#observables
-            # 将计算后的值存储到字典中
+            # TODO: Introduce delay and filtering models.
+            # Ref: https://robosuite.ai/docs/modules/sensors.html#observables
+            # add value to list
             group_obs[name] = obs
 
-        # Isaac Sim 使用广度优先的关节顺序，而 Isaac Gym 使用深度优先的关节顺序
-        # 因此需要重新排序关节位置和速度
+        # Isaac Sim uses breadth-first joint ordering, while Isaac Gym uses depth-first joint ordering
         joint_pos = group_obs["joint_pos"]
         joint_vel = group_obs["joint_vel"]
         joint_pos = self.amp_loader.reorder_from_isaacsim_to_isaacgym_tool(joint_pos)
         joint_vel = self.amp_loader.reorder_from_isaacsim_to_isaacgym_tool(joint_vel)
-        
-        # 计算脚部位置
         foot_pos = []
         with torch.no_grad():
             for i, chain_ee in enumerate(self.chain_ee):
-                # 使用前向运动学计算每个脚部的位置
                 foot_pos.append(chain_ee.forward_kinematics(joint_pos[:, i * 3 : i * 3 + 3]).get_matrix()[:, :3, 3])
         foot_pos = torch.cat(foot_pos, dim=-1)
-        
-        # 获取基座线速度、角速度和Z轴位置
         base_lin_vel = group_obs["base_lin_vel"]
         base_ang_vel = group_obs["base_ang_vel"]
         z_pos = group_obs["base_pos_z"]
-        
-        # 按照指定顺序拼接所有观测值
         # joint_pos(0-11) foot_pos(12-23) base_lin_vel(24-26) base_ang_vel(27-29) joint_vel(30-41) z_pos(42)
         return torch.cat((joint_pos, foot_pos, base_lin_vel, base_ang_vel, joint_vel, z_pos), dim=-1)
 
@@ -129,7 +114,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         """
         # process actions
         self.action_manager.process_action(action)
-
+        
         # check if we need to do rendering within the physics loop
         # note: checked here once to avoid multiple checks within the loop
         is_rendering = self.sim.has_gui() or self.sim.has_rtx_sensors()
@@ -165,7 +150,6 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         # -- reset envs that terminated/timed-out and log the episode information
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         terminal_amp_states = self.get_amp_observations()[reset_env_ids]
-        
         if len(reset_env_ids) > 0:
             self._reset_idx(reset_env_ids)
         
@@ -182,3 +166,24 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
 
         # return observations, rewards, resets and extras
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras
+
+    def robot_twin(self,quat,joint_pos,joint_vel):
+        is_rendering = self.sim.has_gui() or self.sim.has_rtx_sensors()
+        self._sim_step_counter += 1
+        # set actions into buffers
+        robot = self.scene["robot"]
+        root_state = robot.data.default_root_state.clone()
+        root_state[0,3:7] = quat
+        robot.write_root_state_to_sim(root_state)
+        robot.write_joint_state_to_sim(joint_pos, joint_vel)        
+        # set actions into simulator
+        self.scene.write_data_to_sim()
+        # simulate
+        self.sim.step(render=False)
+        # render between steps only if the GUI or an RTX sensor needs it
+        # note: we assume the render interval to be the shortest accepted rendering interval.
+        #    If a camera needs rendering at a faster frequency, this will lead to unexpected behavior.
+        if self._sim_step_counter % self.cfg.sim.render_interval == 0 and is_rendering:
+            self.sim.render()
+        # update buffers at sim dt
+        self.scene.update(dt=self.physics_dt)        

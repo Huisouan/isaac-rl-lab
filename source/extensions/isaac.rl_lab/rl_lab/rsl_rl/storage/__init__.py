@@ -6,7 +6,10 @@
 from .rollout_storage import RolloutStorage
 from .ASEstorage import ASERolloutStorage
 from .replay_buffer import ReplayBuffer
+from .him_rollout_storage import HIMRolloutStorage
 
 
-
-__all__ = ["RolloutStorage","ASERolloutStorage","ReplayBuffer"]
+__all__ = [
+    "RolloutStorage","ASERolloutStorage","ReplayBuffer",
+    "HIMRolloutStorage",
+    ]

@@ -9,6 +9,10 @@ from .aseppo import ASEPPO
 from .amp_discriminator import AMPDiscriminator
 from .amp_ppo import AMPPPO
 from .cvqvaeppo import CVQVAEPPO
-__all__ = ["PMCPPO", "EPMCPPO","ASEPPO",
-           "AMPDiscriminator","AMPPPO","CVQVAEPPO",
+from .ppo import PPO
+from .him_ppo import HIMPPO
+__all__ = [ "PPO"
+            "PMCPPO", "EPMCPPO","ASEPPO",
+            "AMPDiscriminator","AMPPPO","CVQVAEPPO",
+            "HIMPPO",
            ]

@@ -135,7 +135,7 @@ class CommandsCfg:
 
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
-        resampling_time_range=(5, 10.0),
+        resampling_time_range=(5.0, 10.0),
         rel_standing_envs=0.02,
         rel_heading_envs=1.0,
         heading_command=True,
@@ -379,7 +379,7 @@ class RewardsCfg:
         weight=0,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
     )
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=0)
     # UNUESD action_l2
 
     # Contact sensor
@@ -443,7 +443,7 @@ class RewardsCfg:
     # )
     feet_slide = RewTerm(
         func=mdp.feet_slide,
-        weight=-0.25,
+        weight=0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_link"),
             "asset_cfg": SceneEntityCfg("robot", body_names=".*ankle_link"),

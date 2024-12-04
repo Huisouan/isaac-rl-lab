@@ -60,7 +60,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.physics_material = None
         self.events.randomize_actuator_gains = None
         self.events.randomize_joint_parameters = None
-        self.events.push_robot = None   
+        #self.events.push_robot = None   
         self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
         self.events.add_base_mass.params["asset_cfg"].body_names = "base"
         self.events.base_external_force_torque.params["asset_cfg"].body_names = "base"
@@ -99,7 +99,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.joint_vel_limits.weight = 0
 
         # Action penalties
-        #self.rewards.action_rate_l2.weight = 0
+        self.rewards.action_rate_l2.weight = 0
         # UNUESD self.rewards.action_l2.weight = 0.0
 
         # Contact sensor
@@ -130,14 +130,13 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # ------------------------------Commands------------------------------
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.3, 0.3)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.5, 1.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (-3, 3)
         # ------------------------------AMP------------------------------
         self.urdf_path = "datasets/go2_description/urdf/go2_description.urdf"
         self.ee_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
         self.base_name = "base"
         self.reference_state_initialization = True
         self.amp_motion_files = "datasets/mocap_motions_go2"
-        self.amp_num_preload_transitions = 5000000
         self.amp_replay_buffer_size = 100000
 
 

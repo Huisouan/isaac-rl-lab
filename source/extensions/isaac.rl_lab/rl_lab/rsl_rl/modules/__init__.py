@@ -9,6 +9,10 @@ from .normalizer import EmpiricalNormalization
 from .pmc import PMC
 from .ase import ASEagent,AMPagent
 from .cvqvae import CVQVAE
+from .him_actor_critic import HIMActorCritic 
+from .him_estimator import HIMEstimator  
 __all__ = ["ActorCritic", "ActorCriticRecurrent",
            "EmpiricalNormalization", "PMC","CVQVAE"
-           "ASEagent","AMPagent"]
+           "ASEagent","AMPagent",
+           "HIMActorCritic","HIMEstimator",
+           ]

@@ -170,6 +170,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
             self.event_manager.apply(mode="interval", dt=self.step_dt)
         # -- compute observations
         # note: done after reset to get the correct observations for reset envs
+        
         #用自定义的函数compute_observations
         self.compute_observations(self)
 

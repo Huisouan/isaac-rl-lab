@@ -89,6 +89,8 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         # joint_pos(0-11) foot_pos(12-23) base_lin_vel(24-26) base_ang_vel(27-29) joint_vel(30-41) z_pos(42)
         return torch.cat((joint_pos, foot_pos, base_lin_vel, base_ang_vel, joint_vel, z_pos), dim=-1)
 
+
+
     """
     Operations - MDP
     """

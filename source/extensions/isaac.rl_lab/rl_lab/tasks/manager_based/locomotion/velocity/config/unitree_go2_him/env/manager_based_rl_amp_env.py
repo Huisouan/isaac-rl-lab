@@ -90,7 +90,8 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         return torch.cat((joint_pos, foot_pos, base_lin_vel, base_ang_vel, joint_vel, z_pos), dim=-1)
 
     def compute_observations(self):
-        self.obs_buf = self.observation_manager.compute()
+        obs_buf = self.observation_manager.compute()
+        self.obs_buf = obs_buf
         return self.obs_buf
     
     def compute_termination_observations(self, env_ids):

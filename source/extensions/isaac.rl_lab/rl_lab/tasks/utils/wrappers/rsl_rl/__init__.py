@@ -11,3 +11,4 @@ from .vqvae_cfg import Z_settings
 from .ase_rl_cfg import SpaceCfg,ASECfg,ASENetcfg
 from .amp_rl_cfg import AMPCfg,AMPNetcfg
 from .vecenv_wrapper import RslRlVecEnvWrapper
+from .vecenv_wrapper_extra_obs import RslRlVecEnvWrapperextra

@@ -89,7 +89,12 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         # joint_pos(0-11) foot_pos(12-23) base_lin_vel(24-26) base_ang_vel(27-29) joint_vel(30-41) z_pos(42)
         return torch.cat((joint_pos, foot_pos, base_lin_vel, base_ang_vel, joint_vel, z_pos), dim=-1)
 
-
+    def compute_observations(self):
+        
+        pass
+    
+    def compute_termination_observations(self, env_ids):
+        pass
 
     """
     Operations - MDP
@@ -152,6 +157,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         # -- reset envs that terminated/timed-out and log the episode information
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         terminal_amp_states = self.get_amp_observations()[reset_env_ids]
+        
         if len(reset_env_ids) > 0:
             self._reset_idx(reset_env_ids)
         

@@ -73,7 +73,8 @@ import rl_lab.tasks
 
 from omni.isaac.lab_tasks.utils import get_checkpoint_path
 from omni.isaac.lab_tasks.utils.hydra import hydra_task_config
-from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
+from rl_lab.tasks.utils.wrappers.rsl_rl import RslRlOnPolicyRunnerCfg
+from rl_lab.tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapperextra
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -127,7 +128,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         env = multi_agent_to_single_agent(env)
 
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)
+    env = RslRlVecEnvWrapperextra(env)
 
 
     # create runner from rsl-rl

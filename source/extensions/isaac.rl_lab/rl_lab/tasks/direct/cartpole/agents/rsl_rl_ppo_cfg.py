@@ -5,7 +5,7 @@
 
 from omni.isaac.lab.utils import configclass
 
-from .....tasks.utils.wappers.rsl_rl import (
+from .....tasks.utils.wrappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
     RslRlPpoActorCriticCfg,
     RslRlPpoAlgorithmCfg,

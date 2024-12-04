@@ -4,7 +4,7 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     RslRlPpoActorCriticCfg,
     RslRlPpoAlgorithmCfg,
 )
-from rl_lab.tasks.utils.wappers.rsl_rl import (
+from rl_lab.tasks.utils.wrappers.rsl_rl import (
     ASECfg,ASENetcfg,AMPCfg,AMPNetcfg
 )
 

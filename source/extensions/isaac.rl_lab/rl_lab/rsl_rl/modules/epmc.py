@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
-from ...tasks.utils.wappers.rsl_rl import (
+from ...tasks.utils.wrappers.rsl_rl import (
     Z_settings,
 )
 

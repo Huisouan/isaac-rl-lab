@@ -14,7 +14,7 @@ from omni.isaac.lab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from omni.isaac.lab.envs.manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
 
 from rl_lab.rsl_rl.utils.kinematics import urdf
-from rl_lab.rsl_rl.datasets_for_txt.motion_loader import AMPLoader
+from rl_lab.assets.loder_for_algs import AmpMotion
 
 
 class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
@@ -33,10 +33,12 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         if self.cfg.reference_state_initialization:
             print("motion_files dir: ")
             print(self.cfg.amp_motion_files)
-            self.amp_loader = AMPLoader(
-                device=self.device,
-                motion_files=self.cfg.amp_motion_files,
-                time_between_frames=self.cfg.sim.dt * self.cfg.sim.render_interval,
+            self.amp_loader = AmpMotion(
+                data_dir = self.cfg.amp_motion_files,                
+                datatype="amp",
+                file_type="txt",
+                data_spaces = None,
+                env_step_duration=self.cfg.sim.dt * self.cfg.sim.render_interval,
             )
 
         self.num_actions = self.action_manager.total_action_dim

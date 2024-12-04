@@ -121,7 +121,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.base_height_rough_l2.weight = 0
         self.rewards.feet_slide.weight = 0
         self.rewards.joint_power.weight = 0
-        self.rewards.stand_still_when_zero_command.weight = 0.3/ (.005 * 6)
+        self.rewards.stand_still_when_zero_command.weight = 0.3
 
 
         # If the weight of rewards is 0, set rewards to None

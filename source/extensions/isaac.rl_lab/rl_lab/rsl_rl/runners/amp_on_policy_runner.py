@@ -16,7 +16,7 @@ from ..ppo_algorithm import AMPDiscriminator
 from ..datasets_for_txt.motion_loader import AMPLoader
 from ..utils import store_code_state
 from ..utils.amp_utils import Normalizer
-
+from ...assets.loder_for_algs import AmpMotion
 
 class AmpOnPolicyRunner:
     """AMP On-policy runner for training and evaluation."""
@@ -38,16 +38,12 @@ class AmpOnPolicyRunner:
             num_obs, num_critic_obs, self.env.unwrapped.num_actions, **self.policy_cfg
         ).to(self.device)
         self.alg_cfg["amp_replay_buffer_size"] = self.env.unwrapped.cfg.amp_replay_buffer_size
-        amp_data = AMPLoader(
-            device=self.device,
-            motion_files=self.env.unwrapped.cfg.amp_motion_files,
-            time_between_frames=self.env.unwrapped.cfg.sim.dt * self.env.unwrapped.cfg.sim.render_interval,
-            preload_transitions=True,
-            num_preload_transitions = self.env.cfg.amp_num_preload_transitions,
-        )
-        amp_normalizer = Normalizer(amp_data.observation_dim)
+
+        amp_data = self.env.unwrapped.amp_loader
+        
+        amp_normalizer = Normalizer(amp_data.amp_obs_num)
         discriminator = AMPDiscriminator(
-            amp_data.observation_dim * 2,
+            amp_data.amp_obs_num * 2,
             self.cfg["amp_reward_coef"],
             self.cfg["amp_discr_hidden_dims"],
             device,

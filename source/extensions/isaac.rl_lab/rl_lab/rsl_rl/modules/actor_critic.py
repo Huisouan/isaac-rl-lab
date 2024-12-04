@@ -97,9 +97,22 @@ class ActorCritic(nn.Module):
         return self.distribution.entropy().sum(dim=-1)
 
     def update_distribution(self, observations):
-        mean = self.actor(observations)
-        self.distribution = Normal(mean, mean * 0.0 + self.std)
+        # Check for NaN values in the observations tensor
+        if torch.isnan(observations).any():
+            print(f"NaN detected in observations tensor: {observations}")
+            raise ValueError("Observations contain NaN values")
 
+        # Compute the mean using the actor network
+        mean = self.actor(observations)
+
+        # Check for NaN values in the mean tensor
+        if torch.isnan(mean).any():
+            print(f"NaN detected in mean tensor: {mean}")
+            raise ValueError("Mean computed by actor contains NaN values")
+
+        # Update the distribution
+        self.distribution = Normal(mean, mean * 0.0 + self.std)
+        
     def act(self, observations, **kwargs):
         self.update_distribution(observations)
         return self.distribution.sample()

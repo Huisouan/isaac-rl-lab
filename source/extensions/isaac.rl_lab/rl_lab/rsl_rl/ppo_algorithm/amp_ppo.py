@@ -36,7 +36,7 @@ from ..modules import ActorCritic
 from ..storage import RolloutStorage
 from ..storage.replay_buffer import ReplayBuffer
 from .amp_discriminator import AMPDiscriminator
-
+from ...assets.loder_for_algs import AmpMotion
 class AMPPPO:
     actor_critic: ActorCritic
 
@@ -44,7 +44,7 @@ class AMPPPO:
         self,
         actor_critic,
         discriminator:AMPDiscriminator,
-        amp_data,
+        amp_data:AmpMotion,
         amp_normalizer,
         min_std=None,
         amp_replay_buffer_size=100000,
@@ -232,8 +232,17 @@ class AMPPPO:
                     -self.clip_param, self.clip_param
                 )
                 value_losses = (value_batch - returns_batch).pow(2)
+                value_losses = torch.clamp(value_losses, -1e5, 1e5)
+                
                 value_losses_clipped = (value_clipped - returns_batch).pow(2)
+                
+                value_losses_clipped = torch.clamp(value_losses_clipped, -1e5, 1e5)
+                
                 value_loss = torch.max(value_losses, value_losses_clipped).mean()
+
+                # Print max and min of value_loss
+
+
             else:
                 value_loss = (returns_batch - value_batch).pow(2).mean()
 
@@ -256,6 +265,7 @@ class AMPPPO:
             policy_loss = torch.nn.MSELoss()(policy_d, -1 * torch.ones(policy_d.size(), device=self.device))
             amp_loss = 0.5 * (expert_loss + policy_loss)
             grad_pen_loss = self.discriminator.compute_grad_pen(expert_state, expert_next_state, lambda_=10)
+            # Check for NaN values in losses
 
             # Compute total loss.
             loss = (
@@ -265,6 +275,16 @@ class AMPPPO:
                 + amp_loss
                 + grad_pen_loss
             )
+            if torch.isnan(loss).any():
+                print(f"NaN detected in total loss: {loss.item()}")
+            if torch.isnan(surrogate_loss).any():
+                print(f"NaN detected in surrogate loss: {surrogate_loss.item()}")
+            if torch.isnan(value_loss).any():
+                print(f"NaN detected in value loss: {value_loss.item()}")
+            if torch.isnan(amp_loss).any():
+                print(f"NaN detected in amp loss: {amp_loss.item()}")
+            if torch.isnan(grad_pen_loss).any():
+                print(f"NaN detected in gradient penalty loss: {grad_pen_loss.item()}")
 
             # Gradient step
             self.optimizer.zero_grad()

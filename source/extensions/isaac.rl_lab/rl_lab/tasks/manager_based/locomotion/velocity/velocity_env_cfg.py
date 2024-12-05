@@ -224,8 +224,8 @@ class ObservationsCfg:
             scale=1.0,
         )
         extent_force = ObsTerm(
-            func=mdp.,
-            params={"sensor_cfg": SceneEntityCfg("extent_force_sensor")},
+            func=mdp.extent_force,
+            params={"asset_cfg": SceneEntityCfg("robot", body_names="base")},
             noise=Unoise(n_min=-0.1, n_max=0.1),
             clip=(-1.0, 1.0),
             scale=1.0,
@@ -344,7 +344,7 @@ class EventCfg:
     push_robot = EventTerm(
         func=mdp.apply_external_force_torque,
         mode="interval",
-        interval_range_s=(10.0, 15.0),
+        interval_range_s=(5.0, 15.0),
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
             "force_range": (5.0, 5.0),

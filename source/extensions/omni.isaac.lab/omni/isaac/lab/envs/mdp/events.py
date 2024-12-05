@@ -578,12 +578,11 @@ def apply_external_force_torque(
     torque_range: tuple[float, float],
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ):
-    """Randomize the external forces and torques applied to the bodies.
+    """随机化施加到刚体上的外力和扭矩。
 
-    This function creates a set of random forces and torques sampled from the given ranges. The number of forces
-    and torques is equal to the number of bodies times the number of environments. The forces and torques are
-    applied to the bodies by calling ``asset.set_external_force_and_torque``. The forces and torques are only
-    applied when ``asset.write_data_to_sim()`` is called in the environment.
+    该函数会根据给定的范围创建一组随机的力和扭矩。力和扭矩的数量等于刚体数量乘以环境数量。
+    力和扭矩通过调用 ``asset.set_external_force_and_torque`` 应用到刚体上。
+    力和扭矩只有在环境中的 ``asset.write_data_to_sim()`` 被调用时才会应用。
     """
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject | Articulation = env.scene[asset_cfg.name]

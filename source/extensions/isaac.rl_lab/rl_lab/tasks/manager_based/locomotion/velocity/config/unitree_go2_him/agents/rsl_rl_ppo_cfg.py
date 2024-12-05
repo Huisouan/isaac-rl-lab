@@ -14,6 +14,7 @@ class UnitreeGO2HimRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     experiment_name = "unitree_go2_him_rough"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
+        class_name = "HIMActorCritic",
         init_noise_std=1.0,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],

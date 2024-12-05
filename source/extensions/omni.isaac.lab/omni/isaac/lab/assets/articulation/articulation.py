@@ -560,31 +560,28 @@ class Articulation(AssetBase):
         body_ids: Sequence[int] | slice | None = None,
         env_ids: Sequence[int] | None = None,
     ):
-        """Set external force and torque to apply on the asset's bodies in their local frame.
+        """设置作用在资产刚体上的外部力和扭矩，以局部坐标系表示。
 
-        For many applications, we want to keep the applied external force on rigid bodies constant over a period of
-        time (for instance, during the policy control). This function allows us to store the external force and torque
-        into buffers which are then applied to the simulation at every step.
+        在许多应用场景中，我们希望在整个时间段内（例如，在策略控制期间）保持对刚体施加的外部力不变。
+        该函数允许我们将外部力和扭矩存储到缓冲区中，然后在每一步模拟时应用这些力和扭矩。
 
         .. caution::
-            If the function is called with empty forces and torques, then this function disables the application
-            of external wrench to the simulation.
+            如果该函数被空的力和扭矩调用，则此函数会禁用对模拟的外部力矩的应用。
 
             .. code-block:: python
 
-                # example of disabling external wrench
+                # 禁用外部力矩的示例
                 asset.set_external_force_and_torque(forces=torch.zeros(0, 3), torques=torch.zeros(0, 3))
 
         .. note::
-            This function does not apply the external wrench to the simulation. It only fills the buffers with
-            the desired values. To apply the external wrench, call the :meth:`write_data_to_sim` function
-            right before the simulation step.
+            该函数不会将外部力矩应用到模拟中。它仅填充缓冲区中的所需值。
+            要应用外部力矩，请在模拟步骤之前调用 :meth:`write_data_to_sim` 函数。
 
-        Args:
-            forces: External forces in bodies' local frame. Shape is (len(env_ids), len(body_ids), 3).
-            torques: External torques in bodies' local frame. Shape is (len(env_ids), len(body_ids), 3).
-            body_ids: Body indices to apply external wrench to. Defaults to None (all bodies).
-            env_ids: Environment indices to apply external wrench to. Defaults to None (all instances).
+        参数:
+            forces: 刚体局部坐标系中的外部力。形状为 (len(env_ids), len(body_ids), 3)。
+            torques: 刚体局部坐标系中的外部扭矩。形状为 (len(env_ids), len(body_ids), 3)。
+            body_ids: 要应用外部力矩的刚体索引。默认为 None（所有刚体）。
+            env_ids: 要应用外部力矩的环境索引。默认为 None（所有实例）。
         """
         if forces.any() or torques.any():
             self.has_external_wrench = True

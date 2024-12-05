@@ -49,7 +49,7 @@ class HIMOnPolicyRunner:
                  log_dir=None,
                  device='cpu'):
 
-        self.cfg=train_cfg["runner"]
+        self.cfg=train_cfg
         self.alg_cfg = train_cfg["algorithm"]
         self.policy_cfg = train_cfg["policy"]
         self.device = device
@@ -60,7 +60,7 @@ class HIMOnPolicyRunner:
             num_critic_obs = self.env.num_obs
         self.num_actor_obs = self.env.num_obs
         self.num_critic_obs = num_critic_obs
-        actor_critic_class = eval(self.cfg["policy_class_name"]) # HIMActorCritic
+        actor_critic_class = eval(self.policy_cfg.pop("class_name")) # HIMActorCritic
         actor_critic: HIMActorCritic = actor_critic_class( self.env.num_obs,
                                                         num_critic_obs,
                                                         self.env.num_one_step_obs,

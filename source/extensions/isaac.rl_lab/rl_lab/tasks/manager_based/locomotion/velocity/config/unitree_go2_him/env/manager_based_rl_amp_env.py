@@ -13,6 +13,7 @@ from omni.isaac.lab.envs.common import VecEnvStepReturn
 from omni.isaac.lab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from omni.isaac.lab.envs.manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
 
+
 from rl_lab.rsl_rl.utils.kinematics import urdf
 from rl_lab.assets.loder_for_algs import AmpMotion
 
@@ -44,6 +45,10 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         self.num_actions = self.action_manager.total_action_dim
 
         self.robot = self.scene.articulations["robot"]
+        
+        self.num_observations = self.cfg.num_observations
+        self.privileged_obs_dim = self.cfg.num_privileged_obs
+        
 
     """
     Properties
@@ -92,6 +97,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
     def compute_observations(self):
         obs_buf = self.observation_manager.compute()
         self.obs_buf = obs_buf
+        
         return self.obs_buf
     
     def compute_termination_observations(self, env_ids):

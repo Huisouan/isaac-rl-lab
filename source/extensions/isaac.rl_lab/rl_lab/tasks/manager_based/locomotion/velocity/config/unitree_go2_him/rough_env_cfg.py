@@ -136,9 +136,18 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.urdf_path = "datasets/go2_description/urdf/go2_description.urdf"
         self.ee_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
         self.base_name = "base"
-        self.reference_state_initialization = True
+        self.reference_state_initialization = False
         self.amp_motion_files = "datasets/mocap_motions_go2"
         self.amp_replay_buffer_size = 100000
 
-
-
+        # ------------------------------Him------------------------------
+        self.num_one_step_observations = 45
+        self.encoder_steps = 6
+        self.num_observations = self.num_one_step_observations * self.encoder_steps
+        self.num_one_step_privileged_obs = 45 + 3 + 3 + 187  # additional: base_lin_vel, external_forces, scan_dots
+        self.critict_steps = 1
+        self.num_privileged_obs = self.num_one_step_privileged_obs * self.critict_steps  # if not None a privileged_obs_buf will be returned by step() (critic obs for asymmetric training). None is returned otherwise
+        self.num_actions = 12
+        self.env_spacing = 3.  # not used with heightfields/trimeshes
+        self.send_timeouts = True  # send timeout information to the algorithm
+        self.episode_length_s = 20  # episode length in seconds

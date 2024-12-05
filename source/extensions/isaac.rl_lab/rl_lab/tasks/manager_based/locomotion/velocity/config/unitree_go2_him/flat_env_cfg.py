@@ -1,10 +1,10 @@
 from omni.isaac.lab.utils import configclass
 
-from .rough_env_cfg import UnitreeA1AmpRoughEnvCfg
+from .rough_env_cfg import UnitreeA1HimRoughEnvCfg
 
 
 @configclass
-class UnitreeA1AmpFlatEnvCfg(UnitreeA1AmpRoughEnvCfg):
+class UnitreeA1HimFlatEnvCfg(UnitreeA1HimRoughEnvCfg):
     def __post_init__(self):
         # Temporarily not run disable_zerow_eight_rewards() in parent class to override rewards
         self._run_disable_zero_weight_rewards = False

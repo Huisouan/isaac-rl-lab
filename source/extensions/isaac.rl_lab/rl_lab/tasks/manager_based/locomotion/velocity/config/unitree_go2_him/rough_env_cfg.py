@@ -18,7 +18,7 @@ from rl_lab.assets.go2_model import UNITREE_GO2_CFG  # isort: skip
 
 
 @configclass
-class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
+class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     _run_disable_zero_weight_rewards = True
 
     def __post_init__(self):

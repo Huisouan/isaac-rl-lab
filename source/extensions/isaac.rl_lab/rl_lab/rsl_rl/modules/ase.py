@@ -650,8 +650,7 @@ class ASEagent(AMPagent):
 
         return enc_r 
 
-###########AMP_REWARDS############################################################# 
-
+###########AMP_REWARDS#############################################################                         
 ###########EVALS###################################################################   
     def _eval_actor(self, obs, ase_latents):
         # 评估演员网络
@@ -668,7 +667,7 @@ class ASEagent(AMPagent):
         return self.a2c_network.eval_disc(proc_amp_obs)
 
 ###########EVALS###################################################################
- 
+
     def _calc_enc_error(self, enc_pred, ase_latent):
         # 计算编码器误差
         # 计算误差值
@@ -678,7 +677,6 @@ class ASEagent(AMPagent):
         # err = -torch.sum(err, dim=-1, keepdim=True)
         err = -torch.sum(err, dim=-1, keepdim=True)
         return err
-
 
     def bound_loss(self, mu):
         if self.aseconf.bounds_loss_coef is not None:
@@ -820,7 +818,6 @@ class ASEagent(AMPagent):
         # 检查是否启用了AMP多样性奖励
         return self.aseconf.amp_diversity_bonus != 0    
     
-    
     @staticmethod
     # not used at the moment
     def forward(self,obs, input_dict):
@@ -833,8 +830,6 @@ class ASEagent(AMPagent):
             self._reset_latents(dones)  # 重置潜在变量
             self._reset_latent_step_count(dones)  # 重置潜在步数计数        
         pass
-
-
     
     @property
     def action_mean(self):
@@ -847,7 +842,6 @@ class ASEagent(AMPagent):
     @property
     def entropy(self):
         return self.distribution.entropy().sum(dim=-1)
-    
 
     def update_distribution(self, observations,ase_latents):
         observations = F.normalize(observations,p=2, dim=1, eps=1e-12)
@@ -890,7 +884,6 @@ class ASEagent(AMPagent):
         #TODO:这里可以修改贪心算法，
         return self.distribution.sample()
     
-    
     def get_actions_log_prob(self, actions):
         return self.distribution.log_prob(actions).sum(dim=-1)
     
@@ -907,9 +900,6 @@ class ASEagent(AMPagent):
         if self.aseconf.normalize_value:
             value = self.value_mean_std(value,True)        
         return value
-
-
-
 
 def get_activation(act_name):
     if act_name == "elu":

@@ -173,7 +173,6 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         
         
         if len(reset_env_ids) > 0:
-           
             terminal_states = self.compute_termination_observations(reset_env_ids)
             self._reset_idx(reset_env_ids)
         else:

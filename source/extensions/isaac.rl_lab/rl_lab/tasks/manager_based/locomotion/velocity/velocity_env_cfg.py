@@ -26,7 +26,6 @@ from . import mdp
 ##
 from omni.isaac.lab.terrains.config.rough import ROUGH_TERRAINS_CFG  # isort: skip
 
-
 def create_obsgroup_class(class_name, terms, enable_corruption=False, concatenate_terms=True):
     """
     Dynamically create and register a ObsGroup class based on the given configuration terms.
@@ -73,12 +72,9 @@ def create_obsgroup_class(class_name, terms, enable_corruption=False, concatenat
     # Return the class for external instantiation
     return dynamic_class
 
-
 ##
 # Scene definition
 ##
-
-
 @configclass
 class MySceneCfg(InteractiveSceneCfg):
     """Configuration for the terrain scene with a legged robot."""
@@ -146,7 +142,6 @@ class CommandsCfg:
         ),
     )
 
-
 @configclass
 class ActionsCfg:
     """Action specifications for the MDP."""
@@ -154,7 +149,6 @@ class ActionsCfg:
     joint_pos = mdp.JointPositionActionCfg(
         asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True, clip=None
     )
-
 
 @configclass
 class ObservationsCfg:
@@ -352,8 +346,6 @@ class EventCfg:
         },
     )    
 
-
-
 @configclass
 class RewardsCfg:
     """Reward terms for the MDP."""
@@ -489,7 +481,6 @@ class RewardsCfg:
         params={"command_name": "base_velocity"},
     )
 
-
 @configclass
 class TerminationsCfg:
     """Termination terms for the MDP."""
@@ -515,19 +506,15 @@ class TerminationsCfg:
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"), "threshold": 0.3},
     )
 
-
 @configclass
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
     
-
 ##
 # Environment configuration
 ##
-
-
 @configclass
 class LocomotionVelocityRoughEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the locomotion velocity-tracking environment."""

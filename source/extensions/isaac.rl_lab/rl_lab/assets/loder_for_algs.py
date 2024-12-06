@@ -10,7 +10,7 @@ class AmpMotion(MotionData_Base):
                  env_step_duration = 0.005,**kwargs):
         super().__init__(data_dir,datatype,file_type,data_spaces,env_step_duration,**kwargs)
         self.prepare_amp_state_trans()
-        
+    
     def prepare_amp_state_trans(self):
         """
         amp数据预处理，所有数据都被拼接成两个大的二维张量，并且记录每个数据张量的起始和结束行。
@@ -26,7 +26,7 @@ class AmpMotion(MotionData_Base):
             "joint_vel",
             "z_pos",
         ]
-        
+
         # 构建 rearrange_indices
         rearrange_indices = []
         for item in amp_data_spaces:
@@ -88,3 +88,16 @@ class AmpMotion(MotionData_Base):
             s_next = self.amp_state_next[actual_row_indices]
 
             yield s, s_next
+
+class VQVAEMotion(MotionData_Base):
+    def __init__(self, 
+                 data_dir,
+                 datatype="isaaclab",
+                 file_type="txt",
+                 data_spaces = None,
+                 env_step_duration = 0.005,**kwargs):
+        super().__init__(data_dir,datatype,file_type,data_spaces,env_step_duration,**kwargs)
+        
+        def prepare_vqvae_state_trans():
+            
+            pass

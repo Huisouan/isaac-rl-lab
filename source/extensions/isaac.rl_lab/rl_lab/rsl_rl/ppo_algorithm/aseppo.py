@@ -196,7 +196,6 @@ class ASEPPO:
             self.actor_critic.train_mod = True
             #使用ase_forward
             
-            
             #预处理amp obs
             policy_state, policy_next_state = rl_state_trans
             expert_state, expert_next_state = data_state_trans 

@@ -27,7 +27,6 @@ class MotionData_Base:
             self.load_preset_datatype()
         self.calculate_cumulative_indices()  #初始化data的顺序  
 
-
         self.env_step_duration = env_step_duration
         self.original_data_tensors = []#存储原始数据的列表
         self.data_tensors = []#存储插值处理后的数据的列表

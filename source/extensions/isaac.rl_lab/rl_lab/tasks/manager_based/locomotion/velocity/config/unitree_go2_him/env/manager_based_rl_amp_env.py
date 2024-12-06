@@ -17,7 +17,6 @@ from omni.isaac.lab.envs.manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
 from rl_lab.rsl_rl.utils.kinematics import urdf
 from rl_lab.assets.loder_for_algs import AmpMotion
 
-
 class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
     def __init__(self, cfg: ManagerBasedRLEnvCfg, render_mode: str | None = None, **kwargs):
 

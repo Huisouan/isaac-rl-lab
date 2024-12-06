@@ -113,11 +113,13 @@ class HIMOnPolicyRunner:
                     critic_obs = infos['observations']['critic'] if infos['observations']['critic'] is not None else obs
                     obs, critic_obs, rewards, dones = obs.to(self.device), critic_obs.to(self.device), rewards.to(self.device), dones.to(self.device)
                     dones = dones.to(self.device)
-                    termination_privileged_obs = infos['terminal_states']
-                    termination_privileged_obs = termination_privileged_obs.to(self.device)
+
 
                     next_critic_obs = critic_obs.clone().detach()
-                    next_critic_obs[reset_env_ids] = termination_privileged_obs.clone().detach()
+                    if termination_privileged_obs is not None:
+                        termination_privileged_obs = infos['terminal_states']
+                        termination_privileged_obs = termination_privileged_obs.to(self.device)                    
+                        next_critic_obs[reset_env_ids] = termination_privileged_obs.clone().detach()
 
                     self.alg.process_env_step(rewards, dones, infos, next_critic_obs)
                 

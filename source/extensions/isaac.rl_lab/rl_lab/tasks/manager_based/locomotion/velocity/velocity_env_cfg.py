@@ -383,6 +383,12 @@ class RewardsCfg:
     joint_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=0)
     joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=0)
 
+    joint_power = RewTerm(
+        func=mdp.joint_power,
+        weight=0,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
+    )
+
     def create_joint_deviation_l1_rewterm(self, attr_name, weight, joint_names_pattern):
         rew_term = RewTerm(
             func=mdp.joint_deviation_l1,

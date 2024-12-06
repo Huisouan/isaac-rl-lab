@@ -116,7 +116,7 @@ class HIMOnPolicyRunner:
 
 
                     next_critic_obs = critic_obs.clone().detach()
-                    if termination_privileged_obs is not None:
+                    if infos['terminal_states'] is not None:
                         termination_privileged_obs = infos['terminal_states']
                         termination_privileged_obs = termination_privileged_obs.to(self.device)                    
                         next_critic_obs[reset_env_ids] = termination_privileged_obs.clone().detach()

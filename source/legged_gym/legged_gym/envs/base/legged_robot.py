@@ -289,25 +289,51 @@ class LeggedRobot(BaseTask):
     def compute_termination_observations(self, env_ids):
         """ Computes observations
         """
-        current_obs = torch.cat((   self.commands[:, :3] * self.commands_scale,
-                                    self.base_ang_vel  * self.obs_scales.ang_vel,
-                                    self.projected_gravity,
-                                    (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
-                                    self.dof_vel * self.obs_scales.dof_vel,
-                                    self.actions
-                                    ),dim=-1)
+        # 将多个观测数据拼接成一个tensor
+        current_obs = torch.cat((   
+            # 拼接自定义命令乘以缩放因子
+            self.commands[:, :3] * self.commands_scale,
+            # 拼接基础角速度乘以角速度缩放因子
+            self.base_ang_vel  * self.obs_scales.ang_vel,
+            # 拼接投影的重力向量
+            self.projected_gravity,
+            # 拼接自由度位置差乘以自由度位置缩放因子
+            (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
+            # 拼接自由度速度乘以自由度速度缩放因子
+            self.dof_vel * self.obs_scales.dof_vel,
+            # 拼接动作数据
+            self.actions
+            ),dim=-1)
+
+        # 如果需要添加噪声，则添加噪声
         # add noise if needed
         if self.add_noise:
             current_obs += (2 * torch.rand_like(current_obs) - 1) * self.noise_scale_vec[0:(9 + 3 * self.num_actions)]
 
+        # 如果不是盲态，则添加感知输入
         # add perceptive inputs if not blind
-        current_obs = torch.cat((current_obs, self.base_lin_vel * self.obs_scales.lin_vel, self.disturbance[:, 0, :]), dim=-1)
+        current_obs = torch.cat((current_obs, 
+            # 拼接基础线速度乘以线速度缩放因子
+            self.base_lin_vel * self.obs_scales.lin_vel, 
+            # 拼接扰动数据
+            self.disturbance[:, 0, :]), dim=-1)
+
+        # 如果需要测量高度，则添加高度数据
         if self.cfg.terrain.measure_heights:
-            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1, 1.) * self.obs_scales.height_measurements 
+            heights = torch.clip(
+                # 计算高度差，并限制在-1到1之间
+                self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, 
+                -1, 1.) * self.obs_scales.height_measurements 
+            # 在高度数据上添加噪声
             heights += (2 * torch.rand_like(heights) - 1) * self.noise_scale_vec[(9 + 3 * self.num_actions):(9 + 3 * self.num_actions+187)]
+            # 将高度数据拼接到当前观测数据中
             current_obs = torch.cat((current_obs, heights), dim=-1)
 
-        return torch.cat((current_obs[:, :self.num_one_step_privileged_obs], self.privileged_obs_buf[:, :-self.num_one_step_privileged_obs]), dim=-1)[env_ids]
+        # 返回拼接后的观测数据
+        return torch.cat((
+            current_obs[:, :self.num_one_step_privileged_obs], 
+            self.privileged_obs_buf[:, :-self.num_one_step_privileged_obs]
+            ), dim=-1)[env_ids]
         
             
     def create_sim(self):

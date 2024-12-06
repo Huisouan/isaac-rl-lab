@@ -43,10 +43,9 @@ class RslRlVecEnvWrapperextra(RslRlVecEnvWrapper):
             hasattr(self.unwrapped, "observation_manager")
             and "critic" in self.unwrapped.observation_manager.group_obs_dim
         ):
-            if hasattr(self.unwrapped, "compute_observations"):
-                self.num_privileged_obs = self.unwrapped.privileged_obs_dim
-            else:
-                self.num_privileged_obs = self.unwrapped.observation_manager.group_obs_dim["critic"][0]
+            self.num_privileged_obs = self.unwrapped.observation_manager.group_obs_dim["critic"][0]
+        elif hasattr(self.unwrapped, "compute_observations"):
+            self.num_privileged_obs = self.unwrapped.privileged_obs_dim     
         elif hasattr(self.unwrapped, "num_states"):
             self.num_privileged_obs = self.unwrapped.num_states
         else:

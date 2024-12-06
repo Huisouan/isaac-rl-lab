@@ -39,7 +39,7 @@ import torch
 from ..ppo_algorithm import PPO, HIMPPO
 from ..modules import HIMActorCritic
 from ..env import VecEnv
-
+from ... import rsl_rl
 
 class HIMOnPolicyRunner:
 
@@ -63,10 +63,10 @@ class HIMOnPolicyRunner:
         actor_critic_class = eval(self.policy_cfg.pop("class_name")) # HIMActorCritic
         actor_critic: HIMActorCritic = actor_critic_class( self.env.num_obs,
                                                         num_critic_obs,
-                                                        self.env.num_one_step_obs,
+                                                        self.env.unwrapped.num_one_step_observations,
                                                         self.env.num_actions,
                                                         **self.policy_cfg).to(self.device)
-        alg_class = eval(self.cfg["algorithm_class_name"]) # HIMPPO
+        alg_class = eval(self.alg_cfg.pop("class_name"))  # PPO # HIMPPO
         self.alg: HIMPPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)
         self.num_steps_per_env = self.cfg["num_steps_per_env"]
         self.save_interval = self.cfg["save_interval"]
@@ -80,7 +80,7 @@ class HIMOnPolicyRunner:
         self.tot_timesteps = 0
         self.tot_time = 0
         self.current_learning_iteration = 0
-
+        self.git_status_repos = [rsl_rl.__file__]
         _, _ = self.env.reset()
     
     def learn(self, num_learning_iterations, init_at_random_ep_len=False):
@@ -89,8 +89,8 @@ class HIMOnPolicyRunner:
             self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
         if init_at_random_ep_len:
             self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf, high=int(self.env.max_episode_length))
-        obs = self.env.get_observations()
-        privileged_obs = self.env.get_privileged_observations()
+        obs, extras = self.env.get_observations()
+        privileged_obs =  extras["observations"].get("critic", obs)
         critic_obs = privileged_obs if privileged_obs is not None else obs
         obs, critic_obs = obs.to(self.device), critic_obs.to(self.device)
         self.alg.actor_critic.train() # switch to train mode (for dropout for example)
@@ -108,15 +108,16 @@ class HIMOnPolicyRunner:
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
                     actions = self.alg.act(obs, critic_obs)
-                    obs, privileged_obs, rewards, dones, infos, termination_ids, termination_privileged_obs = self.env.step(actions)
-
-                    critic_obs = privileged_obs if privileged_obs is not None else obs
+                    obs, rewards, dones, infos = self.env.step(actions)
+                    reset_env_ids = infos["reset_env_ids"]
+                    critic_obs = infos['observations']['critic'] if infos['observations']['critic'] is not None else obs
                     obs, critic_obs, rewards, dones = obs.to(self.device), critic_obs.to(self.device), rewards.to(self.device), dones.to(self.device)
-                    termination_ids = termination_ids.to(self.device)
+                    dones = dones.to(self.device)
+                    termination_privileged_obs = infos['terminal_states']
                     termination_privileged_obs = termination_privileged_obs.to(self.device)
 
                     next_critic_obs = critic_obs.clone().detach()
-                    next_critic_obs[termination_ids] = termination_privileged_obs.clone().detach()
+                    next_critic_obs[reset_env_ids] = termination_privileged_obs.clone().detach()
 
                     self.alg.process_env_step(rewards, dones, infos, next_critic_obs)
                 
@@ -249,3 +250,6 @@ class HIMOnPolicyRunner:
         if device is not None:
             self.alg.actor_critic.to(device)
         return self.alg.actor_critic.act_inference
+    
+    def add_git_repo_to_log(self, repo_file_path):
+        self.git_status_repos.append(repo_file_path)

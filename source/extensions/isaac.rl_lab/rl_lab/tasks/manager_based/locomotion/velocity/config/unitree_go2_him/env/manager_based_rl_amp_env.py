@@ -47,8 +47,12 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         
         self.num_observations = self.cfg.num_observations
         self.privileged_obs_dim = self.cfg.num_privileged_obs
+        self.num_one_step_observations = self.cfg.num_one_step_observations
         
-
+        self.obs_buf = {
+            'policy': torch.zeros((self.num_envs, self.num_observations), device=self.device, dtype=torch.float32),
+            'critic': torch.zeros((self.num_envs, self.privileged_obs_dim), device=self.device, dtype=torch.float32)
+        }
     """
     Properties
     """
@@ -95,12 +99,15 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
 
     def compute_observations(self):
         obs_buf = self.observation_manager.compute()
-        self.obs_buf = obs_buf
-        
+        self.obs_buf['policy'] = torch.cat((obs_buf['policy'], self.obs_buf['policy'][:, :-obs_buf['policy'].shape[1]]), dim=-1)
+        self.obs_buf['critic'] = torch.cat((obs_buf['policy'],obs_buf['privileged']), dim=-1)
         return self.obs_buf
     
     def compute_termination_observations(self, env_ids):
-        pass
+        obs_buf = self.observation_manager.compute()
+        critic_obs = torch.cat((obs_buf['policy'][env_ids],obs_buf['privileged'][env_ids]), dim=-1)
+        return  critic_obs 
+         
 
     """
     Operations - MDP
@@ -162,13 +169,17 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
 
         # -- reset envs that terminated/timed-out and log the episode information
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
-        terminal_amp_states = self.get_amp_observations()[reset_env_ids]
+        
+        
         
         if len(reset_env_ids) > 0:
             self._reset_idx(reset_env_ids)
-        
+            terminal_states = self.compute_termination_observations(reset_env_ids)
+        else:
+            terminal_states = None
+            
+        self.extras["terminal_states"] = terminal_states
         self.extras["reset_env_ids"] = reset_env_ids
-        self.extras["terminal_amp_states"] = terminal_amp_states
         # -- update command
         self.command_manager.compute(dt=self.step_dt)
         # -- step interval events
@@ -178,7 +189,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         # note: done after reset to get the correct observations for reset envs
         
         #用自定义的函数compute_observations
-        self.compute_observations(self)
+        self.compute_observations()
 
         # return observations, rewards, resets and extras
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras

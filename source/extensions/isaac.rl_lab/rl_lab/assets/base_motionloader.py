@@ -265,6 +265,7 @@ class MotionData_Base:
         # Flatten the tensor to 1 dimension
         rearranged_tensor = torch.reshape(transposed_tensor, (-1, 12))
         return rearranged_tensor
+    
     #############################PROPERTY############################
     def get_frames(self,motion_id,frame_num):
         """

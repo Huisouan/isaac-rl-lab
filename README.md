@@ -8,6 +8,11 @@
 - [X]  Ubuntu22.04/24.04
 - [X]  Ubuntu20.04 for Binary install
 
+推荐范同学的[一键安装脚本](https://docs.robotsfan.com/isaaclab/source/setup/install.html)
+```
+wget https://docs.robotsfan.com/install_isaaclab.sh -O install_isaaclab.sh && bash install_isaaclab.sh
+```
+
 安装可以参考
 [安装教程](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html)
 也可以使用如下代码对isaacsim进行安装

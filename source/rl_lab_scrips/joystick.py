@@ -22,7 +22,7 @@ parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
 parser.add_argument("--num_envs", type=int, default='1', help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="Isaac-Amp-Unitree-go2-v0", help="Name of the task.")
+parser.add_argument("--task", type=str, default="Isaac-Him-Unitree-go2-v0", help="Name of the task.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -42,7 +42,7 @@ import gymnasium as gym
 import os
 import torch
 
-from rl_lab.rsl_rl.runners import AmpOnPolicyRunner
+from rl_lab.rsl_rl.runners import PmcOnPolicyRunner,AmpOnPolicyRunner,CvqvaeOnPolicyRunner,ASEOnPolicyRunner,HIMOnPolicyRunner
 
 from omni.isaac.lab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from omni.isaac.lab.utils.dict import print_dict
@@ -51,11 +51,11 @@ import omni.isaac.lab_tasks  # noqa: F401
 from omni.isaac.lab_tasks.utils import get_checkpoint_path, parse_env_cfg
 from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
-    RslRlVecEnvWrapper,
+
     export_policy_as_jit,
     export_policy_as_onnx,
 )
-
+from rl_lab.tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapperextra
 
 from omni.isaac.lab.devices import Se2Gamepad
 
@@ -100,11 +100,28 @@ def main():
         env = multi_agent_to_single_agent(env)
 
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)
+    env = RslRlVecEnvWrapperextra(env)
 
-    print(f"[INFO]: Loading model checkpoint from: {resume_path}")
-    # load previously trained model
-    ppo_runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
+    if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
+        print("[INFO] Using AmpOnPolicyRunner")
+        ppo_runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    
+    elif args_cli.task == "Isaac-Him-Unitree-go2-v0":
+        print("[INFO] Using HimOnPolicyRunner")
+        ppo_runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
+    
+    elif args_cli.task == "Isaac-Ase-Unitree-go2-v0":
+        print("[INFO] Using AseOnPolicyRunner")
+        ppo_runner = ASEOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+
+    elif args_cli.task == "Isaac-go2-pmc-Direct-v0":
+        print("[INFO] Using PmcOnPolicyRunner")
+        ppo_runner = PmcOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    
+    elif args_cli.task == "Isaac-go2-cvqvae-Direct-v0":
+        ppo_runner = CvqvaeOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    else:
+        raise NotImplementedError
     ppo_runner.load(resume_path)
 
     # obtain the trained policy for inference
@@ -154,7 +171,9 @@ def main():
             readings[1] = 0.15 * readings[1]
             readings[2] = -1.5*readings[2]
             readings_tensor = torch.from_numpy(readings*2).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
-            obs[0][4:7] = readings_tensor.float()
+            for i in range(6):
+                obs[0][6+i*45:9+i*45] = readings_tensor
+            
             print(obs[0][4:7].tolist())
             
             

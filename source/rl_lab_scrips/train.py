@@ -136,7 +136,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print("[INFO] Using AmpOnPolicyRunner")
         runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     
-    elif args_cli.task == "Isaac-Him-Unitree-go2-v0":
+    elif args_cli.task == "Isaac-Him-Unitree-go2-v0" or args_cli.task =="Isaac-Rough-Him-Unitree-go2-v0":
         print("[INFO] Using HimOnPolicyRunner")
         runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
     

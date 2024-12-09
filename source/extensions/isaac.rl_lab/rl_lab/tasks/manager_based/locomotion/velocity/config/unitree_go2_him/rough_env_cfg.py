@@ -19,12 +19,11 @@ from rl_lab.assets.go2_model import UNITREE_GO2_CFG  # isort: skip
 
 @configclass
 class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
-    
+    _run_disable_zero_weight_rewards = True
 
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
-        self._run_disable_zero_weight_rewards = True
         # ------------------------------Sence------------------------------
         # switch robot to unitree-a1
         self.scene.robot = UNITREE_GO2_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
@@ -33,8 +32,8 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.terrain.terrain_generator.sub_terrains["boxes"].grid_height_range = (0.025, 0.1)
         self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_range = (0.01, 0.06)
         self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_step = 0.01
-        # no terrain curriculum
-        self.curriculum.terrain_levels = None
+
+
         # ------------------------------Observations------------------------------
         self.observations.policy.base_ang_vel.scale = 0.25
         self.observations.policy.joint_pos.scale = 1.0
@@ -118,7 +117,7 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.base_height_rough_l2.weight = 0
         self.rewards.feet_slide.weight = 0
         self.rewards.joint_power.weight = 0
-        self.rewards.stand_still_when_zero_command.weight = 0.0
+        self.rewards.stand_still_when_zero_command.weight = 0.05
 
         # If the weight of rewards is 0, set rewards to None
         if self._run_disable_zero_weight_rewards:

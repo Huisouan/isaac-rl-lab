@@ -58,10 +58,11 @@ import omni.isaac.lab_tasks  # noqa: F401
 from omni.isaac.lab_tasks.utils import get_checkpoint_path, parse_env_cfg
 from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
-    RslRlVecEnvWrapper,
     export_policy_as_jit,
     export_policy_as_onnx,
 )
+from rl_lab.tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapperextra
+import omni.isaac.lab.utils.math as math_utils
 
 from omni.isaac.lab.devices import Se2Gamepad
 from unitree_sdk2py.core.channel import  ChannelFactoryInitialize
@@ -110,7 +111,9 @@ def go2_obs_process(imu_state,motor_state):
     quaternion = torch.zeros(4)
     for i in range(4):
         quaternion[i] = imu_state.quaternion[i]
-
+    gyroscope = torch.zeros(3)
+    for i in range(3):
+        gyroscope[i] = imu_state.gyroscope[i]
     joint_pos = torch.zeros(12)
     joint_vel = torch.zeros(12)
     for i in range(12):
@@ -119,7 +122,14 @@ def go2_obs_process(imu_state,motor_state):
     # 对关节角度进行重排序
     joint_pos =joint_reorder(joint_pos,go2_joint_current_order,model_joint_order)
     joint_vel = joint_reorder(joint_vel,go2_joint_current_order,model_joint_order)
-    return quaternion,joint_pos,joint_vel
+    return gyroscope,quaternion,joint_pos,joint_vel
+
+def prepare_obs(base_ang_vel,projected_gravity,velocity_commands,joint_pos,joint_vel,actions):
+    pass
+
+
+
+
 
 
 def main(go2):
@@ -166,7 +176,7 @@ def main(go2):
         env = multi_agent_to_single_agent(env)
 
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)
+    env = RslRlVecEnvWrapperextra(env)
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
@@ -186,25 +196,24 @@ def main(go2):
     #)
 
     # reset environment
+    #初始化数据
     effort_limit = torch.tensor(23.5).to(env.device).unsqueeze(0).repeat(env.num_actions)
     action_scale = torch.tensor(0.25).to(env.device).unsqueeze(0).repeat(env.num_actions)
     joint_vel_scale = torch.tensor(0.05).to(env.device).unsqueeze(0).repeat(env.num_actions)
     epoch_time_target = 0.02
-    
+    GRAVITY_VEC =env.unwrapped.robot.data.GRAVITY_VEC_W
     obs, _ = env.get_observations()
     timestep = 0
     imu_state,motor_state = go2.return_obs()  
     
-    quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
+    gyroscope,quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
     quat = quat.to(env.device)
     joint_pos = joint_pos.to(env.device)
     joint_vel = joint_vel.to(env.device)
     
     
     obs[0][:31] = torch.cat([quat, torch.tensor([0, 0, 0],device=env.device), joint_pos, joint_vel])
-    
-    
-    
+
     joystick = Se2Gamepad()
     
     offset = torch.tensor([ 0.1000, -0.1000,  0.1000, -0.1000,  0.8000,  0.8000,  1.0000,  1.0000,
@@ -234,9 +243,7 @@ def main(go2):
             action_max = joint_pos + (effort_limit + ctrl_kd * joint_vel) / ctrl_kp
             action_min = joint_pos + (-effort_limit + ctrl_kd * joint_vel) / ctrl_kp
             
-            
             clipped_actions = torch.clamp(processed_actions, min=action_min, max=action_max)
-            
             # 对动作进行重排序
             actions_reordered = joint_reorder(clipped_actions,model_joint_order,go2_joint_current_order)
             #将动作输出给机器人
@@ -252,6 +259,9 @@ def main(go2):
             #从机器人读取状态数据
             imu_state,motor_state = go2.return_obs()     
             quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
+
+            
+            
             quat = quat.to(env.device)
             joint_pos = joint_pos.to(env.device)
             joint_vel = joint_vel.to(env.device)
@@ -259,6 +269,13 @@ def main(go2):
             joint_vel = joint_vel * joint_vel_scale
             
             env.unwrapped.robot_twin(quat,joint_pos,joint_vel)
+            
+            
+            
+            projected_gravity_b = math_utils.quat_rotate_inverse(quat, GRAVITY_VEC)
+            
+            
+            
             
             readings = joystick.advance()
             if readings[0] < 0:

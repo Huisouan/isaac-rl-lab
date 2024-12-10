@@ -49,7 +49,7 @@ import gymnasium as gym
 import os
 import torch
 
-from rl_lab.rsl_rl.runners import AmpOnPolicyRunner
+from rl_lab.rsl_rl.runners import PmcOnPolicyRunner,AmpOnPolicyRunner,CvqvaeOnPolicyRunner,ASEOnPolicyRunner,HIMOnPolicyRunner
 
 from omni.isaac.lab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from omni.isaac.lab.utils.dict import print_dict
@@ -122,34 +122,26 @@ def go2_data_process(imu_state,motor_state,default_jointpos_bias):
     # 对关节角度进行重排序
     joint_pos =joint_reorder(joint_pos,go2_joint_current_order,model_joint_order)
     joint_vel = joint_reorder(joint_vel,go2_joint_current_order,model_joint_order)
+    #将joint_pos减去默认关节位置偏移量
     joint_pos = joint_pos - default_jointpos_bias
     return gyroscope,quaternion,joint_pos,joint_vel
 
-def prepare_obs(obs,base_ang_vel,projected_gravity,velocity_commands,joint_pos,joint_vel,actions):
+
+def prepare_obs(obs, base_ang_vel, projected_gravity, velocity_commands, joint_pos, joint_vel, actions):
     single_obs = torch.cat([base_ang_vel, projected_gravity, velocity_commands, joint_pos, joint_vel, actions], dim=-1)
-    #将输入数据添加到obs中
-    obs = torch.cat([single_obs,obs[single_obs.shape:]],dim=-1)
+    # 将输入数据添加到obs中，并确保结果是一个二维tensor
+    obs = torch.cat([single_obs, obs[:-single_obs.shape[-1]]], dim=-1).unsqueeze(0)
     return obs
 
-
-
-
-
-
-def main(go2):
+def main(go2:Go2_PD_Control):
     """Play with RSL-RL agent."""
     # parse configuration
     env_cfg = parse_env_cfg(
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
     )
     
-    if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
-        print("[INFO] Using AmpOnPolicyRunner")
-        env_cfg.amp_num_preload_transitions = 1
-    
     agent_cfg: RslRlOnPolicyRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
-
-
+    
     # 指定实验日志的目录路径
     log_root_path = os.path.join("weights", agent_cfg.experiment_name)
     # 将路径转换为绝对路径
@@ -182,11 +174,30 @@ def main(go2):
     # wrap around environment for rsl-rl
     env = RslRlVecEnvWrapperextra(env)
 
+    
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
-    ppo_runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
-    ppo_runner.load(resume_path)
+    if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
+        print("[INFO] Using AmpOnPolicyRunner")
+        ppo_runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    
+    elif args_cli.task == "Isaac-Him-Unitree-go2-v0":
+        print("[INFO] Using HimOnPolicyRunner")
+        ppo_runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
+    
+    elif args_cli.task == "Isaac-Ase-Unitree-go2-v0":
+        print("[INFO] Using AseOnPolicyRunner")
+        ppo_runner = ASEOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
 
+    elif args_cli.task == "Isaac-go2-pmc-Direct-v0":
+        print("[INFO] Using PmcOnPolicyRunner")
+        ppo_runner = PmcOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    
+    elif args_cli.task == "Isaac-go2-cvqvae-Direct-v0":
+        ppo_runner = CvqvaeOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    else:
+        raise NotImplementedError
+    ppo_runner.load(resume_path)
     # obtain the trained policy for inference
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
 
@@ -229,7 +240,7 @@ def main(go2):
             # agent stepping
             actions = policy(obs)
             #venvobs, _, _, _ = env.step(actions)
-            processed_actions = actions[0] * action_scale + offset
+            processed_actions = actions[0] * action_scale + default_jointpos_bias
             # env stepping
 
             # 将 ctrl_kd 和 ctrl_kp 调整为 [action_dim]
@@ -255,25 +266,18 @@ def main(go2):
             
             #从机器人读取状态数据
             imu_state,motor_state = go2.return_obs()     
-            quat,joint_pos,joint_vel = go2_data_process(imu_state,motor_state)
+            gyroscope,quat,joint_pos,joint_vel = go2_data_process(imu_state,motor_state)
 
             
             
             quat = quat.to(env.device)
             joint_pos = joint_pos.to(env.device)
             joint_vel = joint_vel.to(env.device)
-            
             joint_vel = joint_vel * joint_vel_scale
             
-            env.unwrapped.robot_twin(quat,joint_pos,joint_vel)
+            env.unwrapped.robot_twin(quat,joint_pos+default_jointpos_bias,joint_vel)
             
-            
-            
-            projected_gravity_b = math_utils.quat_rotate_inverse(quat, GRAVITY_VEC)
-            
-            
-            
-            
+            projected_gravity_b = math_utils.quat_rotate_inverse(quat, GRAVITY_VEC)[0]
             readings = joystick.advance()
             if readings[0] < 0:
                 readings[0] = 0.6 * readings[0]
@@ -283,7 +287,8 @@ def main(go2):
             readings[2] = -2*readings[2]
             readings_tensor = torch.from_numpy(readings).to(env.device)  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
             
-            obs[0] = torch.cat([quat, readings_tensor.float(), joint_pos, joint_vel,actions[0]])
+            
+            obs = prepare_obs(obs,gyroscope,projected_gravity_b,readings_tensor,joint_pos,joint_vel,actions)
             
             if print_count % 50 == 0:
                 # 限制打印的精度到小数点后三位

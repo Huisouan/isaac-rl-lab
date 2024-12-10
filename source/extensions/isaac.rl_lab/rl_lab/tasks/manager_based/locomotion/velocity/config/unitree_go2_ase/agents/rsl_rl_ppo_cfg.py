@@ -1,11 +1,10 @@
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
-    RslRlPpoActorCriticCfg,
     RslRlPpoAlgorithmCfg,
 )
 from rl_lab.tasks.utils.wrappers.rsl_rl import (
-    ASECfg,ASENetcfg,AMPCfg,AMPNetcfg
+    ASECfg,ASENetcfg
 )
 
 @configclass

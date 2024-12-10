@@ -10,14 +10,20 @@ _EPS = torch.finfo(float).eps * 4.0
 class MotionData_Base:
     def __init__(self, 
                  data_dir,
-                 datatype="isaaclab",
+                 datatype="isaacgym",
                  file_type="csv",
                  data_spaces = None,
-                 env_step_duration = 0.005,**kwargs):
+                 env_step_duration = 0.005,
+                 
+                 **kwargs):
         """
-        初始化方法，设置数据目录。
-        
-        :param data_dir: 包含CSV文件的目录路径
+        args:
+        data_dir: str 数据目录
+        datatype: str 数据类型，即这个数据没转化之前适配什么平台 "isaaclab"和"isaacgym"
+        file_type: str  数据文件类型 "csv"和"txt"
+        data_spaces: dict 数据空间，即每个数据的维度，用于自定义数据的格式，
+                          当没有指定时，会自动根据datatype选择默认的数据格式
+        env_step_duration：float 环境步长，即isaaclab每次读数据的间隔
         """
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.data_dir = data_dir
@@ -46,7 +52,10 @@ class MotionData_Base:
             self.load_txt_data()
         else:
             raise ValueError("Invalid file type specified.")
-        #从original_data_tensors进行插值，让离散数据的时间间隔与env_step_duration一致，并保存到
+        
+        
+        #self.data_reordering()
+        #从original_data_tensors进行插值，让离散数据的时间间隔与env_step_duration一致，并保存到data_tensors
         self.data_discretization()
         #self.re_calculate_velocity()
         print('Motion Data Loaded Successfully')
@@ -60,7 +69,7 @@ class MotionData_Base:
                 'foot_pos': 12,
                 'foot_vel': 12,
             }
-        if self.datatype == "amp" or self.datatype == "ase":
+        if self.datatype == "isaacgym" :
             self.data_spaces = {
                 'root_pos': 3,
                 'root_quat': 4,
@@ -72,8 +81,16 @@ class MotionData_Base:
                 'foot_vel': 12,
             }
 
-        if self.datatype == "vqvae":
-            pass
+    def data_reordering(self):
+        """
+        根据data_spaces的值，选择相应的数据转换函数,例如对于isaacgym，会调用self.data_reordering_isaacgym()
+        """
+        if self.datatype == "isaacgym":
+            for i in range(len(self.original_data_tensors)):
+                for key, (start, end) in self.cumulative_indices.items():
+                    if key == "joint_pos" or key == "joint_vel":
+                        # 使用 reorder_from_isaacgym_to_isaacsim_tool 进行转换
+                       self.original_data_tensors[i][:,start:end] = self.reorder_from_isaacgym_to_isaacsim_tool( self.original_data_tensors[i][:,start:end])
 
     def load_txt_data(self):
         """
@@ -264,7 +281,16 @@ class MotionData_Base:
         # Flatten the tensor to 1 dimension
         rearranged_tensor = torch.reshape(transposed_tensor, (-1, 12))
         return rearranged_tensor
-    
+
+    def reorder_from_isaacgym_to_isaacsim_tool(self, rearranged_tensor):
+        # Reshape to a 4x3 tensor
+        reshaped_tensor = torch.reshape(rearranged_tensor, (-1, 4, 3))
+        # Transpose the tensor back
+        transposed_tensor = torch.transpose(reshaped_tensor, 1, 2)
+        # Flatten the tensor back to the original shape
+        original_tensor = torch.reshape(transposed_tensor, (-1, 12))
+        return original_tensor
+
     #############################PROPERTY############################
     def get_frames(self,motion_id,frame_num):
         """

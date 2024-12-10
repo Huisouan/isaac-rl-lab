@@ -35,7 +35,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
             print(self.cfg.amp_motion_files)
             self.amp_loader = AmpMotion(
                 data_dir = self.cfg.amp_motion_files,                
-                datatype="amp",
+                datatype="isaacgym",
                 file_type="txt",
                 data_spaces = None,
                 env_step_duration=self.cfg.sim.dt * self.cfg.sim.render_interval,
@@ -50,8 +50,9 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
     """
 
     def get_amp_observations(self):
+        self.observation_manager._group_obs_concatenate["AMP"] = False
         group_obs = self.observation_manager.compute_group("AMP")
-
+        self.observation_manager._group_obs_concatenate["AMP"] = True
         # Isaac Sim uses breadth-first joint ordering, while Isaac Gym uses depth-first joint ordering
         joint_pos = group_obs["joint_pos"]
         joint_vel = group_obs["joint_vel"]

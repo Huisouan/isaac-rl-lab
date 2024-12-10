@@ -3,6 +3,8 @@ import time
 # 导入系统模块，用于处理命令行参数
 import sys
 
+
+
 # 从unitree_sdk2py核心模块导入ChannelPublisher类，用于发布消息
 from unitree_sdk2py.core.channel import ChannelPublisher, ChannelFactoryInitialize
 # 从unitree_sdk2py核心模块导入ChannelSubscriber类，用于订阅消息
@@ -71,6 +73,8 @@ class Go2_PD_Control:
 
         self.extent_targetPos = [0.0, 1.36, -2.65, 0.0, 1.36, -2.65,
                                 -0.2, 1.36, -2.65, 0.2, 1.36, -2.65]
+
+
 
         # 初始化起始位置
         self.startPos = [0.0] * 12
@@ -239,6 +243,8 @@ class Go2_PD_Control:
             self.low_state.motor_state,
         )
 
+
+
 import tty
 import termios
 import select
@@ -273,6 +279,9 @@ def process_key(key):
         return 'lay' ,True
     else:
         return None,False
+
+
+
 
 if __name__ == '__main__':
     # 警告提示

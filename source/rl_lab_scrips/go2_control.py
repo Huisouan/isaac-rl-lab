@@ -106,7 +106,7 @@ def joint_reorder(tensor, src_order, tgt_order):
     tensor_new = tensor[index_map]
     return tensor_new
 
-def go2_obs_process(imu_state,motor_state):
+def go2_data_process(imu_state,motor_state,default_jointpos_bias):
 
     quaternion = torch.zeros(4)
     for i in range(4):
@@ -122,10 +122,14 @@ def go2_obs_process(imu_state,motor_state):
     # 对关节角度进行重排序
     joint_pos =joint_reorder(joint_pos,go2_joint_current_order,model_joint_order)
     joint_vel = joint_reorder(joint_vel,go2_joint_current_order,model_joint_order)
+    joint_pos = joint_pos - default_jointpos_bias
     return gyroscope,quaternion,joint_pos,joint_vel
 
-def prepare_obs(base_ang_vel,projected_gravity,velocity_commands,joint_pos,joint_vel,actions):
-    pass
+def prepare_obs(obs,base_ang_vel,projected_gravity,velocity_commands,joint_pos,joint_vel,actions):
+    single_obs = torch.cat([base_ang_vel, projected_gravity, velocity_commands, joint_pos, joint_vel, actions], dim=-1)
+    #将输入数据添加到obs中
+    obs = torch.cat([single_obs,obs[single_obs.shape:]],dim=-1)
+    return obs
 
 
 
@@ -196,7 +200,7 @@ def main(go2):
     #)
 
     # reset environment
-    #初始化数据
+    #初始化仿真中的数据
     effort_limit = torch.tensor(23.5).to(env.device).unsqueeze(0).repeat(env.num_actions)
     action_scale = torch.tensor(0.25).to(env.device).unsqueeze(0).repeat(env.num_actions)
     joint_vel_scale = torch.tensor(0.05).to(env.device).unsqueeze(0).repeat(env.num_actions)
@@ -204,23 +208,16 @@ def main(go2):
     GRAVITY_VEC =env.unwrapped.robot.data.GRAVITY_VEC_W
     obs, _ = env.get_observations()
     timestep = 0
-    imu_state,motor_state = go2.return_obs()  
+    default_jointpos_bias = env.unwrapped.robot.data.default_joint_pos[0]
     
-    gyroscope,quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
+    #获取机器狗的数据并进行预处理
+    imu_state,motor_state = go2.return_obs()  
+    gyroscope,quat,joint_pos,joint_vel = go2_data_process(imu_state,motor_state,default_jointpos_bias)
     quat = quat.to(env.device)
     joint_pos = joint_pos.to(env.device)
     joint_vel = joint_vel.to(env.device)
     
-    
-    obs[0][:31] = torch.cat([quat, torch.tensor([0, 0, 0],device=env.device), joint_pos, joint_vel])
-
-    joystick = Se2Gamepad()
-    
-    offset = torch.tensor([ 0.1000, -0.1000,  0.1000, -0.1000,  0.8000,  0.8000,  1.0000,  1.0000,
-         -1.5000, -1.5000, -1.5000, -1.5000], device='cuda:0').to(env.device)
-    
-    
-    
+    joystick = Se2Gamepad()    
     
     print_count = 0
     timestamp = time.time()
@@ -258,7 +255,7 @@ def main(go2):
             
             #从机器人读取状态数据
             imu_state,motor_state = go2.return_obs()     
-            quat,joint_pos,joint_vel = go2_obs_process(imu_state,motor_state)
+            quat,joint_pos,joint_vel = go2_data_process(imu_state,motor_state)
 
             
             

@@ -210,6 +210,9 @@ def main(go2):
     offset = torch.tensor([ 0.1000, -0.1000,  0.1000, -0.1000,  0.8000,  0.8000,  1.0000,  1.0000,
          -1.5000, -1.5000, -1.5000, -1.5000], device='cuda:0').to(env.device)
     
+    
+    
+    
     print_count = 0
     timestamp = time.time()
     

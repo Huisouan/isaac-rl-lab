@@ -38,7 +38,6 @@ class AMPNet(nn.Module):
         #parameter init##############################
         # 加载判别器的配置
         self.activation = get_activation(Ampnetcfg.activation)
-        self.value_act = get_activation(Ampnetcfg.activation)
         
         self.initializer = get_initializer(Ampnetcfg.initializer)
         self.mlp_input_num = mlp_input_num
@@ -128,7 +127,7 @@ class AMPNet(nn.Module):
         # 通过MLP处理展平后的输出
         c_out = self.critic_mlp(c_out)              
         # 计算价值
-        value = self.value_act(self.value(c_out))
+        value = self.value_activation(self.value(c_out))
         return value
 
     def get_disc_logit_weights(self):
@@ -186,9 +185,8 @@ class ASENet(AMPNet):
         actor_out_size, critic_out_size = self._build_actor_critic_net(num_actor_obs, self._ase_latent_shape)
         
         #build value net#############################
-        self.value = torch.nn.Linear(critic_out_size, self.value_size)  # 价值层
-        print("ase value: ", self.value)
-        self.value_act = get_activation('none')
+        self.ase_value = torch.nn.Linear(critic_out_size, self.value_size)  # 价值层
+        print("ase value: ", self.ase_value)
         #build action head############################
         self._build_action_head(actor_out_size, num_actions)
         
@@ -320,7 +318,7 @@ class ASENet(AMPNet):
         c_out = c_out.contiguous().view(c_out.size(0), -1)  # 展平输出
         
         c_out = self.critic_mlp(c_out, ase_latents, use_hidden_latents)  # 评论家MLP输出
-        value = self.value_act(self.value(c_out))  # 价值激活
+        value = self.value_activation(self.ase_value(c_out))  # 价值激活
         return value
 
     def eval_actor(self, obs, ase_latents, use_hidden_latents=False):

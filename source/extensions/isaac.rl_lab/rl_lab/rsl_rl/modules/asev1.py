@@ -55,10 +55,9 @@ class ASEV1(nn.Module):
         self.latent_steps_max = latent_steps_max
 
         self.ase_latent_shape = ase_latent_shape
-        env_ids = torch.tensor(np.arange(num_envs), dtype=torch.long)
         self.ase_latents = self.sample_latents(num_envs)
         self.latent_reset_steps = torch.zeros(num_envs, dtype=torch.int32)
-        self.reset_latent_step_count()
+        self.reset_latent_step_count(torch.tensor(np.arange(num_envs), dtype=torch.long))
         #Actor
         self.style_net = create_mlp(ase_latent_shape, stylenet_hedden_dims, activation,activation)
         self.style_net_out = create_mlp(stylenet_hedden_dims[-1], [ase_latent_shape], stylenet_act)
@@ -134,21 +133,33 @@ class ASEV1(nn.Module):
         z = torch.nn.functional.normalize(z, dim=-1)  # 归一化潜在变量
         return z
 
-    def update_distribution(self, observations):
+    def update_latents(self,cur_episode_length):
+        # 检查哪些环境需要更新潜在变量
+        new_latent_envs = self.latent_reset_steps <= cur_episode_length
+        need_update = torch.any(new_latent_envs)
+        if (need_update):
+            new_latent_env_ids = new_latent_envs.nonzero(as_tuple=False).flatten()
+            # 重置潜在变量以及重置潜在步数
+            self.ase_latents[new_latent_env_ids] = self.sample_latents(len(new_latent_env_ids))  
+            self.reset_latent_step_count(new_latent_env_ids)
+
+    def update_distribution(self, observations,ase_latents):
         # Check for NaN values in the observations tensor
         # Compute the mean using the actor network
+        style_hid = self.style_net(ase_latents)
+        style_embd = self.style_net_out(style_hid)
+        observations = torch.cat([observations,style_embd],dim=-1)
         mean = self.actor(observations)
-
-        # Check for NaN values in the mean tensor
-        if torch.isnan(mean).any():
-            print(f"NaN detected in mean tensor: {mean}")
-            raise ValueError("Mean computed by actor contains NaN values")
-
         # Update the distribution
         self.distribution = Normal(mean, mean * 0.0 + self.std)
-        
+
+
     def act(self, observations, **kwargs):
-        self.update_distribution(observations)
+        if 'ase_latents' in kwargs:
+            ase_latents = kwargs['ase_latents']
+        else:
+            ase_latents = self._ase_latents
+        self.update_distribution(observations,ase_latents)
         return self.distribution.sample()
 
     def get_actions_log_prob(self, actions):
@@ -157,6 +168,14 @@ class ASEV1(nn.Module):
     def act_inference(self, observations):
         actions_mean = self.actor(observations)
         return actions_mean
+
+    def eval_disc(self, amp_obs):
+        disc_mlp_out = self.disc(amp_obs)
+        return self.disc_logits(disc_mlp_out)
+
+    def eval_enc(self, amp_obs):
+        enc_mlp_out = self.enc(amp_obs)
+        return self.enc_logits(enc_mlp_out)
 
     def evaluate(self, critic_observations, **kwargs):
         value = self.critic(critic_observations)

@@ -91,10 +91,8 @@ class ASEPPOV1:
         self.actor_critic.train()
 
     def act(self, obs, critic_obs,amp_obs,cur_episode_length):
-        if self.actor_critic.is_recurrent:
-            self.transition.hidden_states = self.actor_critic.get_hidden_states()
         # Compute the actions and values
-        self.actor_critic._update_latents(cur_episode_length)
+        self.actor_critic.update_latents(cur_episode_length)
         
         self.transition.actions = self.actor_critic.act(obs).detach()
         self.transition.values = self.actor_critic.evaluate(critic_obs).detach()
@@ -120,7 +118,7 @@ class ASEPPOV1:
         #计算encoder和disc reward
         amp_obs_trans = torch.cat([amp_obs,next_amp_obs_with_term],dim = -1)
         
-        amp_reward = self.actor_critic._calc_amp_rewards(amp_obs_trans)
+        amp_reward = self.actor_critic.calc_amp_rewards(amp_obs_trans)
         #把amp reward加到reward上，此处reward会进入到advantage的计算中，从而影响ppo算法的损失
         self.transition.rewards = self.actor_critic.combine_rewards(rewards.clone(),amp_reward)
         

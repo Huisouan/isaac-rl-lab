@@ -578,7 +578,6 @@ class ASEagent(AMPagent):
                                                                             low=self.aseconf.latent_steps_min, 
                                                                             high=self.aseconf.latent_steps_max)
         return
-    
     def _reset_latents(self, env_ids):
         # 为指定环境ID重置潜在变量
         n = len(env_ids)

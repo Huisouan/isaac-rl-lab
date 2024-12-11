@@ -13,7 +13,7 @@ from omni.isaac.lab.app import AppLauncher
 
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Tutorial on running the cartpole RL environment.")
-parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to spawn.")
+parser.add_argument("--num_envs", type=int, default=16, help="Number of environments to spawn.")
 
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
@@ -31,7 +31,7 @@ import torch
 from omni.isaac.lab.envs import ManagerBasedRLEnv
 
 from omni.isaac.lab_tasks.manager_based.classic.cartpole.cartpole_env_cfg import CartpoleEnvCfg
-import csv
+
 
 def main():
     """Main function."""
@@ -43,24 +43,22 @@ def main():
 
     # simulate physics
     count = 0
-    headers = ['pole_joint_pos', 'pole_joint_vel', 'cart_joint_pos', 'cart_joint_vel']
     while simulation_app.is_running():
         with torch.inference_mode():
-            with open("cartpole.csv", mode='w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow(headers)    
-                timestep = 0
-                # sample random actions
-                joint_efforts = torch.randn_like(env.action_manager.action)
-                # step the environment
-                obs, rew, terminated, truncated, info = env.step(joint_efforts)
-                body_state = obs
-                
-                writer.writerow(torch.cat((obs[1,:],body_state),dim = 0).tolist())     
-                # print current orientation of pole
-                print("[Env 0]: Pole joint: ", obs["policy"][0][1].item())
-                # update counter
-                count += 1
+            # reset
+            if count % 300 == 0:
+                count = 0
+                env.reset()
+                print("-" * 80)
+                print("[INFO]: Resetting environment...")
+            # sample random actions
+            joint_efforts = torch.randn_like(env.action_manager.action)
+            # step the environment
+            obs, rew, terminated, truncated, info = env.step(joint_efforts)
+            # print current orientation of pole
+            print("[Env 0]: Pole joint: ", obs["policy"][0][1].item())
+            # update counter
+            count += 1
 
     # close the environment
     env.close()

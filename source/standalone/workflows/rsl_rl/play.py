@@ -10,7 +10,7 @@
 import argparse
 
 from omni.isaac.lab.app import AppLauncher
-import csv
+
 # local imports
 import cli_args  # isort: skip
 
@@ -22,7 +22,7 @@ parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="Isaac-Velocity-Flat-Unitree-Go2-v0", help="Name of the task.")
+parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -112,28 +112,20 @@ def main():
 
     # reset environment
     obs, _ = env.get_observations()
-    headers = []
-    for i in range(13):
-        headers.append('body_state_{}'.format(i))
-    with open("cartpole.csv", mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(headers)    
-        timestep = 0
-        # simulate environment
-        
-        while simulation_app.is_running():
-            # run everything in inference mode
-            with torch.inference_mode():
-                # agent stepping
-                actions = policy(obs)
-                # env stepping
-                obs, _, _, _ = env.step(actions)
-         
-            if args_cli.video:
-                timestep += 1
-                # Exit the play loop after recording one video
-                if timestep == args_cli.video_length:
-                    break
+    timestep = 0
+    # simulate environment
+    while simulation_app.is_running():
+        # run everything in inference mode
+        with torch.inference_mode():
+            # agent stepping
+            actions = policy(obs)
+            # env stepping
+            obs, _, _, _ = env.step(actions)
+        if args_cli.video:
+            timestep += 1
+            # Exit the play loop after recording one video
+            if timestep == args_cli.video_length:
+                break
 
     # close the simulator
     env.close()

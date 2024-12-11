@@ -137,15 +137,6 @@ class ViewportCameraController:
         self.update_view_location()
 
     def update_view_to_asset_root(self, asset_name: str):
-        """
-        根据场景中的资产根节点更新视图器的原点。
-        
-        Args:
-            asset_name: 场景中的资产名称。该名称应与场景中的资产名称相匹配。
-        
-        Raises:
-            ValueError: 如果场景中不存在该资产。
-        """
         """Updates the viewer's origin based upon the root of an asset in the scene.
 
         Args:

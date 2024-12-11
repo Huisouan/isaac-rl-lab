@@ -49,7 +49,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         self.privileged_obs_dim = self.cfg.num_privileged_obs
         self.num_one_step_observations = self.cfg.num_one_step_observations
         
-        self.obs_buf = {
+        self.observation_buf = {
             'policy': torch.zeros((self.num_envs, self.num_observations), device=self.device, dtype=torch.float32),
             'critic': torch.zeros((self.num_envs, self.privileged_obs_dim), device=self.device, dtype=torch.float32)
         }
@@ -99,9 +99,10 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
 
     def compute_observations(self):
         obs_buf = self.observation_manager.compute()
-        self.obs_buf['policy'] = torch.cat((obs_buf['policy'], self.obs_buf['policy'][:, :-obs_buf['policy'].shape[1]]), dim=-1)
-        self.obs_buf['critic'] = torch.cat((obs_buf['policy'],obs_buf['privileged']), dim=-1)
-        return self.obs_buf
+        self.observation_buf['policy'] = torch.cat((obs_buf['policy'], self.observation_buf['policy'][:, :-obs_buf['policy'].shape[1]]), dim=-1)
+        self.observation_buf['critic'] = torch.cat((obs_buf['policy'],obs_buf['privileged']), dim=-1)
+        self.obs_buf = self.observation_buf
+        return self.observation_buf
     
     def compute_termination_observations(self, env_ids):
         obs_buf = self.observation_manager.compute()

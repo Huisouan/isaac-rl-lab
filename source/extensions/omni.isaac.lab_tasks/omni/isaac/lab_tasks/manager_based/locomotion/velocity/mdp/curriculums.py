@@ -26,28 +26,30 @@ if TYPE_CHECKING:
 def terrain_levels_vel(
     env: ManagerBasedRLEnv, env_ids: Sequence[int], asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
-    """基于机器人在被命令以期望速度移动时行走的距离的课程设置。
+    """Curriculum based on the distance the robot walked when commanded to move at a desired velocity.
 
-    该术语用于在机器人行走足够远时增加地形的难度，并在机器人行走距离少于所需距离的一半时降低难度。
+    This term is used to increase the difficulty of the terrain when the robot walks far enough and decrease the
+    difficulty when the robot walks less than half of the distance required by the commanded velocity.
 
     .. note::
-        仅当使用 ``generator`` 类型的地形时才能使用此术语。有关不同地形类型的更多信息，请参阅 :class:`omni.isaac.lab.terrains.TerrainImporter` 类。
+        It is only possible to use this term with the terrain type ``generator``. For further information
+        on different terrain types, check the :class:`omni.isaac.lab.terrains.TerrainImporter` class.
 
-    返回:
-        给定环境ID的平均地形级别。
+    Returns:
+        The mean terrain level for the given environment ids.
     """
-    # 提取使用的量（以启用类型提示）
+    # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
     terrain: TerrainImporter = env.scene.terrain
     command = env.command_manager.get_command("base_velocity")
-    # 计算机器人行走的距离
+    # compute the distance the robot walked
     distance = torch.norm(asset.data.root_pos_w[env_ids, :2] - env.scene.env_origins[env_ids, :2], dim=1)
-    # 行走足够远的机器人将进入更难的地形
+    # robots that walked far enough progress to harder terrains
     move_up = distance > terrain.cfg.terrain_generator.size[0] / 2
-    # 行走距离少于所需距离一半的机器人将进入更简单的地形
+    # robots that walked less than half of their required distance go to simpler terrains
     move_down = distance < torch.norm(command[env_ids, :2], dim=1) * env.max_episode_length_s * 0.5
     move_down *= ~move_up
-    # 更新地形级别
+    # update terrain levels
     terrain.update_env_origins(env_ids, move_up, move_down)
-    # 返回平均地形级别
+    # return the mean terrain level
     return torch.mean(terrain.terrain_levels.float())

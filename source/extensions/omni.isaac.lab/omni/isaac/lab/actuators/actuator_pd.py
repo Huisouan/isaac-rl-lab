@@ -9,9 +9,8 @@ import torch
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from omni.isaac.core.utils.types import ArticulationActions
-
 from omni.isaac.lab.utils import DelayBuffer, LinearInterpolation
+from omni.isaac.lab.utils.types import ArticulationActions
 
 from .actuator_base import ActuatorBase
 
@@ -63,7 +62,22 @@ class ImplicitActuator(ActuatorBase):
     def compute(
         self, control_action: ArticulationActions, joint_pos: torch.Tensor, joint_vel: torch.Tensor
     ) -> ArticulationActions:
-        """Compute the aproximmate torques for the actuated joint (physX does not compute this explicitly)."""
+        """Process the actuator group actions and compute the articulation actions.
+
+        In case of implicit actuator, the control action is directly returned as the computed action.
+        This function is a no-op and does not perform any computation on the input control action.
+        However, it computes the approximate torques for the actuated joint since PhysX does not compute
+        this quantity explicitly.
+
+        Args:
+            control_action: The joint action instance comprising of the desired joint positions, joint velocities
+                and (feed-forward) joint efforts.
+            joint_pos: The current joint positions of the joints in the group. Shape is (num_envs, num_joints).
+            joint_vel: The current joint velocities of the joints in the group. Shape is (num_envs, num_joints).
+
+        Returns:
+            The computed desired joint positions, joint velocities and joint efforts.
+        """
         # store approximate torques for reward computation
         error_pos = control_action.joint_positions - joint_pos
         error_vel = control_action.joint_velocities - joint_vel
@@ -117,19 +131,6 @@ class IdealPDActuator(ActuatorBase):
     def compute(
         self, control_action: ArticulationActions, joint_pos: torch.Tensor, joint_vel: torch.Tensor
     ) -> ArticulationActions:
-        """处理执行器组的动作并计算关节动作。
-
-        对于隐式执行器，控制动作将直接作为计算后的动作返回。
-        此函数不执行任何输入控制动作的计算，但会计算执行关节的近似力矩，因为 PhysX 不显式计算此数量。
-
-        参数:
-            control_action: 包含所需关节位置、关节速度和（前馈）关节力的关节动作实例。
-            joint_pos: 组中关节的当前关节位置。形状为 (num_envs, num_joints)。
-            joint_vel: 组中关节的当前关节速度。形状为 (num_envs, num_joints)。
-
-        返回:
-            计算后的所需关节位置、关节速度和关节力。
-        """
         # compute errors
         error_pos = control_action.joint_positions - joint_pos
         error_vel = control_action.joint_velocities - joint_vel
@@ -145,34 +146,43 @@ class IdealPDActuator(ActuatorBase):
 
 
 class DCMotor(IdealPDActuator):
-    r"""具有基于速度的饱和模型的直接控制（DC）电机执行器模型。
+    r"""Direct control (DC) motor actuator model with velocity-based saturation model.
 
-    该模型使用与 :class:`IdealActuator` 相同的模型来从输入命令计算扭矩。然而，它实现了一个由直流电机特性定义的饱和模型。
+    It uses the same model as the :class:`IdealActuator` for computing the torques from input commands.
+    However, it implements a saturation model defined by DC motor characteristics.
 
-    直流电机是一种由直流电驱动的电动机。在大多数情况下，电机连接到恒定的电压源，电流由变阻器控制。根据绕组和材料等各种设计因素，电机可以从电子源中汲取有限的最大功率，这限制了电机产生的扭矩和速度。
+    A DC motor is a type of electric motor that is powered by direct current electricity. In most cases,
+    the motor is connected to a constant source of voltage supply, and the current is controlled by a rheostat.
+    Depending on various design factors such as windings and materials, the motor can draw a limited maximum power
+    from the electronic source, which limits the produced motor torque and speed.
 
-    直流电机的特性由以下参数定义：
+    A DC motor characteristics are defined by the following parameters:
 
-    * 连续额定速度 (:math:`\dot{q}_{motor, max}`)：电机的最大额定速度。
-    * 连续堵转扭矩 (:math:`\tau_{motor, max}`)：在零速度时产生的最大额定扭矩。
-    * 饱和扭矩 (:math:`\tau_{motor, sat}`)：可以在短时间内输出的最大扭矩。
+    * Continuous-rated speed (:math:`\dot{q}_{motor, max}`) : The maximum-rated speed of the motor.
+    * Continuous-stall torque (:math:`\tau_{motor, max}`): The maximum-rated torque produced at 0 speed.
+    * Saturation torque (:math:`\tau_{motor, sat}`): The maximum torque that can be outputted for a short period.
 
-    基于这些参数，瞬时最小和最大扭矩定义如下：
+    Based on these parameters, the instantaneous minimum and maximum torques are defined as follows:
 
     .. math::
 
-        \tau_{j, max}(\dot{q}) & = \text{clip} \left (\tau_{j, sat} \times \left(1 -
+        \tau_{j, max}(\dot{q}) & = clip \left (\tau_{j, sat} \times \left(1 -
             \frac{\dot{q}}{\dot{q}_{j, max}}\right), 0.0, \tau_{j, max} \right) \\
-        \tau_{j, min}(\dot{q}) & = \text{clip} \left (\tau_{j, sat} \times \left( -1 -
+        \tau_{j, min}(\dot{q}) & = clip \left (\tau_{j, sat} \times \left( -1 -
             \frac{\dot{q}}{\dot{q}_{j, max}}\right), - \tau_{j, max}, 0.0 \right)
 
-    其中 :math:`\gamma` 是连接电机和被驱动关节末端的齿轮箱的传动比，:math:`\dot{q}_{j, max} = \gamma^{-1} \times  \dot{q}_{motor, max}`，:math:`\tau_{j, max} = \gamma \times \tau_{motor, max}` 和 :math:`\tau_{j, peak} = \gamma \times \tau_{motor, peak}` 分别是最大关节速度、最大关节扭矩和峰值扭矩。这些参数从传递给类的配置实例中读取。
+    where :math:`\gamma` is the gear ratio of the gear box connecting the motor and the actuated joint ends,
+    :math:`\dot{q}_{j, max} = \gamma^{-1} \times  \dot{q}_{motor, max}`, :math:`\tau_{j, max} =
+    \gamma \times \tau_{motor, max}` and :math:`\tau_{j, peak} = \gamma \times \tau_{motor, peak}`
+    are the maximum joint velocity, maximum joint torque and peak torque, respectively. These parameters
+    are read from the configuration instance passed to the class.
 
-    使用这些值，计算的扭矩根据瞬时关节速度被裁剪到最小和最大值之间：
+    Using these values, the computed torques are clipped to the minimum and maximum values based on the
+    instantaneous joint velocity:
 
     .. math::
 
-        \tau_{j, applied} = \text{clip}(\tau_{computed}, \tau_{j, min}(\dot{q}), \tau_{j, max}(\dot{q}))
+        \tau_{j, applied} = clip(\tau_{computed}, \tau_{j, min}(\dot{q}), \tau_{j, max}(\dot{q}))
 
     """
 

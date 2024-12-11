@@ -145,12 +145,10 @@ class ASEOnPolicyRunner:
                     next_amp_obs = self.env.unwrapped.get_amp_observations()
                     next_amp_obs = next_amp_obs.to(self.device)      
                     
-                    
                     next_amp_obs_with_term = torch.clone(next_amp_obs)
                     #此处terminal_amp_states是重置前的状态
                     next_amp_obs_with_term[reset_env_ids] = terminal_amp_states              
                     # AMPOBS############################################
-                    
                     
                     self.alg.process_env_step(rewards, dones, infos,amp_obs,next_amp_obs_with_term)
                     amp_obs = torch.clone(next_amp_obs)

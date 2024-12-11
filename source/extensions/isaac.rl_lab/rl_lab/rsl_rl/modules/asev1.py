@@ -51,6 +51,11 @@ class ASEV1(nn.Module):
         actor_hidden_dims[-1] = num_actions
         
         #init params
+        self.disc_reward_scale:float = 2
+        
+        self.task_reward_w  = 0
+        self.disc_reward_w  = 0.5
+        self.enc_reward_w  = 0.5
         self.latent_steps_min = latent_steps_min
         self.latent_steps_max = latent_steps_max
 
@@ -106,7 +111,9 @@ class ASEV1(nn.Module):
         pass
 
     def reset(self, dones=None):
-        pass
+        if (len(dones) > 0):
+            self.ase_latents[dones] = self.sample_latents(len(dones))  # 重置潜在变量
+            self.reset_latent_step_count(dones)  # 重置潜在步数计数   
 
     def forward(self):
         raise NotImplementedError
@@ -143,6 +150,31 @@ class ASEV1(nn.Module):
             self.ase_latents[new_latent_env_ids] = self.sample_latents(len(new_latent_env_ids))  
             self.reset_latent_step_count(new_latent_env_ids)
 
+
+    ###########AMP_REWARDS#############################################################    
+    def calc_amp_rewards(self, amp_obs):
+        # 计算AMP奖励
+        with torch.no_grad():
+            # 计算判别器的逻辑值
+            disc_logits = self.eval_disc(amp_obs)
+            # 计算概率值
+            prob = 1 / (1 + torch.exp(-disc_logits)) 
+            # 计算判别奖励
+            disc_r = -torch.log(torch.maximum(1 - prob, torch.tensor(0.0001)))
+            # 根据配置调整判别奖励
+            disc_r *= self.disc_reward_scale
+
+            
+
+    
+
+        
+        
+        enc_r = self._calc_enc_rewards(amp_obs, self.ase_latents).squeeze(-1)
+
+        return disc_r.squeeze(-1),enc_r.squeeze(-1)
+
+    ############FORWARD################################################################
     def update_distribution(self, observations,ase_latents):
         # Check for NaN values in the observations tensor
         # Compute the mean using the actor network
@@ -152,7 +184,6 @@ class ASEV1(nn.Module):
         mean = self.actor(observations)
         # Update the distribution
         self.distribution = Normal(mean, mean * 0.0 + self.std)
-
 
     def act(self, observations, **kwargs):
         if 'ase_latents' in kwargs:

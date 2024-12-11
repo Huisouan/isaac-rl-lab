@@ -81,9 +81,6 @@ class ASEPPOV1:
             
         )
 
-    def init_ase_latents(self,num_envs):
-        self.actor_critic.init_all_ase_latents(num_envs)
-
     def test_mode(self):
         self.actor_critic.test()
 
@@ -114,19 +111,20 @@ class ASEPPOV1:
             dones: 标记表示剧集是否结束。
             infos: 来自环境的额外信息，例如超时。
         """
-        # 存储从环境步进中获得的奖励和完成标志
-        #计算encoder和disc reward
+        #amp数据归一化
+        amp_obs = self.amp_normalizer.normalize_torch(amp_obs,self.device)
+        next_amp_obs_with_term = self.amp_normalizer.normalize_torch(next_amp_obs_with_term,self.device)
+        
         amp_obs_trans = torch.cat([amp_obs,next_amp_obs_with_term],dim = -1)
-        
-        amp_reward = self.actor_critic.calc_amp_rewards(amp_obs_trans)
+
+        disc_r,enc_r = self.actor_critic.calc_amp_rewards(amp_obs_trans)
         #把amp reward加到reward上，此处reward会进入到advantage的计算中，从而影响ppo算法的损失
-        self.transition.rewards = self.actor_critic.combine_rewards(rewards.clone(),amp_reward)
-        
+        self.transition.rewards = self.actor_critic.task_reward_w * rewards \
+                                + self.actor_critic.disc_reward_w * disc_r \
+                                + self.actor_critic.enc_reward_w * enc_r            
         self.transition.dones = dones
-        
-        
         #ase latent
-        self.transition.ase_latent = self.actor_critic._ase_latents.detach()
+        self.transition.ase_latent = self.actor_critic.ase_latents.detach()
         #将amp obs存入amp replay buffer
         self.amp_storage.insert(self.transition.amp_observations, next_amp_obs_with_term)
         

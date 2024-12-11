@@ -74,48 +74,15 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
                 "yaw": (0.0, 0.0),
             },
         }
-
-
-
         # ------------------------------Rewards------------------------------
-        # General
-        # UNUESD self.rewards.is_alive.weight = 0
-        self.rewards.is_terminated.weight = 0
-        # Root penalties 
-        self.rewards.lin_vel_z_l2.weight = 0
-        self.rewards.ang_vel_xy_l2.weight = 0
-        self.rewards.flat_orientation_l2.weight = 0
-        self.rewards.base_height_l2.weight = 0
-        self.rewards.body_lin_acc_l2.weight = 0
-
         # Joint penaltie
-        self.rewards.joint_torques_l2.weight = -0.0002 / (.005 * 6)
-        # UNUESD self.rewards.joint_vel_l1.weight = 0.0
-        self.rewards.joint_vel_l2.weight = 0
-        self.rewards.joint_acc_l2.weight = -2.5e-7 / (.005 * 6)
-        self.rewards.joint_pos_limits.weight = 0
-        self.rewards.joint_vel_limits.weight = 0
-
-        # Action penalties
-        self.rewards.action_rate_l2.weight = 0
-        # UNUESD self.rewards.action_l2.weight = 0.0
-
-        # Contact sensor
-        self.rewards.undesired_contacts.weight = 0
-        self.rewards.contact_forces.weight = 0
-
+        self.rewards.joint_torques_l2.weight = -0.0002 
+        self.rewards.joint_acc_l2.weight = -2.5e-7 
         # Velocity-tracking rewards
-        self.rewards.track_lin_vel_xy_exp.weight = 1.5 / (.005 * 6)
-        self.rewards.track_ang_vel_z_exp.weight = 0.75 / (.005 * 6)
-
+        self.rewards.track_lin_vel_xy_exp.weight = 1.5 
+        self.rewards.track_ang_vel_z_exp.weight = 0.75 
         # Others
-        self.rewards.feet_air_time.params["sensor_cfg"].body_names = ".*_foot"
-        self.rewards.feet_air_time.weight = 0.01 / (.005 * 6)
-        self.rewards.foot_contact.weight = 0
-        self.rewards.base_height_rough_l2.weight = 0
-        self.rewards.feet_slide.weight = 0
-        self.rewards.joint_power.weight = 0
-        self.rewards.stand_still_when_zero_command.weight = 0.3/ (.005 * 6)
+        self.rewards.stand_still_when_zero_command.weight = -0.1
 
 
         # If the weight of rewards is 0, set rewards to None

@@ -275,16 +275,6 @@ class AMPPPO:
                 + amp_loss
                 + grad_pen_loss
             )
-            if torch.isnan(loss).any():
-                print(f"NaN detected in total loss: {loss.item()}")
-            if torch.isnan(surrogate_loss).any():
-                print(f"NaN detected in surrogate loss: {surrogate_loss.item()}")
-            if torch.isnan(value_loss).any():
-                print(f"NaN detected in value loss: {value_loss.item()}")
-            if torch.isnan(amp_loss).any():
-                print(f"NaN detected in amp loss: {amp_loss.item()}")
-            if torch.isnan(grad_pen_loss).any():
-                print(f"NaN detected in gradient penalty loss: {grad_pen_loss.item()}")
 
             # Gradient step
             self.optimizer.zero_grad()

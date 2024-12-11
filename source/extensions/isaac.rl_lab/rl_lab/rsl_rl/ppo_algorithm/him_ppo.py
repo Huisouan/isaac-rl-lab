@@ -64,7 +64,7 @@ class HIMPPO:
         self.actor_critic = actor_critic
         self.actor_critic.to(self.device)
         self.storage = None # initialized later
-        self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=learning_rate)
+        self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=learning_rate,eps=1e-6)
         self.transition = HIMRolloutStorage.Transition()
 
         # PPO parameters
@@ -170,6 +170,12 @@ class HIMPPO:
                     value_loss = (returns_batch - value_batch).pow(2).mean()
 
                 loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean()
+                if torch.isnan(loss).any():
+                    print(f"NaN detected in total loss: {loss.item()}")
+                if torch.isnan(surrogate_loss).any():
+                    print(f"NaN detected in surrogate loss: {surrogate_loss.item()}")
+                if torch.isnan(value_loss).any():
+                    print(f"NaN detected in value loss: {value_loss.item()}")
 
                 # Gradient step
                 self.optimizer.zero_grad()

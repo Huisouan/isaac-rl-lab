@@ -33,6 +33,7 @@ class ASEPPOV1:
         desired_kl=0.01,
         device="cpu",
         amp_data:AmpMotion = None,
+        min_std=None,
         amp_replay_buffer_size = 100000,
         *args, **kwargs
     ):
@@ -42,9 +43,7 @@ class ASEPPOV1:
         self.schedule = schedule
         self.learning_rate = learning_rate
 
-
-        # ASE components
-        
+        self.min_std = min_std
         # load amp data
         
         self.amp_storage = ReplayBuffer(amp_data.amp_obs_num, amp_replay_buffer_size, device)
@@ -102,7 +101,7 @@ class ASEPPOV1:
         self.transition.amp_observations = amp_obs
         return self.transition.actions
 
-    def process_env_step(self, rewards, dones, infos,amp_obs,next_amp_obs_with_term):
+    def process_env_step(self, rewards, dones, infos,next_amp_obs_with_term):
         """
         处理环境的步进结果。
 
@@ -112,10 +111,10 @@ class ASEPPOV1:
             infos: 来自环境的额外信息，例如超时。
         """
         #amp数据归一化
-        amp_obs = self.amp_normalizer.normalize_torch(amp_obs,self.device)
-        next_amp_obs_with_term = self.amp_normalizer.normalize_torch(next_amp_obs_with_term,self.device)
+        norm_amp_obs = self.amp_normalizer.normalize_torch(self.transition.amp_observations,self.device)
+        norm_amp_obs_with_term = self.amp_normalizer.normalize_torch(next_amp_obs_with_term,self.device)
         
-        amp_obs_trans = torch.cat([amp_obs,next_amp_obs_with_term],dim = -1)
+        amp_obs_trans = torch.cat([norm_amp_obs,norm_amp_obs_with_term],dim = -1)
 
         disc_r,enc_r = self.actor_critic.calc_amp_rewards(amp_obs_trans)
         #把amp reward加到reward上，此处reward会进入到advantage的计算中，从而影响ppo算法的损失
@@ -193,13 +192,22 @@ class ASEPPOV1:
             #预处理amp obs
             policy_state, policy_next_state = rl_state_trans
             expert_state, expert_next_state = data_state_trans 
+            
+            policy_state_unnorm = torch.clone(policy_state)
+            expert_state_unnorm = torch.clone(expert_state)
+
+            if self.amp_normalizer is not None:
+                with torch.no_grad():
+                    policy_state = self.amp_normalizer.normalize_torch(policy_state, self.device)
+                    policy_next_state = self.amp_normalizer.normalize_torch(policy_next_state, self.device)
+                    expert_state = self.amp_normalizer.normalize_torch(expert_state, self.device)
+                    expert_next_state = self.amp_normalizer.normalize_torch(expert_next_state, self.device)
+            
             rl_state_trans = torch.cat([policy_state, policy_next_state], dim=-1)
             data_state_trans = torch.cat([expert_state, expert_next_state], dim=-1)     
-            rl_state_trans = self.actor_critic._preproc_amp_obs(rl_state_trans)
-            data_state_trans = self.actor_critic._preproc_amp_obs(data_state_trans)
             data_state_trans.requires_grad_(True)
             
-            self.actor_critic.ase_forward(obs_batch,ase_latent_batch,rl_state_trans,data_state_trans)
+            self.actor_critic.act(obs_batch,ase_latent_batch)
             
             actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
             value_batch = self.actor_critic.evaluate(
@@ -250,31 +258,35 @@ class ASEPPOV1:
 
             bound_loss = self.actor_critic.bound_loss(mu_batch)
             
+            disc_agent_logit = self.actor_critic.eval_disc(rl_state_trans)
+            disc_demo_logit = self.actor_critic.eval_disc(data_state_trans)            
             # 计算判别器损失
-            disc_info = self.actor_critic._disc_loss(self.actor_critic.disc_agent_logit,
-                                                     self.actor_critic.disc_demo_logit, 
+            disc_loss = self.actor_critic.disc_loss(disc_agent_logit,
+                                                     disc_demo_logit, 
                                                      data_state_trans)
-            disc_loss = disc_info['disc_loss'] 
-
+            
+            enc_pred = self.actor_critic.eval_enc(rl_state_trans)
             # 计算编码器损失
             enc_latents = ase_latent_batch
-            enc_info = self.actor_critic._enc_loss(self.actor_critic.enc_pred, enc_latents, rl_state_trans)
-            enc_loss = enc_info['enc_loss']
-
-
+            enc_loss = self.actor_critic.enc_loss(enc_pred, enc_latents, rl_state_trans)
+            
+            diversity_loss = self.actor_critic.diversity_loss(obs_batch, mu_batch, ase_latent_batch)
+            
             loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean() \
-                + self.actor_critic.aseconf.bounds_loss_coef * bound_loss.mean() + \
-                self.actor_critic.aseconf.disc_coef * disc_loss + self.actor_critic.aseconf.enc_coef * enc_loss
-
-            if self.actor_critic._enable_amp_diversity_bonus():
-                diversity_loss = self.actor_critic._diversity_loss(obs_batch, mu_batch, ase_latent_batch)
-                loss += self.actor_critic.aseconf.amp_diversity_bonus * diversity_loss.mean()
-
+                + self.actor_critic.bounds_loss_coef * bound_loss.mean() \
+                + self.actor_critic.disc_coef * disc_loss + self.actor_critic.enc_coef * enc_loss \
+                + self.actor_critic.amp_diversity_bonus * diversity_loss.mean()
+ 
             # Gradient step
             self.optimizer.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
             self.optimizer.step()
+
+            self.actor_critic.std.data = self.actor_critic.std.data.clamp(min=self.min_std)
+            if self.amp_normalizer is not None:
+                self.amp_normalizer.update(policy_state_unnorm.cpu().numpy())
+                self.amp_normalizer.update(expert_state_unnorm.cpu().numpy())
 
             mean_value_loss += value_loss.item()
             mean_surrogate_loss += surrogate_loss.item()

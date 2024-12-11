@@ -150,7 +150,7 @@ class ASEOnPolicyRunner:
                     next_amp_obs_with_term[reset_env_ids] = terminal_amp_states              
                     # AMPOBS############################################
                     
-                    self.alg.process_env_step(rewards, dones, infos,amp_obs,next_amp_obs_with_term)
+                    self.alg.process_env_step(rewards, dones, infos,next_amp_obs_with_term)
                     amp_obs = torch.clone(next_amp_obs)
                     if self.log_dir is not None:
                         # Book keeping

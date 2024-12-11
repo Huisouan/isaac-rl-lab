@@ -4,7 +4,6 @@ from typing import Tuple
 
 _EPS = np.finfo(float).eps * 4.0
 
-
 class RunningMeanStd:
     def __init__(self, epsilon: float = 1e-4, shape: Tuple[int, ...] = ()):
         """

@@ -17,6 +17,11 @@ class UnitreeA1HimFlatEnvCfg(UnitreeA1HimRoughEnvCfg):
         # no terrain curriculum
         self.curriculum.terrain_levels = None
 
+        #if flat ,use flat base height reward
+        self.rewards.base_height_rough_l2.weight =  0
+        self.rewards.base_height_rough_l2.params["target_height"] = 0.4        
+        self.rewards.base_height_l2.weight = -1.0
+        self.rewards.base_height_l2.params["target_height"] = 0.4       
         # Now executing disable_zerow_eight_rewards()
         self._run_disable_zero_weight_rewards = True
         if self._run_disable_zero_weight_rewards:

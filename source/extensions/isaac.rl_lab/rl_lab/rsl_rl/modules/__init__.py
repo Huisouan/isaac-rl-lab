@@ -11,8 +11,9 @@ from .ase import ASEagent,AMPagent
 from .cvqvae import CVQVAE
 from .him_actor_critic import HIMActorCritic 
 from .him_estimator import HIMEstimator  
+from .asev1 import ASEV1
 __all__ = ["ActorCritic", "ActorCriticRecurrent",
            "EmpiricalNormalization", "PMC","CVQVAE"
-           "ASEagent","AMPagent",
+           "ASEagent","ASEV1","AMPagent",
            "HIMActorCritic","HIMEstimator",
            ]

@@ -15,9 +15,6 @@ class SpaceCfg:
     fixed_sigma:bool = True
     learn_sigma:bool = False
     
-    
-
-
 @configclass
 class ASENetcfg:
     

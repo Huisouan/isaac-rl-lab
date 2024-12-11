@@ -94,8 +94,6 @@ class ASEOnPolicyRunner:
             self.env.episode_length_buf = torch.randint_like(
                 self.env.episode_length_buf, high=int(self.env.max_episode_length)
             )
-            
-
         
         obs, extras = self.env.get_observations()
         critic_obs = extras["observations"].get("critic", obs)

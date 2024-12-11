@@ -324,6 +324,10 @@ class ASEOnPolicyRunner:
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
         self.current_learning_iteration = loaded_dict["iter"]
+        # 加载AMP归一化器
+        self.alg.amp_normalizer = loaded_dict["amp_normalizer"]   
+        
+             
         return loaded_dict["infos"]
 
     def get_inference_policy(self, device=None):

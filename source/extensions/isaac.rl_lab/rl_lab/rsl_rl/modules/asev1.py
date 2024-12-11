@@ -18,9 +18,9 @@ class ASEV1(nn.Module):
         self,
         num_actor_obs,
         num_critic_obs,
+        num_actions,
         amp_obs,
         num_envs,
-        num_actions = 12,
         ase_latent_shape = 64,
         
         actor_hidden_dims=[1024, 1024, 512, 12],

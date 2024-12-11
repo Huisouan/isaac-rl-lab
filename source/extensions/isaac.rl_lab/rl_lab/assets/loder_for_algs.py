@@ -4,7 +4,7 @@ import time
 class AmpMotion(MotionData_Base):
     def __init__(self, 
                  data_dir,
-                 datatype="isaaclab",
+                 datatype="isaacgym",
                  file_type="txt",
                  data_spaces = None,
                  env_step_duration = 0.005,**kwargs):

@@ -13,7 +13,7 @@ from ..storage.replay_buffer import ReplayBuffer
 from rl_lab.assets.loder_for_algs import AmpMotion
 from ..utils.amp_utils import Normalizer
 
-class ASEPPO:
+class ASEPPOV1:
     actor_critic: ASEV1
 
     def __init__(

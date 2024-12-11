@@ -159,7 +159,6 @@ class ASEPPO:
         mean_enc_loss = 0
         mean_diversity_loss = 0
         
-        
         if self.actor_critic.is_recurrent:
             generator = self.storage.reccurent_mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)
         else:
@@ -174,7 +173,6 @@ class ASEPPO:
             self.storage.num_envs * self.storage.num_transitions_per_env // self.num_mini_batches,
         )
 
-        
         for ((
             obs_batch,
             critic_obs_batch,

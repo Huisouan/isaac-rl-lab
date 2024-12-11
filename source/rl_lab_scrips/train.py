@@ -22,7 +22,7 @@ parser.add_argument("--video", action="store_true", default=False, help="Record 
 parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
 parser.add_argument("--video_interval", type=int, default=2000, help="Interval between video recordings (in steps).")
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="Isaac-Him-Unitree-go2-v0", help="Name of the task.")
+parser.add_argument("--task", type=str, default="Isaac-Rough-Him-Unitree-go2-v0", help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--max_iterations", type=int, default=None, help="RL Policy training iterations.")
 
@@ -130,6 +130,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # wrap around environment for rsl-rl
     env = RslRlVecEnvWrapperextra(env)
 
+
     # create runner from rsl-rl
     if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
         print("[INFO] Using AmpOnPolicyRunner")
@@ -174,6 +175,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # close the simulator
     env.close()
+
 
 if __name__ == "__main__":
     # run the main function

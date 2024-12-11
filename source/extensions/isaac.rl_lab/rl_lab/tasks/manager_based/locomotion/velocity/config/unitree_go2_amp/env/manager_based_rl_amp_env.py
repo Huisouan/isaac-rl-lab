@@ -35,7 +35,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
             print(self.cfg.amp_motion_files)
             self.amp_loader = AmpMotion(
                 data_dir = self.cfg.amp_motion_files,                
-                datatype="amp",
+                datatype="isaacgym",
                 file_type="txt",
                 data_spaces = None,
                 env_step_duration=self.cfg.sim.dt * self.cfg.sim.render_interval,

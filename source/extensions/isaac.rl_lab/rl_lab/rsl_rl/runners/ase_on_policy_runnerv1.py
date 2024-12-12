@@ -11,14 +11,14 @@ from collections import deque
 from torch.utils.tensorboard import SummaryWriter as TensorboardSummaryWriter
 
 from ... import rsl_rl
-from ..ppo_algorithm import ASEPPOV1
+from ..ppo_algorithm import ASEV1
 from ..env import VecEnv
 from ..modules import EmpiricalNormalization,ASEV1
 from ..utils import store_code_state
 from rl_lab.assets.loder_for_algs import AmpMotion
 
 
-class ASEOnPolicyRunner:
+class ASE1OnPolicyRunner:
     """On-policy runner for training and evaluation."""
 
     def __init__(self, env: VecEnv, train_cfg, log_dir=None, device="cpu"):
@@ -41,7 +41,7 @@ class ASEOnPolicyRunner:
             self.env.num_envs
         ).to(self.device)
          
-        self.alg = ASEPPOV1(actor_critic, device=self.device,amp_data = amp_data, **self.alg_cfg)
+        self.alg = ASEV1(actor_critic, device=self.device,amp_data = amp_data, **self.alg_cfg)
         
         self.num_steps_per_env = self.cfg["num_steps_per_env"]
         self.save_interval = self.cfg["save_interval"]

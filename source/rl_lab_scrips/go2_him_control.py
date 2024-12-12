@@ -29,7 +29,7 @@ parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
 parser.add_argument("--num_envs", type=int, default='1', help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="Isaac-Rough-Him-Unitree-go2-v0", help="Name of the task.")
+parser.add_argument("--task", type=str, default="Isaac-Amp-Unitree-go2-v0", help="Name of the task.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -69,7 +69,7 @@ from unitree_sdk2py.core.channel import  ChannelFactoryInitialize
 
 from unitree_sdk2py.go2.low_level.go2_pd_control import Go2_PD_Control,get_key,process_key
 # 默认网络接口名称
-default_network = 'wlp5s0'
+default_network = 'enp0s31f6'
 
 model_joint_order = (
     "FL_hip",
@@ -120,32 +120,17 @@ def go2_data_process(imu_state,motor_state,default_jointpos_bias):
         joint_pos[i] = motor_state[i].q
         joint_vel[i] = motor_state[i].dq
     # 对关节角度进行重排序
-    joint_pos =joint_reorder(joint_pos,go2_joint_current_order,model_joint_order).to('cuda')
-    joint_vel = joint_reorder(joint_vel,go2_joint_current_order,model_joint_order).to('cuda')
+    joint_pos =joint_reorder(joint_pos,go2_joint_current_order,model_joint_order)
+    joint_vel = joint_reorder(joint_vel,go2_joint_current_order,model_joint_order)
     #将joint_pos减去默认关节位置偏移量
     joint_pos = joint_pos - default_jointpos_bias
     return gyroscope,quaternion,joint_pos,joint_vel
 
 
 def prepare_obs(obs, base_ang_vel, projected_gravity, velocity_commands, joint_pos, joint_vel, actions):
-    # 确保所有输入张量都是二维的
-    base_ang_vel = base_ang_vel.unsqueeze(0) if base_ang_vel.dim() == 1 else base_ang_vel
-    projected_gravity = projected_gravity.unsqueeze(0) if projected_gravity.dim() == 1 else projected_gravity
-    velocity_commands = velocity_commands.unsqueeze(0) if velocity_commands.dim() == 1 else velocity_commands
-    joint_pos = joint_pos.unsqueeze(0) if joint_pos.dim() == 1 else joint_pos
-    joint_vel = joint_vel.unsqueeze(0) if joint_vel.dim() == 1 else joint_vel
-    actions = actions.unsqueeze(0) if actions.dim() == 1 else actions
-    
-    # 拼接所有输入张量
     single_obs = torch.cat([base_ang_vel, projected_gravity, velocity_commands, joint_pos, joint_vel, actions], dim=-1)
-    
-    # 确保 obs 是二维的
-    if obs.dim() == 1:
-        obs = obs.unsqueeze(0)
-    
-    # 拼接 single_obs 到 obs 的前面
-    obs = torch.cat([single_obs, obs[:, :-45]], dim=1).to(torch.float32)
-    
+    # 将输入数据添加到obs中，并确保结果是一个二维tensor
+    obs = torch.cat([single_obs, obs[:-single_obs.shape[-1]]], dim=-1).unsqueeze(0)
     return obs
 
 def main(go2:Go2_PD_Control):
@@ -192,12 +177,11 @@ def main(go2:Go2_PD_Control):
     
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
-    # create runner from rsl-rl
     if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
         print("[INFO] Using AmpOnPolicyRunner")
         ppo_runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     
-    elif args_cli.task == "Isaac-Him-Unitree-go2-v0" or args_cli.task =="Isaac-Rough-Him-Unitree-go2-v0":
+    elif args_cli.task == "Isaac-Him-Unitree-go2-v0":
         print("[INFO] Using HimOnPolicyRunner")
         ppo_runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
     
@@ -213,7 +197,6 @@ def main(go2:Go2_PD_Control):
         ppo_runner = CvqvaeOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     else:
         raise NotImplementedError
-
     ppo_runner.load(resume_path)
     # obtain the trained policy for inference
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
@@ -231,6 +214,7 @@ def main(go2:Go2_PD_Control):
     #初始化仿真中的数据
     effort_limit = torch.tensor(23.5).to(env.device).unsqueeze(0).repeat(env.num_actions)
     action_scale = torch.tensor(0.25).to(env.device).unsqueeze(0).repeat(env.num_actions)
+    joint_vel_scale = torch.tensor(0.05).to(env.device).unsqueeze(0).repeat(env.num_actions)
     epoch_time_target = 0.02
     GRAVITY_VEC =env.unwrapped.robot.data.GRAVITY_VEC_W
     obs, _ = env.get_observations()
@@ -258,7 +242,7 @@ def main(go2:Go2_PD_Control):
             #venvobs, _, _, _ = env.step(actions)
             processed_actions = actions[0] * action_scale + default_jointpos_bias
             # env stepping
-            """
+
             # 将 ctrl_kd 和 ctrl_kp 调整为 [action_dim]
             ctrl_kd = torch.tensor(go2.ctrl_kd).to(env.device).unsqueeze(0).repeat(env.num_actions)
             ctrl_kp = torch.tensor(go2.ctrl_kp).to(env.device).unsqueeze(0).repeat(env.num_actions)
@@ -268,9 +252,8 @@ def main(go2:Go2_PD_Control):
             action_min = joint_pos + (-effort_limit + ctrl_kd * joint_vel) / ctrl_kp
             
             clipped_actions = torch.clamp(processed_actions, min=action_min, max=action_max)
-            """
             # 对动作进行重排序
-            actions_reordered = joint_reorder(processed_actions,model_joint_order,go2_joint_current_order)
+            actions_reordered = joint_reorder(clipped_actions,model_joint_order,go2_joint_current_order)
             #将动作输出给机器人
             
             
@@ -283,26 +266,19 @@ def main(go2:Go2_PD_Control):
             
             #从机器人读取状态数据
             imu_state,motor_state = go2.return_obs()     
-            gyroscope,quat,joint_pos,joint_vel = go2_data_process(imu_state,motor_state,default_jointpos_bias)
+            gyroscope,quat,joint_pos,joint_vel = go2_data_process(imu_state,motor_state)
 
             
-            gyroscope = gyroscope.to(env.device)
+            
             quat = quat.to(env.device)
             joint_pos = joint_pos.to(env.device)
             joint_vel = joint_vel.to(env.device)
-            
-            gyroscope = gyroscope * 0.25
-            joint_vel = joint_vel * 0.05
+            joint_vel = joint_vel * joint_vel_scale
             
             env.unwrapped.robot_twin(quat,joint_pos+default_jointpos_bias,joint_vel)
             
-            unsqeezed = quat.unsqueeze(0)
-            projected_gravity_b = math_utils.quat_rotate_inverse(unsqeezed, GRAVITY_VEC)[0]
-            
-            
+            projected_gravity_b = math_utils.quat_rotate_inverse(quat, GRAVITY_VEC)[0]
             readings = joystick.advance()
-            
-            
             if readings[0] < 0:
                 readings[0] = 0.6 * readings[0]
             else :
@@ -311,9 +287,8 @@ def main(go2:Go2_PD_Control):
             readings[2] = -2*readings[2]
             readings_tensor = torch.from_numpy(readings).to(env.device)  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
             
-            readings_tensor = torch.zeros_like(readings_tensor)
-
-            obs = prepare_obs(obs,gyroscope,projected_gravity_b,readings_tensor,joint_pos,joint_vel,actions[0])
+            
+            obs = prepare_obs(obs,gyroscope,projected_gravity_b,readings_tensor,joint_pos,joint_vel,actions)
             
             if print_count % 50 == 0:
                 # 限制打印的精度到小数点后三位
@@ -329,7 +304,7 @@ def main(go2:Go2_PD_Control):
                 else:
                     print("actions_reordered is not a tensor\n")
                 
-                print("command:", obs[0][6:9].tolist(), "\n")
+                print("command:", obs[0][4:7].tolist(), "\n")
                 print_count = 0
             print_count += 1            
         if args_cli.video:

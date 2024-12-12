@@ -22,7 +22,7 @@ parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
 parser.add_argument("--num_envs", type=int, default='1', help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="Isaac-Rough-Him-Unitree-go2-v0", help="Name of the task.")
+parser.add_argument("--task", type=str, default="Isaac-Rough-Him-Unitree-go2-v0-play", help="Name of the task.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -106,7 +106,7 @@ def main():
         print("[INFO] Using AmpOnPolicyRunner")
         ppo_runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     
-    elif args_cli.task == "Isaac-Him-Unitree-go2-v0" or args_cli.task =="Isaac-Rough-Him-Unitree-go2-v0":
+    elif args_cli.task == "Isaac-Him-Unitree-go2-v0" or args_cli.task =="Isaac-Rough-Him-Unitree-go2-v0" or args_cli.task=="Isaac-Rough-Him-Unitree-go2-v0-play":
         print("[INFO] Using HimOnPolicyRunner")
         ppo_runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
     

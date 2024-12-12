@@ -22,14 +22,14 @@ from unitree_sdk2py.utils.crc import CRC
 # 从utils模块导入周期线程工具
 from unitree_sdk2py.utils.thread import RecurrentThread
 # 导入常量模块
-from . import unitree_legged_const as go2
+from unitree_sdk2py.go2.low_level import unitree_legged_const as go2
 # 从motion_switcher客户端模块导入MotionSwitcherClient类
 from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
 # 从sport客户端模块导入SportClient类
 from unitree_sdk2py.go2.sport.sport_client import SportClient
 
 # 默认网络接口名称
-default_network = 'enp0s31f6'
+default_network = 'wlp5s0'
 
 # 定义Custom类
 class Go2_PD_Control:
@@ -175,6 +175,7 @@ class Go2_PD_Control:
             
             self.firstRun = False  # 标记首次运行已完成
         if self.control_mode == 'stand':
+            print("stand")
             # 计算第一阶段完成百分比
             self.percent_1 += 1.0 / self.duration_1  # 每次调用增加百分比
             self.percent_1 = min(self.percent_1, 1)  # 确保百分比不超过1

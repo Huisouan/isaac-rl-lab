@@ -25,3 +25,13 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGO2HimRoughPPORunnerCfg",
     },
 )
+
+gym.register(
+    id="Isaac-Rough-Him-Unitree-go2-v0-play",
+    entry_point="rl_lab.tasks.manager_based.locomotion.velocity.config.unitree_go2_him.env.manager_based_rl_amp_env:ManagerBasedRLAmpEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": rough_env_cfg.UnitreeA1HimRoughEnvCfg_PLAY,
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:UnitreeGO2HimRoughPPORunnerCfg",
+    },
+)

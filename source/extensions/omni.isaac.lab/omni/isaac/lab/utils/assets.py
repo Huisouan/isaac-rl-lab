@@ -20,6 +20,34 @@ from typing import Literal
 
 import carb
 import omni.client
+import os
+#默认使用本地的asset
+use_local_asset = True
+
+if use_local_asset:#如果使用本地asset
+    
+    paths_to_check = [# 定义路径列表，所有的本地库都可以存在这个文件夹里面，选取第一个成功读取的路径作为assetroot
+        "/home/hsh/Isaac Data/Assets/Isaac/4.0",#ubuntu
+        "F:\\sim_assets\\Assets\\Isaac\\4.0",#windows
+    ]
+
+    # 遍历路径列表，找到第一个存在的路径
+    NUCLEUS_ASSET_ROOT_DIR = None
+    for path in paths_to_check:
+        if os.path.exists(path):
+            NUCLEUS_ASSET_ROOT_DIR = path
+            break
+
+    # 如果没有找到任何存在的路径，使用服务器上的asset
+    if NUCLEUS_ASSET_ROOT_DIR is None:
+        NUCLEUS_ASSET_ROOT_DIR = carb.settings.get_settings().get("/persistent/isaac/asset_root/cloud")
+else:
+    NUCLEUS_ASSET_ROOT_DIR = carb.settings.get_settings().get("/persistent/isaac/asset_root/cloud")
+    """Path to the root directory on the Nucleus Server.""" 
+    
+    
+# 如果找到了存在的路径，继续后续操作
+print(f"Path {NUCLEUS_ASSET_ROOT_DIR} exists and is set as NUCLEUS_ASSET_ROOT_DIR.")
 
 NUCLEUS_ASSET_ROOT_DIR = carb.settings.get_settings().get("/persistent/isaac/asset_root/cloud")
 """Path to the root directory on the Nucleus Server."""

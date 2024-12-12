@@ -22,7 +22,7 @@ parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
 parser.add_argument("--num_envs", type=int, default='1', help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="Isaac-Him-Unitree-go2-v0", help="Name of the task.")
+parser.add_argument("--task", type=str, default="Isaac-Rough-Him-Unitree-go2-v0", help="Name of the task.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -106,7 +106,7 @@ def main():
         print("[INFO] Using AmpOnPolicyRunner")
         ppo_runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     
-    elif args_cli.task == "Isaac-Him-Unitree-go2-v0":
+    elif args_cli.task == "Isaac-Him-Unitree-go2-v0" or args_cli.task =="Isaac-Rough-Him-Unitree-go2-v0":
         print("[INFO] Using HimOnPolicyRunner")
         ppo_runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
     
@@ -157,7 +157,7 @@ def main():
             if print_count % 200 == 0:
                 # 限制打印的精度到小数点后三位
                 print([f"{x:.3f}" for x in actions[0].tolist()])
-                print("pos:",env.unwrapped.action_manager._terms['joint_pos']._processed_actions)
+                #print("pos:",env.unwrapped.action_manager._terms['joint_pos']._processed_actions)
                 print_count = 0
             else :
                 print_count += 1            
@@ -170,11 +170,11 @@ def main():
                 readings[0] = 2*readings[0]
             readings[1] = 0.15 * readings[1]
             readings[2] = -1.5*readings[2]
-            readings_tensor = torch.from_numpy(readings*2).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
+            readings_tensor = torch.from_numpy(readings).cuda()  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
             for i in range(6):
                 obs[0][6+i*45:9+i*45] = readings_tensor
             
-            print(obs[0][4:7].tolist())
+            print(obs[0][6:9].tolist())
             
             
         if args_cli.video:

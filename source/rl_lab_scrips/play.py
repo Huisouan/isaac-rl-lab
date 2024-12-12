@@ -21,8 +21,8 @@ parser.add_argument("--video_length", type=int, default=200, help="Length of the
 parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
-parser.add_argument("--num_envs", type=int, default="32", help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="Isaac-Rough-Him-Unitree-go2-v0", help="Name of the task.")
+parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
+parser.add_argument("--task", type=str, default="Isaac-Rough-Him-Unitree-go2-v0-play", help="Name of the task.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -42,12 +42,12 @@ import gymnasium as gym
 import os
 import torch
 
-from rl_lab.rsl_rl.runners import AmpOnPolicyRunner,PmcOnPolicyRunner,CvqvaeOnPolicyRunner,HIMOnPolicyRunner
+from rl_lab.rsl_rl.runners import PmcOnPolicyRunner,AmpOnPolicyRunner,CvqvaeOnPolicyRunner,ASEOnPolicyRunner,HIMOnPolicyRunner
 
 from omni.isaac.lab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from omni.isaac.lab.utils.dict import print_dict
 import rl_lab.tasks
-
+import omni.isaac.lab_tasks  # noqa: F401
 from omni.isaac.lab_tasks.utils import get_checkpoint_path, parse_env_cfg
 from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
@@ -63,11 +63,7 @@ def main():
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
     )
     agent_cfg: RslRlOnPolicyRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
-    
-    if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
-        print("[INFO] Using AmpOnPolicyRunner")
-        env_cfg.amp_num_preload_transitions = 1
-    
+
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
@@ -98,20 +94,27 @@ def main():
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
-        # create runner from rsl-rl
+    # create runner from rsl-rl
     if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
         print("[INFO] Using AmpOnPolicyRunner")
-        ppo_runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
-    elif args_cli.task == "Isaac-go2-pmc-Direct-v0":
-        print("[INFO] Using PmcOnPolicyRunner")
-        ppo_runner = PmcOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
-    elif args_cli.task == "Isaac-go2-cvqvae-Direct-v0":
-        ppo_runner = CvqvaeOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+        runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    
     elif args_cli.task == "Isaac-Him-Unitree-go2-v0" or args_cli.task =="Isaac-Rough-Him-Unitree-go2-v0":
         print("[INFO] Using HimOnPolicyRunner")
-        ppo_runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
-        
+        runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
+    
+    elif args_cli.task == "Isaac-Ase-Unitree-go2-v0":
+        print("[INFO] Using AseOnPolicyRunner")
+        runner = ASEOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
 
+    elif args_cli.task == "Isaac-go2-pmc-Direct-v0":
+        print("[INFO] Using PmcOnPolicyRunner")
+        runner = PmcOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    
+    elif args_cli.task == "Isaac-go2-cvqvae-Direct-v0":
+        runner = CvqvaeOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    else:
+        raise NotImplementedError
     ppo_runner.load(resume_path)
 
     # obtain the trained policy for inference
@@ -119,12 +122,12 @@ def main():
 
     # export policy to onnx/jit
     export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
-   # export_policy_as_jit(
-   #     ppo_runner.alg.actor_critic, ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.pt"
-    #)
-    #export_policy_as_onnx(
-    #    ppo_runner.alg.actor_critic, normalizer=ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.onnx"
-    #)
+    export_policy_as_jit(
+        ppo_runner.alg.actor_critic, ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.pt"
+    )
+    export_policy_as_onnx(
+        ppo_runner.alg.actor_critic, normalizer=ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.onnx"
+    )
 
     # reset environment
     obs, _ = env.get_observations()

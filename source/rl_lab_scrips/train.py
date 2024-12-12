@@ -129,7 +129,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # wrap around environment for rsl-rl
     env = RslRlVecEnvWrapperextra(env)
 
-
     # create runner from rsl-rl
     if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
         print("[INFO] Using AmpOnPolicyRunner")
@@ -151,6 +150,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         runner = CvqvaeOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     else:
         raise NotImplementedError
+
 
     
     # write git state to logs

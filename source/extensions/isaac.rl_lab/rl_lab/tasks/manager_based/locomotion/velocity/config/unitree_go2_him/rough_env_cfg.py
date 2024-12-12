@@ -113,3 +113,26 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.env_spacing = 3.  # not used with heightfields/trimeshes
         self.send_timeouts = True  # send timeout information to the algorithm
         self.episode_length_s = 20  # episode length in seconds
+
+@configclass
+class UnitreeA1RoughEnvCfg_PLAY(UnitreeA1HimRoughEnvCfg):
+    def __post_init__(self):
+        # post init of parent
+        super().__post_init__()
+
+        # make a smaller scene for play
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 2.5
+        # spawn the robot randomly in the grid (instead of their terrain levels)
+        self.scene.terrain.max_init_terrain_level = None
+        # reduce the number of terrains to save memory
+        if self.scene.terrain.terrain_generator is not None:
+            self.scene.terrain.terrain_generator.num_rows = 5
+            self.scene.terrain.terrain_generator.num_cols = 5
+            self.scene.terrain.terrain_generator.curriculum = False
+
+        # disable randomization for play
+        self.observations.policy.enable_corruption = False
+        # remove random pushing event
+        self.events.base_external_force_torque = None
+        self.events.push_robot = None

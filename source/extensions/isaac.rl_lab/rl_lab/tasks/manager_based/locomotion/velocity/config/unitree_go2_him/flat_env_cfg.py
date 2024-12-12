@@ -1,6 +1,6 @@
 from omni.isaac.lab.utils import configclass
 
-from .rough_env_cfg import UnitreeA1HimRoughEnvCfg
+from .rough_env_cfg import UnitreeA1HimRoughEnvCfg, UnitreeA1RoughEnvCfg_PLAY
 
 
 @configclass

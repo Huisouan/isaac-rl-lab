@@ -94,6 +94,7 @@
     "python.analysis.extraPaths": [
         "${workspaceFolder}/source/extensions/omni.isaac.lab",
         "${workspaceFolder}/source/extensions/omni.isaac.lab_tasks",
+        "${workspaceFolder}/source/extensions/unitree_mujoco",
         "${workspaceFolder}/source/extensions/omni.isaac.lab_assets",
         "${workspaceFolder}/source/extensions/isaac.rl_lab",
         "${workspaceFolder}/source/extensions/unitree_sdk2_python"

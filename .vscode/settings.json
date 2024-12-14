@@ -92,29 +92,11 @@
     // Python extra paths
     // Note: this is filled up when "./isaaclab.sh -i" is run
     "python.analysis.extraPaths": [
+        "${workspaceFolder}/source/extensions/unitree_s2r",
         "${workspaceFolder}/source/extensions/omni.isaac.lab",
-        "${workspaceFolder}/source/extensions/omni.isaac.lab_tasks",
-        "${workspaceFolder}/source/extensions/unitree_mujoco",
+        "${workspaceFolder}/source/extensions/unitree_sdk2_python",
         "${workspaceFolder}/source/extensions/omni.isaac.lab_assets",
         "${workspaceFolder}/source/extensions/isaac.rl_lab",
-        "${workspaceFolder}/source/extensions/unitree_sdk2_python"
-    ],
-    "MicroPython.executeButton": [
-        {
-            "text": "▶",
-            "tooltip": "运行",
-            "alignment": "left",
-            "command": "extension.executeFile",
-            "priority": 3.5
-        }
-    ],
-    "MicroPython.syncButton": [
-        {
-            "text": "$(sync)",
-            "tooltip": "同步",
-            "alignment": "left",
-            "command": "extension.execute",
-            "priority": 4
-        }
+        "${workspaceFolder}/source/extensions/omni.isaac.lab_tasks"
     ]
 }

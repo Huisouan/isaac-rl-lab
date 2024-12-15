@@ -11,14 +11,14 @@ from unitree_sdk2py.utils.crc import CRC
 
 
 def HighStateHandler(msg: SportModeState_):
-    print("Position: ", msg.position)
+    #print("Position: ", msg.position)
     #print("Velocity: ", msg.velocity)
-
+    pass
 
 def LowStateHandler(msg: LowState_):
-    print("IMU state: ", msg.imu_state)
+    #print("IMU state: ", msg.imu_state)
     # print("motor[0] state: ", msg.motor_state[0])
-
+    pass
 
 if __name__ == "__main__":
     ChannelFactoryInitialize(1, "lo")

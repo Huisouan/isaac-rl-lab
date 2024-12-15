@@ -24,8 +24,6 @@ dt = 0.002
 runing_time = 0.0
 crc = CRC()
 
-input("Press enter to start")
-
 if __name__ == '__main__':
 
     if len(sys.argv) <2:

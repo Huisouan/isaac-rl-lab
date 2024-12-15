@@ -35,7 +35,7 @@ default_network = 'lo'
 class Go2_SIM2SIM:
     def __init__(self):
         # 初始化PID控制器参数
-        self.Kp = 30.0
+        self.Kp = 50.0
         self.Kd = 2
         
         self.ctrl_kp = 0.5
@@ -98,11 +98,6 @@ class Go2_SIM2SIM:
         # 线程处理
         self.lowCmdWriteThreadPtr = None
 
-        # 初始化CRC校验工具
-        self.crc = CRC()
-
-    # 公共方法
-    def Init(self):
         # 初始化低级命令
         self.InitLowCmd()
 
@@ -113,6 +108,15 @@ class Go2_SIM2SIM:
         # 创建低级状态订阅者
         self.lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_)
         self.lowstate_subscriber.Init(self.LowStateMessageHandler, 10)
+        # 初始化CRC校验工具
+        self.crc = CRC()       
+        
+    def Start(self):
+        # 启动低级命令写入线程
+        self.lowCmdWriteThreadPtr = RecurrentThread(
+            interval=0.005, target=self.LowCmdWrite, name="writebasiccmd"
+        )
+        self.lowCmdWriteThreadPtr.Start()
 
     # 私有方法
     def InitLowCmd(self):
@@ -135,6 +139,7 @@ class Go2_SIM2SIM:
     def LowStateMessageHandler(self, msg: LowState_):
         # 更新低级状态
         self.low_state = msg
+        
     def LowCmdWrite(self):
         # 第一次运行时记录起始位置
         if self.firstRun:
@@ -143,7 +148,6 @@ class Go2_SIM2SIM:
             
             self.firstRun = False  # 标记首次运行已完成
         if self.control_mode == 'stand':
-            print("stand")
             # 计算第一阶段完成百分比
             self.percent_1 += 1.0 / self.duration_1  # 每次调用增加百分比
             self.percent_1 = min(self.percent_1, 1)  # 确保百分比不超过1
@@ -165,17 +169,6 @@ class Go2_SIM2SIM:
                     self.low_cmd.motor_cmd[i].kp = self.Kp  # 设置位置控制增益
                     self.low_cmd.motor_cmd[i].kd = self.Kd  # 设置速度控制增益
                     self.low_cmd.motor_cmd[i].tau = 0  # 设置力矩为0   
-        if self.control_mode == 'lay':        
-            # 计算第一阶段完成百分比
-            self.percent_1 += 1.0 / self.duration_1  # 每次调用增加百分比
-            self.percent_1 = min(self.percent_1, 1)  # 确保百分比不超过1
-            if self.percent_1 < 1:  # 如果第一阶段未完成
-                for i in range(12):  # 遍历12个电机
-                    self.low_cmd.motor_cmd[i].q = (1 - self.percent_1) * self.startPos[i] + self.percent_1 * self._targetPos_1[i]  # 线性插值计算目标位置
-                    self.low_cmd.motor_cmd[i].dq = 0  # 设置速度为0了
-                    self.low_cmd.motor_cmd[i].kp = self.Kp  # 设置位置控制增益
-                    self.low_cmd.motor_cmd[i].kd = self.Kd  # 设置速度控制增益
-                    self.low_cmd.motor_cmd[i].tau = 0  # 设置力矩为0
         if self.control_mode == 'standby':
             self.percent_1 += 1.0 / self.duration_1  # 每次调用增加百分比
             self.percent_1 = min(self.percent_1, 1)  # 确保百分比不超过1
@@ -243,36 +236,25 @@ def process_key(key):
     if key == 'u':
         print("Set control_mod to 'stand'")
         return 'stand',True
-    if key == 'd':
-        print("Set control_mod to 'lay'")   
-        return 'lay' ,True
-    else:
-        return None,False
-
-
-
 
 if __name__ == '__main__':
-    # 初始化通道工厂
-    if len(sys.argv)>1:
-        ChannelFactoryInitialize(0, sys.argv[1])
-    else:
-        ChannelFactoryInitialize(0,default_network)
+
+    ChannelFactoryInitialize(1,"lo")
 
     # 创建Custom对象
     custom = Go2_SIM2SIM()
-    # 初始化Custom对象
-    custom.Init()
-
+    
+    custom.Start()
     # 主循环
     while True:
         key = get_key()
-        custom.control_mode ,reset_mode= process_key(key)
-        if reset_mode == True:
-            custom.reset()
-        if key == 'q':
-            time.sleep(1)
-            print("Done!")
-            sys.exit(-1)
+        if key is not None:
+            custom.control_mode ,reset_mode= process_key(key)
+            if reset_mode == True:
+                custom.reset()
+            if key == 'q':
+                time.sleep(1)
+                print("Done!")
+                sys.exit(-1)
 
         time.sleep(1)

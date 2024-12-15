@@ -236,6 +236,8 @@ def process_key(key):
     if key == 'u':
         print("Set control_mod to 'stand'")
         return 'stand',True
+    else:
+        return None,False
 
 if __name__ == '__main__':
 

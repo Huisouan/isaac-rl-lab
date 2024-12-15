@@ -29,7 +29,7 @@ parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
 parser.add_argument("--num_envs", type=int, default='1', help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="Isaac-Amp-Unitree-go2-v0", help="Name of the task.")
+parser.add_argument("--task", type=str, default="Isaac-Him-Unitree-go2-v0", help="Name of the task.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -68,8 +68,9 @@ from omni.isaac.lab.devices import Se2Gamepad
 from unitree_sdk2py.core.channel import  ChannelFactoryInitialize
 
 from unitree_sdk2py.go2.low_level.go2_pd_control import Go2_PD_Control,get_key,process_key
+from unitree_sdk2py.go2.low_level.go2_pd_sim2sim import Go2_SIM2SIM,get_key,process_key
 # 默认网络接口名称
-default_network = 'enp0s31f6'
+
 
 model_joint_order = (
     "FL_hip",
@@ -316,7 +317,7 @@ def main(go2:Go2_PD_Control):
     # close the simulator
     env.close()
 
-def control_loop(go2):
+def control_loop(go2:Go2_SIM2SIM|Go2_PD_Control):
     while True:
         key = get_key()
         if key is not None:
@@ -340,22 +341,12 @@ def control_loop(go2):
                 
 
 if __name__ == "__main__":
-    # run the main function
-    # 警告提示
-    print("WARNING: Please ensure there are no obstacles around the robot while running this example.")
-    # 等待用户确认
-    input("Press Enter to continue...")
-
-    # 初始化通道工厂
-    if len(sys.argv)>1:
-        ChannelFactoryInitialize(0, sys.argv[1])
-    else:
-        ChannelFactoryInitialize(0,default_network)
+    default_network = 'enp0s31f6'
+    default_network  = 'lo'
+    ChannelFactoryInitialize(1,default_network)
 
     # 创建Custom对象
-    go2 = Go2_PD_Control()
-    # 初始化Custom对象
-    go2.Init()
+    go2 = Go2_SIM2SIM()
     # 启动Custom对象
     go2.Start()    
 

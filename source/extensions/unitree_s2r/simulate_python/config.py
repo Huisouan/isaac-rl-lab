@@ -1,5 +1,8 @@
+import os
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
+
 ROBOT = "go2" # Robot name, "go2", "b2", "b2w", "h1", "go2w", "g1" 
-ROBOT_SCENE = "../unitree_robots/" + ROBOT + "/scene.xml" # Robot scene
+ROBOT_SCENE = ROOT_DIR + "/unitree_robots/" + ROBOT + "/scene.xml" # Robot scene
 DOMAIN_ID = 1 # Domain id
 INTERFACE = "lo" # Interface 
 

@@ -27,7 +27,7 @@ use_local_asset = True
 if use_local_asset:#如果使用本地asset
     
     paths_to_check = [# 定义路径列表，所有的本地库都可以存在这个文件夹里面，选取第一个成功读取的路径作为assetroot
-        "/home/hsh/Isaac Data/Assets/Isaac/4.0",#ubuntu
+        "/home/hsh/sim_assets/Assets/Isaac/4.0",#ubuntu
         "F:\\sim_assets\\Assets\\Isaac\\4.0",#windows
     ]
 

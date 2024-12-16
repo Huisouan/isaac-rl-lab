@@ -1,12 +1,12 @@
-# Isaac Lab VQVAE
+# Isaac rl Lab
 
 在最新的版本中，所有的代码被封装成了一个Isaac扩展库，只需要将文件合并到isaaclab里面，运行istall.sh就可以成功安装
 
 ## Installation
 
-- [x] Windows11
-- [x] Ubuntu22.04/24.04
-- [x] Ubuntu20.04 for Binary install
+- [X]  Windows11
+- [X]  Ubuntu22.04/24.04
+- [X]  Ubuntu20.04 for Binary install
 
 推荐范同学的[一键安装脚本](https://docs.robotsfan.com/isaaclab/source/setup/install.html)
 
@@ -113,8 +113,3 @@ source/extensions/omni.isaac.lab/omni/isaac/lab/utils/assets.py
 强化学习环境：`source/extensions/isaac.rl_lab/rl_lab/tasks`
 
 神经网络：`source/extensions/isaac.rl_lab/rl_lab/rsl_rl`
-
-
-
-
-

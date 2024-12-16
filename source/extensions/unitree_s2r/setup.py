@@ -15,6 +15,7 @@ setup(name='unitree_mujoco',
             "cyclonedds==0.10.2",
             "numpy",
             "opencv-python",
-            
+            "mujoco",
+            "pygame",
       ],
       )

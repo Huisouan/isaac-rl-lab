@@ -4,11 +4,12 @@
 
 ## Installation
 
-- [X]  Windows11
-- [X]  Ubuntu22.04/24.04
-- [X]  Ubuntu20.04 for Binary install
+- [x] Windows11
+- [x] Ubuntu22.04/24.04
+- [x] Ubuntu20.04 for Binary install
 
 推荐范同学的[一键安装脚本](https://docs.robotsfan.com/isaaclab/source/setup/install.html)
+
 ```
 wget https://docs.robotsfan.com/install_isaaclab.sh -O install_isaaclab.sh && bash install_isaaclab.sh
 ```
@@ -67,8 +68,8 @@ isaaclab.bat --install :: or "isaaclab.bat -i"
 
 安装完之后会有一个用于eula，直接yes就可以
 
-
 ### ！fix for windows vscode！
+
 1如果你使用的windows是默认gbk编码的，那么在运行的时候很可能会认不出Utf-8的编码，这时候就需要到Windows的地区与语言设置里面，把编码格式改成Utf-8的。[教程入口](https://zhuafan.blog.csdn.net/article/details/133924884?spm=1001.2101.3001.6650.2&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-2-133924884-blog-107132272.235%5Ev43%5Econtrol&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-2-133924884-blog-107132272.235%5Ev43%5Econtrol)
 
 ### ！下载模型数据到本地使用！
@@ -79,6 +80,8 @@ isaaclab.bat --install :: or "isaaclab.bat -i"
 有win和linux两个版本的，根据自己情况下载就行。
 安装好之后就是这个页面：
 ![1729590467093](images/README/1729590467093.png)
+
+[百度网盘：](https://pan.baidu.com/s/15loqrOhV-SgHFX2VXR-iSQ?pwd=vsvx)
 
 资产的下载和安装可以按照这个说明来进行下载：
 [https://docs-prod.omniverse.nvidia.com/isaacsim/latest/installation/install_faq.html#isaac-sim-setup-nucleus-add-assets-mount](https://docs-prod.omniverse.nvidia.com/isaacsim/latest/installation/install_faq.html#isaac-sim-setup-nucleus-add-assets-mount)
@@ -91,49 +94,27 @@ source/extensions/omni.isaac.lab/omni/isaac/lab/utils/assets.py
 
 这个文件，把里面的NUCLEUS_ASSET_ROOT_DIR 改成本地的文件夹路径，就可以实现本地的文件寻址
 
+## Sim2Sim&Sim2Real
+
+如果你想要使用mujoco或者真实的机器人，需要安装[宇树](https://github.com/unitreerobotics/unitree_ros2)的ros。
+
 ## How to use
 
 ### train
 
-直接运行`source/rl_lab/train.py`就可以进行训练，如果想要在训练时进行渲染，则将`setattr(args_cli, 'headless', True)`这一行注释掉就可以。
+直接运行`source/rl_lab_scrips/train.py`就可以进行训练，如果想要在训练时进行渲染，则将`setattr(args_cli, 'headless', True)`这一行注释掉就可以。
 
 ### play
 
 运行`source/rl_lab/play.py`就可以播放训练结果。
 
-## main content
+## Content
 
-### 强化学习的环境位置:
+强化学习环境：`source/extensions/isaac.rl_lab/rl_lab/tasks`
 
-```
-source/rl_lab/rl_lab/tasks/direct/GO2/go2_pmc_env.py
-```
+神经网络：`source/extensions/isaac.rl_lab/rl_lab/rsl_rl`
 
-其中：PMCEnvCfg是环境的配置参数，PMCEnv是强化学习环境本体。PMCEnv类里面的step函数是仿真流程。
-仿真环境初始化，reward，get_dones,apply_action等都在这里面。
 
-数据集使用MotionData类导入，在`source/rl_lab/rl_lab/datasets/motionload.py`文件里面。
-数据文件保存在`source/rl_lab/data`里面，目前这个数据还有一点问题，但应该不怎么影响训练效果。
-如果你想要看一下数据集是什么样的，可以运行
 
-```
-source/rl_lab/playdatasets.py
-```
 
-来播放一下目前有的数据集
 
-### PPO算法以及网络loss计算的位置：
-
-```
-source/rl_lab/rl_lab/rsl_rl/pmc_algorithm
-```
-
-主要包括了ppo算法里面的policy，value 以及vqvae的loss的计算，以及网络的反向传播
-
-### 网络
-
-```
-source/rl_lab/rl_lab/rsl_rl/modules
-```
-
-这一部分包含了网络的init部分以及forward部分，froward部分的算法在函数`update_distribution`里面实现。

@@ -1,18 +1,3 @@
-1.source\rl_lab\rl_lab\datasets\motionload.py
-    增加一个函数，在载入数据的时候对数据的平滑度进行检查，排除数据里面的毛刺（极大跳变值），以及超出机器人机械限制的数据
-    增加一个随机数据产生函数,使用时间来生成数据批。
+1.使用mujoco实现sim2sim工作，在mujoco环境下实现手柄的操控
 
-2.source\rl_lab\rl_lab\tasks\direct\GO2\go2_epmc_env.py
-    给机器人增加高度传感器以及导航用的激光雷达,并修改observation和reward
-
-3.source\rl_lab\rl_lab\rsl_rl\modules\epmc.py
-    调整网络,增加传感器的卷积头。使用vqvae的decoder作为输出头
-    
-4.source\rl_lab\rl_lab\rsl_rl\ppo_algorithm\epmcppo.py
-    调整ppo算法损失值,去除量化损失。
-
-5.利用nvidia提供的官方强化学习实例自己制作一批数据集，用于测试网络。
-
-6.对现有机器人数据集重定向方法进行改进，构造一个逆运动学函数。
-
-7.调整source\rl_lab\rl_lab\rsl_rl\modules\amp_network_builder.py文件，使其与rlgames库解耦
+2.写一个脚本，专门用于load已经训练好的pt文件，并提取出需要的模型进行推理，把输出和输入函数完善。

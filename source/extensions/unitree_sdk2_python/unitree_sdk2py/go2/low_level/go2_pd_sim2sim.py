@@ -100,16 +100,23 @@ class Go2_SIM2SIM:
 
         # 初始化低级命令
         self.InitLowCmd()
-
+        print("Low command initialized.")
         # 创建低级命令发布者
         self.lowcmd_publisher = ChannelPublisher("rt/lowcmd", LowCmd_)
         self.lowcmd_publisher.Init()
-
+        print("Low command publisher initialized.")
         # 创建低级状态订阅者
         self.lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_)
         self.lowstate_subscriber.Init(self.LowStateMessageHandler, 10)
+
+        print("Low state subscriber initialized.")
+
+
+
         # 初始化CRC校验工具
-        self.crc = CRC()       
+        self.crc = CRC()
+        print("CRC tool initialized.") 
+        
         
     def Start(self):
         # 启动低级命令写入线程

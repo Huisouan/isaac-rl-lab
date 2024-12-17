@@ -38,7 +38,10 @@ args_cli = parser.parse_args()
 # always enable cameras to record video
 if args_cli.video:
     args_cli.enable_cameras = True
-
+################################set headless mode############################################
+setattr(args_cli, 'headless', True)
+#setattr(args_cli, 'resume', True)
+################################set headless mode############################################
 # launch omniverse app
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -64,12 +67,13 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
 from rl_lab.tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapperextra
 import omni.isaac.lab.utils.math as math_utils
 
-from omni.isaac.lab.devices import Se2Gamepad
 from unitree_sdk2py.core.channel import  ChannelFactoryInitialize
 
 from unitree_sdk2py.go2.low_level.go2_pd_control import Go2_PD_Control,get_key,process_key
 from unitree_sdk2py.go2.low_level.go2_pd_sim2sim import Go2_SIM2SIM,get_key,process_key
 # 默认网络接口名称
+
+
 
 
 model_joint_order = (
@@ -228,8 +232,7 @@ def main(go2:Go2_PD_Control):
     quat = quat.to(env.device)
     joint_pos = joint_pos.to(env.device)
     joint_vel = joint_vel.to(env.device)
-    
-    joystick = Se2Gamepad()    
+        
     
     print_count = 0
     timestamp = time.time()
@@ -279,14 +282,8 @@ def main(go2:Go2_PD_Control):
             env.unwrapped.robot_twin(quat,joint_pos+default_jointpos_bias,joint_vel)
             
             projected_gravity_b = math_utils.quat_rotate_inverse(quat, GRAVITY_VEC)[0]
-            readings = joystick.advance()
-            if readings[0] < 0:
-                readings[0] = 0.6 * readings[0]
-            else :
-                readings[0] = 2*readings[0]
-            readings[1] = 0.3 * readings[1]
-            readings[2] = -2*readings[2]
-            readings_tensor = torch.from_numpy(readings).to(env.device)  # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
+
+            readings_tensor = torch([0,0,0],device = env.device) # 将 NumPy 数组转换为 PyTorch 张量，并移动到 GPU
             
             
             obs = prepare_obs(obs,gyroscope,projected_gravity_b,readings_tensor,joint_pos,joint_vel,actions)
@@ -338,7 +335,7 @@ def control_loop(go2:Go2_SIM2SIM|Go2_PD_Control):
                 print('state:',go2.control_mode)
                 if reset_mode:
                     go2.reset()
-                
+
 
 if __name__ == "__main__":
     default_network = 'enp0s31f6'

@@ -106,7 +106,7 @@ class HIMActorCritic(nn.Module):
         for l in range(len(actor_hidden_dims)):
             if l == len(actor_hidden_dims) - 1:
                 actor_layers.append(nn.Linear(actor_hidden_dims[l], num_actions))
-                actor_layers.append(nn.Hardtanh(-100, 100))  # 使用 Hardtanh 进行范围约束
+                actor_layers.append(nn.Hardtanh(-100.0, 100.0))  # 使用 Hardtanh 进行范围约束
             else:
                 actor_layers.append(nn.Linear(actor_hidden_dims[l], actor_hidden_dims[l + 1]))
                 actor_layers.append(activation)

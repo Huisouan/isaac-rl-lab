@@ -38,6 +38,7 @@ import torch
 
 from ..ppo_algorithm import PPO, HIMPPO
 from ..modules import HIMActorCritic
+from ..modules import EmpiricalNormalization
 from ..env import VecEnv
 from ... import rsl_rl
 
@@ -70,7 +71,13 @@ class HIMOnPolicyRunner:
         self.alg: HIMPPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)
         self.num_steps_per_env = self.cfg["num_steps_per_env"]
         self.save_interval = self.cfg["save_interval"]
-
+        self.empirical_normalization = self.cfg["empirical_normalization"]
+        if self.empirical_normalization:
+            self.obs_normalizer = EmpiricalNormalization(shape=[self.env.num_obs], until=1.0e8).to(self.device)
+            self.critic_obs_normalizer = EmpiricalNormalization(shape=[num_critic_obs], until=1.0e8).to(self.device)
+        else:
+            self.obs_normalizer = torch.nn.Identity()  # no normalization
+            self.critic_obs_normalizer = torch.nn.Identity()  # no normalization
         # init storage and model
         self.alg.init_storage(self.env.num_envs, self.num_steps_per_env, [self.env.num_obs], [self.env.num_privileged_obs], [self.env.num_actions])
 

@@ -1,15 +1,16 @@
-import torch
-path = "weights/unitree_go2_him_rough/2024-12-16_17-33-52/exported/policy.pt"
-model = torch.jit.load(path)
-model.eval()
+from unitree_sdk2py.core.channel import  ChannelFactoryInitialize
 
-# 假设输入数据是一个形状为 (batch_size, num_actor_obs) 的张量
-batch_size = 1
-num_actor_obs = 270  # 根据实际情况调整
-input_data = torch.randn(batch_size, num_actor_obs)
-print(model)
-# 使用模型进行推理
-with torch.no_grad():  # 关闭梯度计算以节省内存
-    actions_mean = model(input_data)
-    print("Predicted Actions Mean:", actions_mean)
+from unitree_sdk2py.go2.low_level.go2_pd_sim2sim import Go2_SIM2SIM
+# 默认网络接口名称
+default_network = 'lo'
 
+if __name__ == "__main__":
+    ChannelFactoryInitialize(0,default_network)
+
+    # 创建Custom对象
+    go2 = Go2_SIM2SIM()
+    # 初始化Custom对象
+    go2.Init()
+    # 启动Custom对象
+    go2.Start()    
+    

@@ -128,6 +128,8 @@ def go2_data_process(imu_state,motor_state,default_jointpos_bias):
     joint_pos =joint_reorder(joint_pos,go2_joint_current_order,model_joint_order)
     joint_vel = joint_reorder(joint_vel,go2_joint_current_order,model_joint_order)
     #将joint_pos减去默认关节位置偏移量
+    joint_pos = joint_pos.to('cuda')
+    joint_vel = joint_vel.to('cuda')
     joint_pos = joint_pos - default_jointpos_bias
     return gyroscope,quaternion,joint_pos,joint_vel
 
@@ -186,7 +188,7 @@ def main(go2:Go2_PD_Control):
         print("[INFO] Using AmpOnPolicyRunner")
         ppo_runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     
-    elif args_cli.task == "Isaac-Him-Unitree-go2-v0":
+    elif args_cli.task == "Isaac-Him-Unitree-go2-v0"or args_cli.task =="Isaac-Rough-Him-Unitree-go2-v0":
         print("[INFO] Using HimOnPolicyRunner")
         ppo_runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
     

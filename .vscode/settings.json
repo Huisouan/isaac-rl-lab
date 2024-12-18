@@ -97,6 +97,7 @@
         "${workspaceFolder}/source/extensions/omni.isaac.lab_tasks",
         "${workspaceFolder}/source/extensions/unitree_s2r",
         "${workspaceFolder}/source/extensions/unitree_sdk2_python",
+        "${workspaceFolder}/source/extensions/inference_bridge",
         "${workspaceFolder}/source/extensions/isaac.rl_lab"
     ]
 }

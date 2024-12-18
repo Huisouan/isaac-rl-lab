@@ -365,11 +365,6 @@ def control_loop(go2):
                 
 
 if __name__ == "__main__":
-    # run the main function
-    # 警告提示
-    print("WARNING: Please ensure there are no obstacles around the robot while running this example.")
-    # 等待用户确认
-    input("Press Enter to continue...")
 
     # 初始化通道工厂
     if len(sys.argv)>1:

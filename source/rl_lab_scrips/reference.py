@@ -8,7 +8,7 @@ from unitree_bridge.config.algo.algocfg import HIMConfig
 from unitree_bridge.config.robot.bot_cfg import GO2
 
 # 默认网络接口名称
-default_network = 'lo'
+default_network = "lo"
 def main():
     Algocfg = HIMConfig
     Botcfg = GO2
@@ -32,7 +32,7 @@ def main():
     
     
 if __name__ == "__main__":
-    ChannelFactoryInitialize(0,default_network)
+    ChannelFactoryInitialize(1,default_network)
 
     # 创建Custom对象
     go2 = Go2_SIM2SIM()

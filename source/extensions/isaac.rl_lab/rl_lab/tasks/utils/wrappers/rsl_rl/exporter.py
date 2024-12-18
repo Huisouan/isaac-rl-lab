@@ -49,7 +49,19 @@ class _TorchPolicyExporter(torch.nn.Module):
 
     def __init__(self, actor_critic, normalizer=None):
         super().__init__()
-        self.actor = copy.deepcopy(actor_critic.actor)
+        cloned_actor_critic = copy.deepcopy(actor_critic)
+        # 保存 actor_critic 的 forward 方法
+        
+        if hasattr(cloned_actor_critic, 'forward'):
+            self.forward = cloned_actor_critic.forward
+        else:
+            raise AttributeError("'actor_critic' object has no 'forward' method")
+        # 复制所有 nn.Module 类型的子模块
+        for name, module in cloned_actor_critic.named_children():
+            setattr(self, name, module)
+
+            
+
         self.is_recurrent = actor_critic.is_recurrent
         if self.is_recurrent:
             self.rnn = copy.deepcopy(actor_critic.memory_a.rnn)
@@ -70,10 +82,7 @@ class _TorchPolicyExporter(torch.nn.Module):
         self.hidden_state[:] = h
         self.cell_state[:] = c
         x = x.squeeze(0)
-        return self.actor(x)
-
-    def forward(self, x):
-        return self.actor(self.normalizer(x))
+        return self.actor_critic(x)
 
     @torch.jit.export
     def reset(self):
@@ -89,7 +98,6 @@ class _TorchPolicyExporter(torch.nn.Module):
         self.to("cpu")
         traced_script_module = torch.jit.script(self)
         traced_script_module.save(path)
-
 
 class _OnnxPolicyExporter(torch.nn.Module):
     """Exporter of actor-critic into ONNX file."""

@@ -46,10 +46,9 @@ from rl_lab.rsl_rl.runners import AmpOnPolicyRunner,PmcOnPolicyRunner,CvqvaeOnPo
 
 from omni.isaac.lab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from omni.isaac.lab.utils.dict import print_dict
-import rl_lab.tasks
-import omni.isaac.lab_tasks  # noqa: F401
-from omni.isaac.lab_tasks.utils import get_checkpoint_path, parse_env_cfg
-from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
+import rl_lab.tasks  # noqa: F401
+from rl_lab.tasks.utils import get_checkpoint_path, parse_env_cfg
+from rl_lab.tasks.utils.wrappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
     export_policy_as_jit,
     export_policy_as_onnx,

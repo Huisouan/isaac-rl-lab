@@ -64,7 +64,7 @@ class HIMEstimator(nn.Module):
     def forward(self, obs_history):
         parts = self.encoder(obs_history.detach())
         vel, z = parts[..., :3], parts[..., 3:]
-        z = F.normalize(z, dim=-1, p=2)
+        z = F.normalize(z, dim=-1, p=2.0)
         return vel.detach(), z.detach()
 
     def encode(self, obs_history):

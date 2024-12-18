@@ -148,8 +148,10 @@ class HIMActorCritic(nn.Module):
     def reset(self, dones=None):
         pass
 
-    def forward(self):
-        raise NotImplementedError
+    def forward(self,obs_history,num_one_step_obs:int = 45):
+            vel, latent = self.estimator(obs_history)
+            actor_input = torch.cat((obs_history[:,:num_one_step_obs], vel, latent), dim=-1)
+            return self.actor(actor_input)
     
     @property
     def action_mean(self):

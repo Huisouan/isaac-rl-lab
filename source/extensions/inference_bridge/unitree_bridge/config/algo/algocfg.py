@@ -1,6 +1,3 @@
-from omni.isaac.lab.utils import configclass
-
-@configclass
 class Algo_def_cfg:
     model_path = None
     
@@ -12,16 +9,13 @@ class Algo_def_cfg:
     
     default_jointpos_bias = None
 
-
-
-@configclass
 class HIMConfig(Algo_def_cfg):
     model_path = "weights/unitree_go2_him_rough/2024-12-16_17-33-52/exported/policy.pt"
     
     policy_observation_dim = 270
     policy_action_dim = 12
     
-    leg_order = (
+    joint_order = (
     "FL_hip",
     "FR_hip",
     "RL_hip",

@@ -1,11 +1,8 @@
-from omni.isaac.lab.utils import configclass
-@configclass
 class Bot_def_cfg:
     action_space = None
     joint_order = None
     
 
-@configclass
 class GO2(Bot_def_cfg):
     
     action_space = 12

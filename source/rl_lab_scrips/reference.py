@@ -51,6 +51,7 @@ def main(go2:Go2_SIM2SIM):
             model.reset_action = True
 
         action = model.forward(imu_state, motor_state, velocity_commands,go2.Kp,go2.Kd)
+
         
         end_time = time.time()  # 记录循环结束时间
         elapsed_time = end_time - start_time  # 计算实际花费的时间

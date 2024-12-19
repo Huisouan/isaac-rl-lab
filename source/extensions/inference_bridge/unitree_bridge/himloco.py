@@ -93,3 +93,26 @@ class Himloco(UnitreeBase):
         else:
             df.to_csv(self.record_file_path, mode='a', header=False, index=False)
 
+class Himloco_gym(Himloco):
+    def __init__(self, Algocfg: HIMConfig, Botcfg: GO2):
+        super().__init__(Algocfg, Botcfg)
+        
+    def prepare_obs(self, base_ang_vel, projected_gravity, velocity_commands, joint_pos, joint_vel):
+        """函数输入从机器人数据中预处理得到的数据
+            对数据进行缩放操作
+            并将数据整合到self.obs中
+        """ 
+        base_ang_vel *= self.base_ang_vel_scale
+        # 将joint_pos减去默认关节位置偏移量
+        joint_pos = (joint_pos - self.default_jointpos_bias)*self.joint_pos_scale
+        
+        joint_vel *= self.joint_vel_scale
+        
+        # 拼接所有输入张量
+        single_obs = torch.cat([velocity_commands,base_ang_vel, projected_gravity, joint_pos, joint_vel, self.algo_act], dim=-1)
+        
+        # 拼接 single_obs 到 obs 的前面
+        self.algo_obs = torch.cat((single_obs, self.algo_obs[:-45]), dim=-1)
+        
+        # 记录 algo_obs 数据
+        self.record_algo_obs(single_obs)

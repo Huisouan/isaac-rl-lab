@@ -24,7 +24,10 @@ def get_joystick_state(joystick):
         - axis_values: 包含axis1, axis0, axis2的列表
         - button_pressed: 如果有按键被按下，则返回按键的值，否则返回None
     """
-    axis_values = [joystick.get_axis(i) for i in range(3)]  # 获取axis0, axis1, axis2的值
+    axis_values = [-joystick.get_axis(i) for i in [1, 0, 2]]  # 获取axis0, axis1, axis2的值
+    
+    
+    
     button_pressed = None
     
     for event in pygame.event.get():

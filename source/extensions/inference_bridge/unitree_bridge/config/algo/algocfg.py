@@ -35,7 +35,7 @@ class HIMConfig(Algo_def_cfg):
         0.8000,  0.8000,  1.0000,  1.0000,
         -1.5000, -1.5000, -1.5000, -1.5000]   
     
-    base_ang_vel_scale = 0.25
+    base_ang_vel_scale = 0.25/1.5
     joint_pos_scale = 1.0
     joint_vel_scale = 0.05
     

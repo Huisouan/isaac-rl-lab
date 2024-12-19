@@ -35,7 +35,7 @@ default_network = 'lo'
 class Go2_SIM2SIM:
     def __init__(self):
         # 初始化PID控制器参数
-        self.Kp = 25.0
+        self.Kp = 18
         self.Kd = 0.5
         
         self.ctrl_kp = 0.5

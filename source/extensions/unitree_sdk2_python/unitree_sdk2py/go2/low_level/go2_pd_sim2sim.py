@@ -35,8 +35,8 @@ default_network = 'lo'
 class Go2_SIM2SIM:
     def __init__(self):
         # 初始化PID控制器参数
-        self.Kp = 23.5
-        self.Kd = 2
+        self.Kp = 25.0
+        self.Kd = 0.5
         
         self.ctrl_kp = 0.5
         self.ctrl_kd = 0.5
@@ -188,7 +188,7 @@ class Go2_SIM2SIM:
             self.percent_1 += 1.0 / self.duration_1  # 每次调用增加百分比
             self.percent_1 = min(self.percent_1, 1)  # 确保百分比不超过1
             for i in range(12):  # 遍历12个电机
-                self.low_cmd.motor_cmd[i].q = self.startPos[i]  # 设置目标位置为初始位置
+                self.low_cmd.motor_cmd[i].q = 0  # 设置目标位置为初始位置
                 self.low_cmd.motor_cmd[i].dq = 0  # 设置速度为0了
                 self.low_cmd.motor_cmd[i].kp = 0  # 设置位置控制增益
                 self.low_cmd.motor_cmd[i].kd = self.Kd  # 设置速度控制增益
@@ -197,8 +197,8 @@ class Go2_SIM2SIM:
             for i in range(12):  # 遍历12个电机
                 self.low_cmd.motor_cmd[i].q = self.extent_targetPos[i]  # 线性插值计算目标位置
                 self.low_cmd.motor_cmd[i].dq = 0  # 设置速度为0
-                self.low_cmd.motor_cmd[i].kp = self.ctrl_kp  # 设置位置控制增益
-                self.low_cmd.motor_cmd[i].kd = self.ctrl_kd  # 设置速度控制增益
+                self.low_cmd.motor_cmd[i].kp = self.Kp  # 设置位置控制增益
+                self.low_cmd.motor_cmd[i].kd = self.Kd  # 设置速度控制增益
                 self.low_cmd.motor_cmd[i].tau = 0  # 设置力矩为0
             
             pass                 

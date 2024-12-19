@@ -26,26 +26,38 @@ def handle_joystick_events():
                 velocity_commands[2] = event.value
     return None, velocity_commands
 
-def main(go2):
+def main(go2:Go2_SIM2SIM):
+        # 主循环
+    init_pygame()
+    joystick = init_joystick()
     Algocfg = HIMConfig
     Botcfg = GO2
     model = Himloco(Algocfg, Botcfg)
-    target_interval = 50
+    target_interval = 0.02
     while True:
         start_time = time.time()  # 记录循环开始时间
 
         imu_state, motor_state = go2.return_obs()
-        result, velocity_commands = handle_joystick_events()
-        if result == 'quit':
-            break
+        velocity_commands, button_pressed = get_joystick_state(joystick)
+        if button_pressed is not None:
+            command = get_command_from_key(button_pressed)
+            print(button_pressed,command)  # 输出: walk
 
-        action = model.forward(imu_state, motor_state, velocity_commands)
+            go2.control_mode = command
+
+
+
+        action = model.forward(imu_state, motor_state, velocity_commands,go2.Kp,go2.Kd)
+        
+
+        
         end_time = time.time()  # 记录循环结束时间
         elapsed_time = end_time - start_time  # 计算实际花费的时间
 
         sleep_time = max(0, target_interval - elapsed_time)  # 计算需要睡眠的时间
         time.sleep(sleep_time)  # 休眠
         # 赋值
+        print(action)
         go2.extent_targetPos = action
 
 if __name__ == "__main__":
@@ -56,17 +68,6 @@ if __name__ == "__main__":
     # 启动Go2_SIM2SIM对象
     go2.Start()
     
-    # 初始化pygame
-    pygame.init()
-    pygame.joystick.init()
 
-    # 检查是否有手柄连接
-    if pygame.joystick.get_count() == 0:
-        print("No joystick found.")
-        sys.exit(-1)
-
-    # 初始化第一个手柄
-    joystick = pygame.joystick.Joystick(0)
-    joystick.init()    
 
     main(go2)

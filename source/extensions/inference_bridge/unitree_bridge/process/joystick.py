@@ -65,4 +65,3 @@ def get_command_from_key(button_value):
         print(f"未知的按键值: {button_value}")
     
     return command
-

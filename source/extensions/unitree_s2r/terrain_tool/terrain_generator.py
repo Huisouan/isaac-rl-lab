@@ -2,10 +2,11 @@ import xml.etree.ElementTree as xml_et
 import numpy as np
 import cv2
 import noise
-
+import os
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
 ROBOT = "go2"
 INPUT_SCENE_PATH = "./scene.xml"
-OUTPUT_SCENE_PATH = "../unitree_robots/" + ROBOT + "/scene_terrain.xml"
+OUTPUT_SCENE_PATH = ROOT_DIR+"/unitree_robots/" + ROBOT + "/scene_terrain.xml"
 
 
 # zyx euler angle to quaternion

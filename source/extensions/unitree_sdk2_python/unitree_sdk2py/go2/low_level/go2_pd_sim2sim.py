@@ -107,7 +107,7 @@ class Go2_SIM2SIM:
         print("Low command publisher initialized.")
         # 创建低级状态订阅者
         self.lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_)
-        self.lowstate_subscriber.Init(self.LowStateMessageHandler, 10)
+        self.lowstate_subscriber.Init(self.LowStateMessageHandler, 1)
 
         print("Low state subscriber initialized.")
 

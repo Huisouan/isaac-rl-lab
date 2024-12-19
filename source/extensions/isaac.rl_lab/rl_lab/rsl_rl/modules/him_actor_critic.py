@@ -149,9 +149,9 @@ class HIMActorCritic(nn.Module):
         pass
 
     def forward(self,obs_history,num_one_step_obs:int = 45):
-            vel, latent = self.estimator(obs_history)
-            actor_input = torch.cat((obs_history[:,:num_one_step_obs], vel, latent), dim=-1)
-            return self.actor(actor_input)
+        vel, latent = self.estimator(obs_history)
+        actions_mean = self.actor(torch.cat((obs_history[:,:num_one_step_obs], vel, latent), dim=-1))
+        return actions_mean
     
     @property
     def action_mean(self):
@@ -182,8 +182,11 @@ class HIMActorCritic(nn.Module):
         return self.distribution.log_prob(actions).sum(dim=-1)
 
     def act_inference(self, obs_history, observations=None):
-        vel, latent = self.estimator(obs_history)
-        actions_mean = self.actor(torch.cat((obs_history[:,:self.num_one_step_obs], vel, latent), dim=-1))
+        estimator = self.estimator
+        vel, latent = estimator.forward(obs_history)
+        actor = self.actor
+        _0 = torch.narrow(obs_history, 1, 0, self.num_one_step_obs)
+        actions_mean = actor.forward(torch.cat([_0, vel, latent], -1))
         return actions_mean
 
     def evaluate(self, critic_observations, **kwargs):

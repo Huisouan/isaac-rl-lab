@@ -14,7 +14,7 @@ class Himloco(UnitreeBase):
         self.joint_pos_scale = Algocfg.joint_pos_scale
         self.joint_vel_scale = Algocfg.joint_vel_scale
         self.actions_joint_pos_scale = Algocfg.actions_joint_pos_scale
-        
+        self.reset_action = False
         # 创建目录用于保存数据
         self.data_dir = "recorddata"
         if not os.path.exists(self.data_dir):
@@ -31,8 +31,7 @@ class Himloco(UnitreeBase):
         """ 
         base_ang_vel *= self.base_ang_vel_scale
         # 将joint_pos减去默认关节位置偏移量
-        joint_pos = joint_pos - self.default_jointpos_bias
-        joint_pos *= self.joint_pos_scale
+        joint_pos = (joint_pos - self.default_jointpos_bias)*self.joint_pos_scale
         
         joint_vel *= self.joint_vel_scale
         
@@ -40,7 +39,7 @@ class Himloco(UnitreeBase):
         single_obs = torch.cat([base_ang_vel, projected_gravity, velocity_commands, joint_pos, joint_vel, self.algo_act], dim=-1)
         
         # 拼接 single_obs 到 obs 的前面
-        self.algo_obs = torch.cat([single_obs, self.algo_obs[:-45]], dim=-1).to(torch.float32)
+        self.algo_obs = torch.cat((single_obs, self.algo_obs[:-45]), dim=-1)
         
         # 记录 algo_obs 数据
         self.record_algo_obs(single_obs)
@@ -55,17 +54,18 @@ class Himloco(UnitreeBase):
             self.prepare_obs(gyroscope, projected_gravity, velocity_command, joint_pos, joint_vel)
             # 模型推理
             self.algo_act = self.model(self.algo_obs.unsqueeze(0)).squeeze(0)
+            if self.reset_action:
+                self.algo_act = torch.zeros_like(self.algo_act)            
             # 输出缩放
             bot_act = self.algo_act * self.actions_joint_pos_scale + self.default_jointpos_bias
 
             action_up_limit = (45+Kd*joint_vel) / Kp
             action_down_limit = (-45+Kd*joint_vel) / Kp
-            
+
             bot_act = torch.clamp(bot_act, action_down_limit, action_up_limit)
-            
+
             bot_act = self.joint_reorder(bot_act, self.sim2bot_joint_order)
-            
-           
+
             bot_act = bot_act.cpu().detach().numpy()
             return bot_act
     def record_algo_obs(self, single_obs):

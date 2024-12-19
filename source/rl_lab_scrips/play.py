@@ -145,7 +145,7 @@ def main():
             actions = policy(obs)
             # env stepping
             obs, _, _, _ = env.step(actions)
-            #first_write = record_algo_obs(first_write,record_file_path, obs[0][:45])
+            first_write = record_algo_obs(first_write,record_file_path, obs[0][:45])
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video

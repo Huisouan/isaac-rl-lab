@@ -31,10 +31,10 @@ class UnitreeBase():
     def compute_index_map(self, src_order: Tuple[str, ...], tgt_order: Tuple[str, ...]) -> torch.Tensor:
         assert len(src_order) == len(tgt_order), f"src_order and tgt_order must have the same length."
         index_map = [src_order.index(joint) for joint in tgt_order]
-        return torch.tensor(index_map, dtype=torch.int8, device=self.device)
-
+        return torch.tensor(index_map, dtype=torch.int, device=self.device)
+    @staticmethod
     @torch.jit.script
-    def joint_reorder(self, tensor: torch.Tensor, index_map: torch.Tensor) -> torch.Tensor:
+    def joint_reorder(tensor: torch.Tensor, index_map: torch.Tensor) -> torch.Tensor:
         tensor_new = tensor[index_map]
         return tensor_new
 
@@ -59,9 +59,7 @@ class UnitreeBase():
         # 对关节角度进行重排序
         joint_pos =self.joint_reorder(joint_pos,self.bot2sim_joint_order)
         joint_vel =self.joint_reorder(joint_vel,self.bot2sim_joint_order)
-        #将joint_pos减去默认关节位置偏移量
-        joint_pos = joint_pos - self.default_jointpos_bias
-        
+
         return gyroscope,quaternion,joint_pos,joint_vel
 
     def prepare_obs(self,):

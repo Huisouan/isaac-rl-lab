@@ -1,5 +1,7 @@
 import torch
-GRAVITY_VEC = torch.tensor([ 0.,  0., -1.])
+GRAVITY_VEC = torch.tensor([ 0.,  0., -1.],
+                           device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'), 
+                           dtype = torch.float)
 
 @torch.jit.script
 def quat_rotate_inverse(q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:

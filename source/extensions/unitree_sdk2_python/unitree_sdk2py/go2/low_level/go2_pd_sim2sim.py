@@ -35,7 +35,7 @@ default_network = 'lo'
 class Go2_SIM2SIM:
     def __init__(self):
         # 初始化PID控制器参数
-        self.Kp = 50.0
+        self.Kp = 23.5
         self.Kd = 2
         
         self.ctrl_kp = 0.5
@@ -111,12 +111,20 @@ class Go2_SIM2SIM:
 
         print("Low state subscriber initialized.")
 
-
+        self.wait_for_low_state()
 
         # 初始化CRC校验工具
         self.crc = CRC()
         print("CRC tool initialized.") 
         
+    def wait_for_low_state(self):
+        timeout = 10  # 设置超时时间为10秒
+        start_time = time.time()
+        while self.low_state is None:
+            if time.time() - start_time > timeout:
+                raise TimeoutError("Timeout waiting for low_state data")
+            time.sleep(0.1)  # 每隔0.1秒检查一次
+        print("Received initial low_state data.")
         
     def Start(self):
         # 启动低级命令写入线程

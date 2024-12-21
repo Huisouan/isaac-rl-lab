@@ -99,5 +99,23 @@
         "${workspaceFolder}/source/extensions/unitree_sdk2_python",
         "${workspaceFolder}/source/extensions/inference_bridge",
         "${workspaceFolder}/source/extensions/isaac.rl_lab"
+    ],
+    "MicroPython.executeButton": [
+        {
+            "text": "▶",
+            "tooltip": "运行",
+            "alignment": "left",
+            "command": "extension.executeFile",
+            "priority": 3.5
+        }
+    ],
+    "MicroPython.syncButton": [
+        {
+            "text": "$(sync)",
+            "tooltip": "同步",
+            "alignment": "left",
+            "command": "extension.execute",
+            "priority": 4
+        }
     ]
 }

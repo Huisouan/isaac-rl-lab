@@ -160,7 +160,12 @@ class HimmixOnPolicyRunner:
                         amp_obs, next_amp_obs_with_term, rewards, normalizer=self.alg.amp_normalizer
                     )[0]
                     amp_obs = torch.clone(next_amp_obs)
-                    self.alg.process_env_step(rewards, dones, infos, next_amp_obs_with_term)
+                    next_critic_obs = critic_obs.clone().detach()
+                    if infos['terminal_states'] is not None:
+                        termination_privileged_obs = infos['terminal_states']
+                        termination_privileged_obs = termination_privileged_obs.to(self.device)                    
+                        next_critic_obs[reset_env_ids] = termination_privileged_obs.clone().detach()
+                    self.alg.process_env_step(rewards, dones, infos,next_critic_obs, next_amp_obs_with_term)
                     if self.log_dir is not None:
                         # Book keeping
                         # note: we changed logging to use "log" instead of "episode" to avoid confusion with
@@ -185,13 +190,15 @@ class HimmixOnPolicyRunner:
                 self.alg.compute_returns(critic_obs)
 
             (
-                mean_value_loss,
-                mean_surrogate_loss,
-                mean_amp_loss,
-                mean_grad_pen_loss,
-                mean_policy_pred,
-                mean_expert_pred,
-            ) = self.alg.update()
+            mean_value_loss,
+            mean_surrogate_loss,
+            mean_amp_loss,
+            mean_grad_pen_loss,
+            mean_estimation_loss,
+            mean_swap_loss,
+            mean_policy_pred,
+            mean_expert_pred,
+            )    = self.alg.update()
             stop = time.time()
             learn_time = stop - start
             self.current_learning_iteration = it
@@ -241,6 +248,11 @@ class HimmixOnPolicyRunner:
 
         self.writer.add_scalar("Loss/value_function", locs["mean_value_loss"], locs["it"])
         self.writer.add_scalar("Loss/surrogate", locs["mean_surrogate_loss"], locs["it"])
+        
+        self.writer.add_scalar('Loss/Estimation Loss', locs['mean_estimation_loss'], locs['it'])
+        self.writer.add_scalar('Loss/Swap Loss', locs['mean_swap_loss'], locs['it'])        
+        
+        
         self.writer.add_scalar("Loss/learning_rate", self.alg.learning_rate, locs["it"])
         self.writer.add_scalar("Policy/mean_noise_std", mean_std.item(), locs["it"])
         self.writer.add_scalar("Perf/total_fps", fps, locs["it"])
@@ -274,7 +286,12 @@ class HimmixOnPolicyRunner:
                 f"""{'AMP grad pen loss:':>{pad}} {locs['mean_grad_pen_loss']:.4f}\n"""
                 f"""{'AMP mean policy pred:':>{pad}} {locs['mean_policy_pred']:.4f}\n"""
                 f"""{'AMP mean expert pred:':>{pad}} {locs['mean_expert_pred']:.4f}\n"""
+                f"""{'Estimation loss:':>{pad}} {locs['mean_estimation_loss']:.4f}\n"""
+                f"""{'Swap loss:':>{pad}} {locs['mean_swap_loss']:.4f}\n"""                      
+                
             )
+     
+
             #   f"""{'Mean reward/step:':>{pad}} {locs['mean_reward']:.2f}\n"""
             #   f"""{'Mean episode length/episode:':>{pad}} {locs['mean_trajectory_length']:.2f}\n""")
         else:
@@ -285,6 +302,12 @@ class HimmixOnPolicyRunner:
                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
                 f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
                 f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
+                
+                
+                
+                
+                
+                
                 f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
             )
             #   f"""{'Mean reward/step:':>{pad}} {locs['mean_reward']:.2f}\n"""

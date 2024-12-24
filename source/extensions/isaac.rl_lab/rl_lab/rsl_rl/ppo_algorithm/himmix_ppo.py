@@ -33,7 +33,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from ..modules import ActorCritic
-from ..storage import RolloutStorage
+from ..storage import HIMRolloutStorage,RolloutStorage
 from ..storage.replay_buffer import ReplayBuffer
 from .amp_discriminator import AMPDiscriminator
 from ...assets.loder_for_algs import AmpMotion
@@ -90,7 +90,8 @@ class HimmixPPO:
         ]
         self.optimizer = optim.Adam(params, lr=learning_rate)
         # self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=learning_rate)
-        self.transition = RolloutStorage.Transition()
+        self.transition = HIMRolloutStorage.Transition()
+
 
         # PPO parameters
         self.clip_param = clip_param
@@ -104,9 +105,7 @@ class HimmixPPO:
         self.use_clipped_value_loss = use_clipped_value_loss
 
     def init_storage(self, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape):
-        self.storage = RolloutStorage(
-            num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape, self.device
-        )
+        self.storage = HIMRolloutStorage(num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape, self.device)
 
     def test_mode(self):
         self.actor_critic.test()
@@ -129,7 +128,8 @@ class HimmixPPO:
         self.amp_transition.observations = amp_obs
         return self.transition.actions
 
-    def process_env_step(self, rewards, dones, infos, amp_obs):
+    def process_env_step(self, rewards, dones, infos, next_critic_obs,amp_obs):
+        self.transition.next_critic_observations = next_critic_obs.clone()
         self.transition.rewards = rewards.clone()
         self.transition.dones = dones
         # Bootstrapping on time outs
@@ -158,6 +158,8 @@ class HimmixPPO:
         mean_grad_pen_loss = 0
         mean_policy_pred = 0
         mean_expert_pred = 0
+        mean_estimation_loss = 0
+        mean_swap_loss = 0
         if self.actor_critic.is_recurrent:
             generator = self.storage.reccurent_mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)
         else:
@@ -174,26 +176,23 @@ class HimmixPPO:
 
         for (
             (
-                obs_batch,
-                critic_obs_batch,
-                actions_batch,
-                target_values_batch,
-                advantages_batch,
-                returns_batch,
-                old_actions_log_prob_batch,
-                old_mu_batch,
-                old_sigma_batch,
-                hid_states_batch,
-                masks_batch,
+            obs_batch, 
+            critic_obs_batch, 
+            actions_batch, 
+            next_critic_obs_batch, 
+            target_values_batch, 
+            advantages_batch, 
+            returns_batch, 
+            old_actions_log_prob_batch, 
+            old_mu_batch, 
+            old_sigma_batch 
             ),
             sample_amp_policy,
             sample_amp_expert,
         ) in zip(generator, amp_policy_generator, amp_expert_generator):
-            self.actor_critic.act(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0])
+            self.actor_critic.act(obs_batch)
             actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
-            value_batch = self.actor_critic.evaluate(
-                critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1]
-            )
+            value_batch = self.actor_critic.evaluate(critic_obs_batch)
             mu_batch = self.actor_critic.action_mean
             sigma_batch = self.actor_critic.action_std
             entropy_batch = self.actor_critic.entropy
@@ -217,7 +216,8 @@ class HimmixPPO:
 
                     for param_group in self.optimizer.param_groups:
                         param_group["lr"] = self.learning_rate
-
+            #Estimator Update
+            estimation_loss, swap_loss = self.actor_critic.estimator.update(obs_batch, next_critic_obs_batch, lr=self.learning_rate)
             # Surrogate loss
             ratio = torch.exp(actions_log_prob_batch - torch.squeeze(old_actions_log_prob_batch))
             surrogate = -torch.squeeze(advantages_batch) * ratio
@@ -294,6 +294,8 @@ class HimmixPPO:
             mean_grad_pen_loss += grad_pen_loss.item()
             mean_policy_pred += policy_d.mean().item()
             mean_expert_pred += expert_d.mean().item()
+            mean_estimation_loss += estimation_loss
+            mean_swap_loss += swap_loss
 
         num_updates = self.num_learning_epochs * self.num_mini_batches
         mean_value_loss /= num_updates
@@ -302,6 +304,8 @@ class HimmixPPO:
         mean_grad_pen_loss /= num_updates
         mean_policy_pred /= num_updates
         mean_expert_pred /= num_updates
+        mean_estimation_loss += estimation_loss
+        mean_swap_loss += swap_loss
         self.storage.clear()
 
         return (
@@ -309,6 +313,8 @@ class HimmixPPO:
             mean_surrogate_loss,
             mean_amp_loss,
             mean_grad_pen_loss,
+            estimation_loss,
+            swap_loss,
             mean_policy_pred,
             mean_expert_pred,
         )

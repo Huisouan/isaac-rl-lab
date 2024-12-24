@@ -32,13 +32,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from ..modules import ActorCritic
+from ..modules import HIMActorCritic
 from ..storage import HIMRolloutStorage,RolloutStorage
 from ..storage.replay_buffer import ReplayBuffer
 from .amp_discriminator import AMPDiscriminator
 from ...assets.loder_for_algs import AmpMotion
 class HimmixPPO:
-    actor_critic: ActorCritic
+    actor_critic: HIMActorCritic
 
     def __init__(
         self,

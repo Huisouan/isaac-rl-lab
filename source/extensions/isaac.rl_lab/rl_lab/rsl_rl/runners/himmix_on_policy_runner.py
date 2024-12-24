@@ -139,10 +139,7 @@ class HimmixOnPolicyRunner:
                     reset_env_ids = infos["reset_env_ids"]
                     terminal_amp_states = infos["terminal_amp_states"]
                     obs = self.obs_normalizer(obs)
-                    if "critic" in infos["observations"]:
-                        critic_obs = self.critic_obs_normalizer(infos["observations"]["critic"])
-                    else:
-                        critic_obs = obs
+                    critic_obs = infos['observations']['critic'] if infos['observations']['critic'] is not None else obs
                     obs, critic_obs, rewards, dones = (
                         obs.to(self.device),
                         critic_obs.to(self.device),

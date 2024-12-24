@@ -38,9 +38,6 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.observations.policy.base_ang_vel.scale = 0.25
         self.observations.policy.joint_pos.scale = 1.0
         self.observations.policy.joint_vel.scale = 0.05
-        #self.observations.policy.base_lin_vel = None
-        #self.observations.policy.base_ang_vel = None
-        #self.observations.policy.height_scan = None
         self.observations.AMP = create_obsgroup_class('AMPCfg',{
             'base_pos_z': ObsTerm(func=mdp.base_pos_z),
             'base_lin_vel': ObsTerm(func=mdp.base_lin_vel),

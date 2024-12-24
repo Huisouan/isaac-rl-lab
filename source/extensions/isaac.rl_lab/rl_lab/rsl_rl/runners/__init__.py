@@ -9,6 +9,7 @@ from .cvqvae_on_policy_runner import CvqvaeOnPolicyRunner
 from .ase_on_policy_runner import ASEOnPolicyRunner
 from .him_on_policy_runner import HIMOnPolicyRunner
 from .ase_on_policy_runnerv1 import ASE1OnPolicyRunner
+from .himmix_on_policy_runner import HimmixOnPolicyRunner
 __all__ = [
     
         "PmcOnPolicyRunner",
@@ -17,4 +18,5 @@ __all__ = [
         "ASEOnPolicyRunner",
         "HIMOnPolicyRunner",
         "ASE1OnPolicyRunner",
+        "HimmixOnPolicyRunner",
            ]

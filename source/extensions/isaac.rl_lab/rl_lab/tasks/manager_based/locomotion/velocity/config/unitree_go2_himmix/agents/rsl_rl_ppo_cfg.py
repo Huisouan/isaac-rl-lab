@@ -11,7 +11,7 @@ class UnitreeGO2HimRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 100000
     save_interval = 100
-    experiment_name = "unitree_go2_him_rough"
+    experiment_name = "unitree_go2_himmix_rough"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         class_name = "HIMActorCritic",
@@ -21,7 +21,7 @@ class UnitreeGO2HimRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
-        class_name="HIMPPO",
+        class_name="HimmixPPO",
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
@@ -48,6 +48,6 @@ class UnitreeGO2HimFlatPPORunnerCfg(UnitreeGO2HimRoughPPORunnerCfg):
         super().__post_init__()
 
         # self.max_iterations = 300
-        self.experiment_name = "unitree_go2_him_flat"
+        self.experiment_name = "unitree_go2_himmix_flat"
         # self.policy.actor_hidden_dims = [128, 128, 128]
         # self.policy.critic_hidden_dims = [128, 128, 128]

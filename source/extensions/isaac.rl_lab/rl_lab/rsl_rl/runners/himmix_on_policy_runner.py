@@ -153,7 +153,8 @@ class HimmixOnPolicyRunner:
                     next_amp_obs = next_amp_obs.to(self.device)
                     # Account for terminal states.
                     next_amp_obs_with_term = torch.clone(next_amp_obs)
-                    next_amp_obs_with_term[reset_env_ids] = terminal_amp_states
+                    if reset_env_ids.numel() > 0:
+                        next_amp_obs_with_term[reset_env_ids] = terminal_amp_states
                     
                     rewards = self.alg.discriminator.predict_amp_reward(
                         amp_obs, next_amp_obs_with_term, rewards, normalizer=self.alg.amp_normalizer

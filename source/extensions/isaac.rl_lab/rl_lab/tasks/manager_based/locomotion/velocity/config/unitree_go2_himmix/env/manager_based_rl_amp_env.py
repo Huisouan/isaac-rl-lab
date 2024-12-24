@@ -35,7 +35,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
             print(self.cfg.amp_motion_files)
             self.amp_loader = AmpMotion(
                 data_dir = self.cfg.amp_motion_files,                
-                datatype="amp",
+                datatype="isaacgym",
                 file_type="txt",
                 data_spaces = None,
                 env_step_duration=self.cfg.sim.dt * self.cfg.sim.render_interval,
@@ -158,7 +158,7 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
             self._reset_idx(reset_env_ids)
         else:
             terminal_states = None
-            
+            terminal_amp_states =  None
         self.extras["terminal_states"] = terminal_states
         self.extras["terminal_amp_states"] = terminal_amp_states
         self.extras["reset_env_ids"] = reset_env_ids

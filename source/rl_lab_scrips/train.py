@@ -56,7 +56,7 @@ import os
 import torch
 from datetime import datetime
 
-from rl_lab.rsl_rl.runners import PmcOnPolicyRunner,AmpOnPolicyRunner,CvqvaeOnPolicyRunner,ASEOnPolicyRunner,HIMOnPolicyRunner
+from rl_lab.rsl_rl.runners import *
 
 from omni.isaac.lab.envs import (
     DirectMARLEnv,
@@ -129,31 +129,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # wrap around environment for rsl-rl
     env = RslRlVecEnvWrapperextra(env)
-
-
-    # create runner from rsl-rl
-    if args_cli.task == "Isaac-Amp-Unitree-go2-v0":
-        print("[INFO] Using AmpOnPolicyRunner")
-        runner = AmpOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     
-    elif args_cli.task == "Isaac-Him-Unitree-go2-v0" or args_cli.task =="Isaac-Rough-Him-Unitree-go2-v0":
-        print("[INFO] Using HimOnPolicyRunner")
-        runner = HIMOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)        
-    
-    elif args_cli.task == "Isaac-Ase-Unitree-go2-v0":
-        print("[INFO] Using AseOnPolicyRunner")
-        runner = ASEOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    runner_name = eval(agent_cfg.runner_name)
+    runner = runner_name(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
 
-    elif args_cli.task == "Isaac-go2-pmc-Direct-v0":
-        print("[INFO] Using PmcOnPolicyRunner")
-        runner = PmcOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
-    
-    elif args_cli.task == "Isaac-go2-cvqvae-Direct-v0":
-        runner = CvqvaeOnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
-    else:
-        raise NotImplementedError
-
-    
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
     # save resume path before creating a new log_dir

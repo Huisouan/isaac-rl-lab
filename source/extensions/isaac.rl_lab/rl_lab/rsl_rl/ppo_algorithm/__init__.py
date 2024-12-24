@@ -13,7 +13,7 @@ from .cvqvaeppo import CVQVAEPPO
 from .ppo import PPO
 from .him_ppo import HIMPPO
 from .himmix_ppo import HimmixPPO
-__all__ = [ "PPO"
+__all__ = [ "PPO",
             "PMCPPO", "EPMCPPO","ASEPPO","ASEV1",
             "AMPDiscriminator","AMPPPO","CVQVAEPPO",
             "HIMPPO","HimmixPPO",

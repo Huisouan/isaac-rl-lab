@@ -13,7 +13,7 @@ from ..env import VecEnv
 from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization
 from ..ppo_algorithm import AMPPPO
 from ..ppo_algorithm import AMPDiscriminator
-from ..datasets_for_txt.motion_loader import AMPLoader
+from ...assets.motion_loader import AMPLoader
 from ..utils import store_code_state
 from ..utils.amp_utils import Normalizer
 from ...assets.loder_for_algs import AmpMotion

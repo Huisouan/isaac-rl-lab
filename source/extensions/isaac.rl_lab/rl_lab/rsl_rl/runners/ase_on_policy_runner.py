@@ -15,7 +15,7 @@ from ..ppo_algorithm import ASEPPO
 from ..env import VecEnv
 from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization, PMC ,ASEagent
 from ..utils import store_code_state
-from ..datasets_for_txt.motion_loader import AMPLoader
+from ...assets.motion_loader import AMPLoader
 
 class ASEOnPolicyRunner:
     """On-policy runner for training and evaluation."""

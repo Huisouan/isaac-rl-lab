@@ -4,7 +4,7 @@ import time
 class AmpMotion(MotionData_Base):
     def __init__(self, 
                  data_dir,
-                 datatype="isaaclab",
+                 datatype="isaacgym",
                  file_type="txt",
                  data_spaces = None,
                  env_step_duration = 0.005,**kwargs):
@@ -43,11 +43,11 @@ class AmpMotion(MotionData_Base):
         current_start = 0
 
         # 处理每个数据张量
-        for tragedy in self.data_tensors:
-            # 重新排列 tragedy 的列
-            rearranged_tragedy = tragedy[:, rearrange_indices]
-            s = rearranged_tragedy[:-1]
-            s_next = rearranged_tragedy[1:]
+        for tragitory in self.data_tensors:
+            # 重新排列 tragitory 的列
+            rearranged_tragitory = tragitory[:, rearrange_indices]
+            s = rearranged_tragitory[:-1]
+            s_next = rearranged_tragitory[1:]
 
             # 记录当前 s 的起始和结束行
             start_end_indices.append((current_start, current_start + s.size(0)))
@@ -92,12 +92,73 @@ class AmpMotion(MotionData_Base):
 class VQVAEMotion(MotionData_Base):
     def __init__(self, 
                  data_dir,
-                 datatype="isaaclab",
+                 datatype="isaacgym",
                  file_type="txt",
                  data_spaces = None,
                  env_step_duration = 0.005,**kwargs):
         super().__init__(data_dir,datatype,file_type,data_spaces,env_step_duration,**kwargs)
         
-        def prepare_vqvae_state_trans():
-            
-            pass
+    def prepare_vqvae_state_trans(self):
+        vqvae_data_spaces = [
+            "joint_pos",
+            "foot_pos",
+            "root_lin_vel",
+            "root_ang_vel",
+            "joint_vel",
+            "z_pos",
+        ]
+
+        # 构建 rearrange_indices
+        rearrange_indices = []
+        for item in vqvae_data_spaces:
+            if item in self.cumulative_indices:
+                start_index, end_index = self.cumulative_indices[item]
+                rearrange_indices.extend(range(start_index, end_index))
+            elif item == 'z_pos':
+                rearrange_indices.append(42)  # 假设 z_pos 只有一个维度
+
+        # 初始化 amp_state 和 amp_state_next
+        self.state = []
+        self.state_003 = []
+        self.state_006 = []
+        self.state_03 = []
+    
+        # 添加帧偏移量参数
+        frame_offset_003 = 3
+        frame_offset_006 = 6
+        frame_offset_03 = 60
+    
+        start_end_indices = []
+        current_start = 0
+
+        # 处理每个数据张量
+        for tragitory in self.data_tensors:
+            if tragitory.size(0) < 60:
+                continue  # 丢弃长度不足60帧的轨迹
+            # 重新排列 tragitory 的列
+            rearranged_tragitory = tragitory[:, rearrange_indices]
+            state = rearranged_tragitory[:-frame_offset_03]  # 当前状态，去掉最后60帧
+            state_003 = rearranged_tragitory[frame_offset_003:frame_offset_003-frame_offset_03]  # 6帧后的状态，去掉最后57帧
+            state_006 = rearranged_tragitory[frame_offset_006:frame_offset_006-frame_offset_03]  # 12帧后的状态，去掉最后54帧
+            state_03 = rearranged_tragitory[frame_offset_03:]  # 60帧后的状态
+            # 记录当前 s 的起始和结束行
+            start_end_indices.append((current_start, current_start + state_03.size(0)))
+            current_start += state_03.size(0)
+
+            self.state.append(state)
+            self.state_003.append(state_003)
+            self.state_006.append(state_006)
+            self.state_03.append(state_03)
+
+        # 合并 amp_state 和 amp_state_next 列表为二维张量
+        self.amp_state = torch.cat(self.amp_state, dim=0)
+        self.amp_state_next = torch.cat(self.amp_state_next, dim=0)
+
+        # 将 start_end_indices 转换为张量
+        self.start_end_indices = torch.tensor(start_end_indices, dtype=torch.int64, device=self.device)
+
+        # 计算 max_row_sizes
+        self.max_row_sizes = self.start_end_indices[:, 1] - self.start_end_indices[:, 0]
+        self.amp_obs_num = self.amp_state.shape[1]            
+
+

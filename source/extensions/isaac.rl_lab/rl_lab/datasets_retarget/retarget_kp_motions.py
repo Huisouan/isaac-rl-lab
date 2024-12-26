@@ -1,14 +1,4 @@
-import argparse
-from omni.isaac.lab.app import AppLauncher
-# add argparse arguments
-parser = argparse.ArgumentParser()
-# append AppLauncher cli args
-AppLauncher.add_app_launcher_args(parser)
-args_cli = parser.parse_args()
-args_cli.headless = True
-# launch omniverse app
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
+
 
 """Retarget motions from keypoint (.txt) files."""
 import os

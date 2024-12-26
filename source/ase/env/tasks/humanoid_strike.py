@@ -246,18 +246,40 @@ def compute_strike_observations(root_states, tar_states):
 @torch.jit.script
 def compute_strike_reward(tar_pos, tar_rot, root_state, prev_root_pos, strike_body_vel, dt, near_dist):
     # type: (Tensor, Tensor, Tensor, Tensor, Tensor, float, float) -> Tensor
+    """
+    计算打击奖励。
+
+    该函数根据目标位置、目标旋转、根状态、先前根位置、打击身体速度、时间步长和近似距离来计算打击奖励。
+    奖励基于目标旋转误差和向目标移动的速度误差进行计算。
+
+    参数:
+    - tar_pos: 目标位置
+    - tar_rot: 目标旋转
+    - root_state: 根状态
+    - prev_root_pos: 先前根位置
+    - strike_body_vel: 打击身体速度
+    - dt: 时间步长
+    - near_dist: 近似距离
+
+    返回:
+    - reward: 打击奖励
+    """
+    # 目标速度和速度误差缩放因子
     tar_speed = 1.0
     vel_err_scale = 4.0
 
+    # 目标旋转权重和速度奖励权重
     tar_rot_w = 0.6
     vel_reward_w = 0.4
 
+    # 计算目标旋转误差
     up = torch.zeros_like(tar_pos)
     up[..., -1] = 1
     tar_up = quat_rotate(tar_rot, up)
     tar_rot_err = torch.sum(up * tar_up, dim=-1)
     tar_rot_r = torch.clamp_min(1.0 - tar_rot_err, 0.0)
 
+    # 计算朝向目标的速度
     root_pos = root_state[..., 0:3]
     tar_dir = tar_pos[..., 0:2] - root_pos[..., 0:2]
     tar_dir = torch.nn.functional.normalize(tar_dir, dim=-1)
@@ -270,9 +292,10 @@ def compute_strike_reward(tar_pos, tar_rot, root_state, prev_root_pos, strike_bo
     speed_mask = tar_dir_speed <= 0
     vel_reward[speed_mask] = 0
 
-
+    # 计算最终奖励
     reward = tar_rot_w * tar_rot_r + vel_reward_w * vel_reward
     
+    # 如果目标旋转误差小于阈值，则奖励为1
     succ = tar_rot_err < 0.2
     reward = torch.where(succ, torch.ones_like(reward), reward)
 
@@ -284,40 +307,66 @@ def compute_humanoid_reset(reset_buf, progress_buf, contact_buf, contact_body_id
                            tar_contact_forces, strike_body_ids, max_episode_length,
                            enable_early_termination, termination_heights):
     # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float, bool, Tensor) -> Tuple[Tensor, Tensor]
+    """
+    计算 humanoid 的重置信号和终止信号。
+
+    :param reset_buf: 重置缓冲区，用于标记哪些代理需要重置。
+    :param progress_buf: 进度缓冲区，记录了每个代理的步数。
+    :param contact_buf: 接触缓冲区，包含了每个代理的接触力信息。
+    :param contact_body_ids: 接触身体部位的 ID。
+    :param rigid_body_pos: 刚体的位置信息。
+    :param tar_contact_forces: 目标接触力。
+    :param strike_body_ids: 可能产生打击的身体部位的 ID。
+    :param max_episode_length: 最大剧集长度，超过该长度后代理将被重置。
+    :param enable_early_termination: 是否启用提前终止功能。
+    :param termination_heights: 终止高度，如果身体部位高度低于此值，可能触发终止。
+    :return: 返回重置信号和终止信号。
+    """
+    # 定义接触力阈值
     contact_force_threshold = 1.0
     
+    # 初始化终止信号为全零
     terminated = torch.zeros_like(reset_buf)
 
+    # 如果启用了提前终止功能
     if (enable_early_termination):
+        # 克隆接触缓冲区并屏蔽特定身体部位的接触信息
         masked_contact_buf = contact_buf.clone()
         masked_contact_buf[:, contact_body_ids, :] = 0
+        # 判断是否有导致跌倒的接触发生
         fall_contact = torch.any(torch.abs(masked_contact_buf) > 0.1, dim=-1)
         fall_contact = torch.any(fall_contact, dim=-1)
 
+        # 判断身体部位的高度是否低于终止高度
         body_height = rigid_body_pos[..., 2]
         fall_height = body_height < termination_heights
         fall_height[:, contact_body_ids] = False
         fall_height = torch.any(fall_height, dim=-1)
 
+        # 综合判断是否跌倒
         has_fallen = torch.logical_and(fall_contact, fall_height)
 
+        # 判断目标接触力是否超过阈值
         tar_has_contact = torch.any(torch.abs(tar_contact_forces[..., 0:2]) > contact_force_threshold, dim=-1)
-        #strike_body_force = contact_buf[:, strike_body_id, :]
-        #strike_body_has_contact = torch.any(torch.abs(strike_body_force) > contact_force_threshold, dim=-1)
+        # 判断非打击身体部位的接触力是否超过阈值
         nonstrike_body_force = masked_contact_buf
         nonstrike_body_force[:, strike_body_ids, :] = 0
         nonstrike_body_has_contact = torch.any(torch.abs(nonstrike_body_force) > contact_force_threshold, dim=-1)
         nonstrike_body_has_contact = torch.any(nonstrike_body_has_contact, dim=-1)
 
+        # 综合判断目标接触力和非打击身体部位的接触情况是否失败
         tar_fail = torch.logical_and(tar_has_contact, nonstrike_body_has_contact)
         
+        # 综合判断是否需要提前终止
         has_failed = torch.logical_or(has_fallen, tar_fail)
 
-        # first timestep can sometimes still have nonzero contact forces
-        # so only check after first couple of steps
+        # 排除前几个步数内的误判
         has_failed *= (progress_buf > 1)
+        # 更新终止信号
         terminated = torch.where(has_failed, torch.ones_like(reset_buf), terminated)
     
+    # 根据最大剧集长度更新重置信号
     reset = torch.where(progress_buf >= max_episode_length - 1, torch.ones_like(reset_buf), terminated)
 
+    # 返回重置信号和终止信号
     return reset, terminated

@@ -95,10 +95,22 @@ class VQVAEMotion(MotionData_Base):
                  datatype="isaacgym",
                  file_type="txt",
                  data_spaces = None,
-                 env_step_duration = 0.005,**kwargs):
+                 env_step_duration = 0.005*4,**kwargs):
         super().__init__(data_dir,datatype,file_type,data_spaces,env_step_duration,**kwargs)
         
-    def prepare_vqvae_state_trans(self):
+    def prepare_vqvae_state_trans(self ,       # 添加帧偏移量参数
+        frame_offset_003 = 1,
+        frame_offset_006 = 2,
+        frame_offset_03 = 10,
+        ):
+        """
+        vqvae数据预处理，所有数据都被拼接成4个大的二维张量，并且记录每个数据张量的起始和结束行。
+        state 
+        state_003
+        state_006
+        state_03
+        start_end_indices
+        """
         vqvae_data_spaces = [
             "joint_pos",
             "foot_pos",
@@ -123,10 +135,7 @@ class VQVAEMotion(MotionData_Base):
         self.state_006 = []
         self.state_03 = []
     
-        # 添加帧偏移量参数
-        frame_offset_003 = 3
-        frame_offset_006 = 6
-        frame_offset_03 = 60
+
     
         start_end_indices = []
         current_start = 0
@@ -150,15 +159,14 @@ class VQVAEMotion(MotionData_Base):
             self.state_006.append(state_006)
             self.state_03.append(state_03)
 
-        # 合并 amp_state 和 amp_state_next 列表为二维张量
-        self.amp_state = torch.cat(self.amp_state, dim=0)
-        self.amp_state_next = torch.cat(self.amp_state_next, dim=0)
-
+        self.state = torch.cat(self.state, dim=0)
+        self.state_003 = torch.cat(self.state_003, dim=0)
+        self.state_006 = torch.cat(self.state_006, dim=0)
+        self.state_03 = torch.cat(self.state_03, dim=0)
+        self.future_state = torch.cat([self.state_003,self.state_006,self.state_03], dim=1)
         # 将 start_end_indices 转换为张量
         self.start_end_indices = torch.tensor(start_end_indices, dtype=torch.int64, device=self.device)
 
         # 计算 max_row_sizes
         self.max_row_sizes = self.start_end_indices[:, 1] - self.start_end_indices[:, 0]
-        self.amp_obs_num = self.amp_state.shape[1]            
-
-
+        self.vqvae_obs_num = self.state.shape[1]            

@@ -15,9 +15,9 @@ from omni.isaac.lab.envs.manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
 
 
 from rl_lab.rsl_rl.utils.kinematics import urdf
-from rl_lab.assets.loder_for_algs import AmpMotion
+from rl_lab.assets.loder_for_algs import VQVAEMotion
 
-class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
+class ManagerBasedRLVQVAEEnv(ManagerBasedRLEnv, gym.Env):
     def __init__(self, cfg: ManagerBasedRLEnvCfg, render_mode: str | None = None, **kwargs):
 
         # initialize the base class to setup the scene.
@@ -33,9 +33,9 @@ class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
         if self.cfg.reference_state_initialization:
             print("motion_files dir: ")
             print(self.cfg.amp_motion_files)
-            self.amp_loader = AmpMotion(
+            self.amp_loader = VQVAEMotion(
                 data_dir = self.cfg.amp_motion_files,                
-                datatype="amp",
+                datatype="isaacgym",
                 file_type="txt",
                 data_spaces = None,
                 env_step_duration=self.cfg.sim.dt * self.cfg.sim.render_interval,

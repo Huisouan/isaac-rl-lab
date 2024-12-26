@@ -5,7 +5,6 @@ from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 from omni.isaac.lab.utils import configclass
 
 from ... import mdp
-from .env.events import reset_amp
 from ...velocity_env_cfg import LocomotionVelocityRoughEnvCfg, create_obsgroup_class
 
 ##
@@ -24,6 +23,7 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
+        self.decimation = 6
         # ------------------------------Sence------------------------------
         # switch robot to unitree-a1
         self.scene.robot = UNITREE_GO2_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
@@ -38,7 +38,7 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.observations.policy.base_ang_vel.scale = 0.25
         self.observations.policy.joint_pos.scale = 1.0
         self.observations.policy.joint_vel.scale = 0.05
-        
+        self.observations.privileged = None
         # ------------------------------Actions------------------------------
         # reduce action scale
         self.actions.joint_pos.scale = 0.25
@@ -52,17 +52,6 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.add_base_mass.params["asset_cfg"].body_names = "base"
         self.events.base_external_force_torque.params["asset_cfg"].body_names = "base"
         self.events.reset_robot_joints.params["position_range"] = (-2.0, 2.0)
-        self.events.reset_base.params = {
-            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
-            "velocity_range": {
-                "x": (0.0, 0.0),
-                "y": (0.0, 0.0),
-                "z": (0.0, 0.0),
-                "roll": (0.0, 0.0),
-                "pitch": (0.0, 0.0),
-                "yaw": (0.0, 0.0),
-            },
-        }
 
 
         # ------------------------------Rewards------------------------------
@@ -91,7 +80,7 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # ------------------------------Him------------------------------
         self.num_one_step_observations = 45
-        self.encoder_steps = 6
+        self.encoder_steps = 3
         self.num_observations = self.num_one_step_observations * self.encoder_steps
         self.num_one_step_privileged_obs = 45 + 3 + 6 + 187  # additional: base_lin_vel, external_forces, scan_dots
         self.critict_steps = 1

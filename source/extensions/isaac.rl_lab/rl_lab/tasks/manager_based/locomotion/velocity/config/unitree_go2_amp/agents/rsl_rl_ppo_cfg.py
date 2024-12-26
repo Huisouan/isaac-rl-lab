@@ -35,11 +35,11 @@ class UnitreeA1AmpRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
     )
 
-    amp_reward_coef = 0.5
-    amp_task_reward_lerp = 0.5
+    amp_reward_coef = 2
+    amp_task_reward_lerp = 0.3
     amp_discr_hidden_dims = [1024, 512]
     min_normalized_std = [0.01, 0.01, 0.01] * 4
-
+    runner_name = "AmpOnPolicyRunner"
 
 @configclass
 class UnitreeA1AmpFlatPPORunnerCfg(UnitreeA1AmpRoughPPORunnerCfg):

@@ -110,8 +110,9 @@ class UnitreeA1HimRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.ee_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
         self.base_name = "base"
         self.reference_state_initialization = True
-        self.amp_motion_files = "datasets/mocap_motions_go2"
-        self.amp_replay_buffer_size = 100000
+        self.amp_motion_files = glob.glob(f"datasets/mocap_motions_go2/*")
+        self.amp_num_preload_transitions = 2000000
+        self.amp_replay_buffer_size = 1000000
 
         # ------------------------------Him------------------------------
         self.num_one_step_observations = 45

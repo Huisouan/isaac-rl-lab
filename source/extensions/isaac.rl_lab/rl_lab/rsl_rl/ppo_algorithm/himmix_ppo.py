@@ -36,7 +36,6 @@ from ..modules import HIMActorCritic
 from ..storage import HIMRolloutStorage,RolloutStorage
 from ..storage.replay_buffer import ReplayBuffer
 from .amp_discriminator import AMPDiscriminator
-from ...assets.loder_for_algs import AmpMotion
 class HimmixPPO:
     actor_critic: HIMActorCritic
 
@@ -44,7 +43,7 @@ class HimmixPPO:
         self,
         actor_critic,
         discriminator:AMPDiscriminator,
-        amp_data:AmpMotion,
+        amp_data,
         amp_normalizer,
         min_std=None,
         amp_replay_buffer_size=100000,

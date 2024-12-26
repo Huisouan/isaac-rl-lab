@@ -41,9 +41,9 @@ class HimmixOnPolicyRunner:
 
         amp_data = self.env.unwrapped.amp_loader
         
-        amp_normalizer = Normalizer(amp_data.amp_obs_num)
+        amp_normalizer = Normalizer(amp_data.observation_dim)
         discriminator = AMPDiscriminator(
-            amp_data.amp_obs_num * 2,
+            amp_data.observation_dim * 2,
             self.cfg["amp_reward_coef"],
             self.cfg["amp_discr_hidden_dims"],
             device,

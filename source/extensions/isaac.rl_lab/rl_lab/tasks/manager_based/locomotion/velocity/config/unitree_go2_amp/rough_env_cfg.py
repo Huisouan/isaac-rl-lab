@@ -75,14 +75,11 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             },
         }
         # ------------------------------Rewards------------------------------
-        # Joint penaltie
-        self.rewards.joint_torques_l2.weight = -0.0002 
-        self.rewards.joint_acc_l2.weight = -2.5e-7 
+
         # Velocity-tracking rewards
-        self.rewards.track_lin_vel_xy_exp.weight = 1.5 
-        self.rewards.track_ang_vel_z_exp.weight = 0.75 
-        # Others
-        self.rewards.stand_still_when_zero_command.weight = -0.1
+        self.rewards.track_lin_vel_xy_exp.weight = 1.5 *30
+        self.rewards.track_ang_vel_z_exp.weight = 0.75 *30
+
 
 
         # If the weight of rewards is 0, set rewards to None

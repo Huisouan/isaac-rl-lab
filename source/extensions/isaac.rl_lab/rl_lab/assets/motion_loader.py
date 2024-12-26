@@ -3,7 +3,7 @@ import json
 import numpy as np
 import torch
 
-from pybullet_utils import transformations
+from rl_lab.assets import transformations
 from rl_lab.assets import motion_util, pose3d
 from rl_lab.assets import amp_utils
 
@@ -306,10 +306,7 @@ class AMPLoader:
         joint_vel_0, joint_vel_1 = AMPLoader.get_joint_vel(frame0), AMPLoader.get_joint_vel(frame1)
 
         blend_root_pos = self.slerp(root_pos0, root_pos1, blend)
-        blend_root_rot = transformations.quaternion_slerp(root_rot0.cpu().numpy(), root_rot1.cpu().numpy(), blend)
-        blend_root_rot = torch.tensor(
-            motion_util.standardize_quaternion(blend_root_rot), dtype=torch.float32, device=self.device
-        )
+        blend_root_rot = transformations.quaternion_slerp(root_rot0, root_rot1, blend)
         blend_joints = self.slerp(joints0, joints1, blend)
         blend_tar_toe_pos = self.slerp(tar_toe_pos_0, tar_toe_pos_1, blend)
         blend_linear_vel = self.slerp(linear_vel_0, linear_vel_1, blend)

@@ -59,7 +59,7 @@ def main(go2:Go2_SIM2SIM):
         sleep_time = max(0, target_interval - elapsed_time)  # 计算需要睡眠的时间
         time.sleep(sleep_time)  # 休眠
         # 赋值
-        print(action)
+        #print(action)
         go2.extent_targetPos = action
 
 if __name__ == "__main__":

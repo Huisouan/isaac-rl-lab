@@ -6,7 +6,7 @@
 from .pmcppo import PMCPPO
 from .epmcppo import EPMCPPO
 from .aseppo import ASEPPO
-from .aseppov1 import ASEV1
+from .aseppov1 import ASEPPOV1
 from .amp_discriminator import AMPDiscriminator
 from .amp_ppo import AMPPPO
 from .cvqvaeppo import CVQVAEPPO
@@ -14,7 +14,7 @@ from .ppo import PPO
 from .him_ppo import HIMPPO
 from .himmix_ppo import HimmixPPO
 __all__ = [ "PPO",
-            "PMCPPO", "EPMCPPO","ASEPPO","ASEV1",
+            "PMCPPO", "EPMCPPO","ASEPPO","ASEPPOV1",
             "AMPDiscriminator","AMPPPO","CVQVAEPPO",
             "HIMPPO","HimmixPPO",
            ]

@@ -23,10 +23,10 @@ class ASEV1(nn.Module):
         num_actions,
         amp_obs,
         num_envs,
-        ase_latent_shape = 64,
+        ase_latent_shape = 32,
         
-        actor_hidden_dims=[1024, 1024, 512, 12],
-        critic_hidden_dims=[1024, 1024, 512, 1],
+        actor_hidden_dims=[1024, 512, 256, 12],
+        critic_hidden_dims=[1024, 512, 256, 1],
         disc_hidden_dims=[1024, 1024, 512],
         enc_hidden_dims=[1024, 512],
         stylenet_hedden_dims=[512, 256],

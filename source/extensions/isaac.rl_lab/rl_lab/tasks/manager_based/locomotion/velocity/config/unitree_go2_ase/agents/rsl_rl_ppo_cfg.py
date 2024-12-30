@@ -8,11 +8,11 @@ from rl_lab.tasks.utils.wrappers.rsl_rl import (
 )
 
 @configclass
-class UnitreeA1AmpRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class UnitreeGO2ASERoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 100000
     save_interval = 100
-    experiment_name = "unitree_a1_ase_rough"
+    experiment_name = "unitree_go2_ase_rough"
     empirical_normalization = False
 
     config = ASECfg()
@@ -20,7 +20,7 @@ class UnitreeA1AmpRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     asenetcfg = ASENetcfg()
     
     algorithm = RslRlPpoAlgorithmCfg(
-        class_name="ASEPPO",
+        class_name="ASEPPOV1",
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
@@ -39,14 +39,14 @@ class UnitreeA1AmpRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     amp_task_reward_lerp = 0.5
     amp_discr_hidden_dims = [1024, 512]
     min_normalized_std = [0.01, 0.01, 0.01] * 4
-
+    runner_name = "ASE1OnPolicyRunner"
 
 @configclass
-class UnitreeA1AmpFlatPPORunnerCfg(UnitreeA1AmpRoughPPORunnerCfg):
+class UnitreeGO2ASEFlatPPORunnerCfg(UnitreeGO2ASERoughPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
 
         # self.max_iterations = 300
-        self.experiment_name = "unitree_a1_ase_flat"
+        self.experiment_name = "unitree_go2_ase_flat"
         # self.policy.actor_hidden_dims = [128, 128, 128]
         # self.policy.critic_hidden_dims = [128, 128, 128]

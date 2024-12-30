@@ -17,7 +17,7 @@ from rl_lab.rsl_rl.utils.kinematics import urdf
 from rl_lab.assets.loder_for_algs import AmpMotion
 
 
-class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):
+class ManagerBasedRLASEEnv(ManagerBasedRLEnv, gym.Env):
     def __init__(self, cfg: ManagerBasedRLEnvCfg, render_mode: str | None = None, **kwargs):
 
         # initialize the base class to setup the scene.

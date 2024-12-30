@@ -38,8 +38,7 @@ class Go2_SIM2SIM:
         self.Kp = 18
         self.Kd = 0.5
         
-        self.ctrl_kp = 0.5
-        self.ctrl_kd = 0.5
+
         
         # 初始化时间消耗计数器
         self.time_consume = 0

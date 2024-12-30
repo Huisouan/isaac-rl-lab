@@ -5,8 +5,8 @@ VISUALIZE_RETARGETING = True
 URDF_FILENAME = "datasets/go2_description/urdf/go2_description.urdf"
 OUTPUT_DIR = f"datasets/mocap_motions_go2/"
 
-REF_POS_SCALE = 0.8 # 缩放系数,如果遇到关节限位异常，尝试将此数变小
-INIT_POS = np.array([0, 0, 0.32]) # a1
+REF_POS_SCALE = 0.75 # 缩放系数,如果遇到关节限位异常，尝试将此数变小
+INIT_POS = np.array([0, 0, 0.4]) # a1
 INIT_ROT = np.array([0, 0, 0, 1.0])
 
 """

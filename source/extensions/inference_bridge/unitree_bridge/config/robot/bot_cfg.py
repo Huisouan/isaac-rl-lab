@@ -5,6 +5,10 @@ class Bot_def_cfg:
 
 class GO2(Bot_def_cfg):
     
+    kp = 20.0
+    kd = 0.5
+    
+    
     action_space = 12
     
     joint_order = (
@@ -22,3 +26,4 @@ class GO2(Bot_def_cfg):
     "RL_calf"   # calf
 )
     #
+

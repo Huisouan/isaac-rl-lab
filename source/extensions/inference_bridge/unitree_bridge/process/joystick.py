@@ -43,6 +43,8 @@ def get_joystick_state(joystick):
         elif event.type == pygame.JOYHATMOTION:
             pass  # 方向键移动可以在这里处理
     
+    print(f"axis_values: {axis_values}")
+    
     return axis_values, button_pressed
 
 def get_command_from_key(button_value):
@@ -58,7 +60,8 @@ def get_command_from_key(button_value):
     switcher = {
         3: 'stand',
         0: 'standby',
-        2: 'walk'
+        2: 'walk',
+        4: 'walk',
     }
     
     # 使用字典的get方法获取对应值，默认返回None或其他默认值

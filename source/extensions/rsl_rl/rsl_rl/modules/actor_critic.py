@@ -81,8 +81,8 @@ class ActorCritic(nn.Module):
     def reset(self, dones=None):
         pass
 
-    def forward(self):
-        raise NotImplementedError
+    def forward(self, observations):
+        return self.actor(observations)
 
     @property
     def action_mean(self):

@@ -10,9 +10,9 @@ import torch
 from collections import deque
 from torch.utils.tensorboard import SummaryWriter as TensorboardSummaryWriter
 
-from ... import rsl_rl
-from ..ppo_algorithm import ASEV1
-from ..env import VecEnv
+import rsl_rl
+from ..algorithms import ASEV1
+from ..utils.wrappers import RslRlVecEnvWrapper
 from ..modules import EmpiricalNormalization,ASEV1
 from ..utils import store_code_state
 from rl_lab.assets.loder_for_algs import AmpMotion
@@ -21,14 +21,14 @@ from rl_lab.assets.loder_for_algs import AmpMotion
 class ASE1OnPolicyRunner:
     """On-policy runner for training and evaluation."""
 
-    def __init__(self, env: VecEnv, train_cfg, log_dir=None, device="cpu"):
+    def __init__(self, env: RslRlVecEnvWrapper, train_cfg, log_dir=None, device="cpu"):
         self.cfg = train_cfg
         self.alg_cfg = train_cfg["algorithm"]
         self.device = device
         self.env = env
         obs, extras = self.env.get_observations()
         num_obs = obs.shape[1]
-        amp_data:AmpMotion = self.env.unwrapped.amp_loader
+        amp_data:AmpMotion = self.env.env.amp_loader
         if "critic" in extras["observations"]:
             num_critic_obs = extras["observations"]["critic"].shape[1]
         else:

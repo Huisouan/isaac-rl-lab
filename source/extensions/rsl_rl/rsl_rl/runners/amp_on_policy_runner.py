@@ -8,15 +8,14 @@ from collections import deque
 from torch.utils.tensorboard import SummaryWriter as TensorboardSummaryWriter
 
 
-from ... import rsl_rl
+import rsl_rl
 from ..env import VecEnv
 from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization
-from ..ppo_algorithm import AMPPPO
-from ..ppo_algorithm import AMPDiscriminator
-from ...assets.motion_loader import AMPLoader
+from ..algorithms import AMPPPO
+from ..algorithms import AMPDiscriminator
 from ..utils import store_code_state
 from ..utils.amp_utils import Normalizer
-from ...assets.loder_for_algs import AmpMotion
+from rl_lab.assets.loder_for_algs import AmpMotion
 
 class AmpOnPolicyRunner:
     """AMP On-policy runner for training and evaluation."""

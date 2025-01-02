@@ -23,10 +23,10 @@ class ASEV1(nn.Module):
         num_actions,
         amp_obs,
         num_envs,
-        ase_latent_shape = 32,
+        ase_latent_shape = 64,
         
-        actor_hidden_dims=[1024, 512, 256, 12],
-        critic_hidden_dims=[1024, 512, 256, 1],
+        actor_hidden_dims=[1024, 1024, 512, 12],
+        critic_hidden_dims=[1024, 1024, 512, 1],
         disc_hidden_dims=[1024, 1024, 512],
         enc_hidden_dims=[1024, 512],
         stylenet_hedden_dims=[512, 256],
@@ -65,15 +65,12 @@ class ASEV1(nn.Module):
         self.disc_grad_penalty =  5
         self.disc_coef = 5.0
         self.enc_coef = 5.0
-        self.enc_weight_decay = 0.0000
-        self.enc_grad_penalty = 0
         self.disc_weight_decay:float = 0.0001
         self.amp_diversity_bonus:float = 0.01
-        self.amp_diversity_tar = 1
         self.latent_steps_min = latent_steps_min
         self.latent_steps_max = latent_steps_max
         
-
+        self.amp_diversity_tar = 1
 
         self.ase_latent_shape = ase_latent_shape
         self.ase_latents = self.sample_latents(num_envs)
@@ -172,7 +169,6 @@ class ASEV1(nn.Module):
         # 计算AMP奖励
         with torch.no_grad():
             # 计算判别器的逻辑值
-            self.eval()
             disc_logits = self.eval_disc(amp_obs)
             # 计算概率值
             prob = 1 / (1 + torch.exp(-disc_logits)) 
@@ -187,7 +183,7 @@ class ASEV1(nn.Module):
             err = -torch.sum(err, dim=-1, keepdim=True)
             enc_r = torch.clamp_min(-err, 0.0)
             enc_r *= self.enc_reward_scale
-            self.train()
+
         return disc_r.squeeze(-1),enc_r.squeeze(-1)
 
     ############LOSS###################################################################
@@ -241,22 +237,6 @@ class ASEV1(nn.Module):
         
         enc_loss = torch.mean(enc_err)
 
-        if (self.enc_weight_decay != 0):
-            enc_weights = self.get_enc_weights()
-            enc_weights = torch.cat(enc_weights, dim=-1)
-            enc_weight_decay = torch.sum(torch.square(enc_weights))
-            enc_loss += self.enc_weight_decay * enc_weight_decay
-            
-        # 如果启用了梯度惩罚，计算梯度惩罚
-        if (self.enc_grad_penalty != 0):
-            enc_obs_grad = torch.autograd.grad(enc_err, enc_obs, grad_outputs=torch.ones_like(enc_err),
-                                            create_graph=True, retain_graph=True, only_inputs=True)
-            enc_obs_grad = enc_obs_grad[0]
-            enc_obs_grad = torch.sum(torch.square(enc_obs_grad), dim=-1)
-            enc_grad_penalty = torch.mean(enc_obs_grad)
-
-            enc_loss += self.enc_grad_penalty * enc_grad_penalty
-
         return enc_loss  
     
     def diversity_loss(self, obs, action_params, ase_latents):
@@ -299,16 +279,6 @@ class ASEV1(nn.Module):
         # 计算多样性损失
 
         return diversity_loss    
-
-    def get_enc_weights(self):
-        weights = []
-        for m in self.enc.modules():
-            if isinstance(m, nn.Linear):
-                weights.append(torch.flatten(m.weight))  # 获取编码器MLP的权重
-
-        weights.append(torch.flatten(self.enc.weight))  # 获取编码器权重
-        return weights
-
         
     def get_disc_weights(self):
         # 获取判别器所有线性层的权重

@@ -36,11 +36,11 @@ import statistics
 from torch.utils.tensorboard import SummaryWriter
 import torch
 
-from ..ppo_algorithm import PPO, HIMPPO
+from ..algorithms import PPO, HIMPPO
 from ..modules import HIMActorCritic
 from ..modules import EmpiricalNormalization
 from ..env import VecEnv
-from ... import rsl_rl
+import rsl_rl
 
 class HIMOnPolicyRunner:
 

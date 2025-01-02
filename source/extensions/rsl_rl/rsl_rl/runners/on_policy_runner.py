@@ -11,12 +11,13 @@ from collections import deque
 from torch.utils.tensorboard import SummaryWriter as TensorboardSummaryWriter
 
 import rsl_rl
-from ..algorithms import PMCPPO as PPO
-from ..env import VecEnv
-from ..modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization, PMC
-from ..utils import store_code_state
+from rsl_rl.algorithms import PPO
+from rsl_rl.env import VecEnv
+from rsl_rl.modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormalization
+from rsl_rl.utils import store_code_state
 
-class EPmcOnPolicyRunner:
+
+class OnPolicyRunner:
     """On-policy runner for training and evaluation."""
 
     def __init__(self, env: VecEnv, train_cfg, log_dir=None, device="cpu"):
@@ -32,8 +33,8 @@ class EPmcOnPolicyRunner:
         else:
             num_critic_obs = num_obs
         actor_critic_class = eval(self.policy_cfg.pop("class_name"))  # ActorCritic
-        actor_critic: ActorCritic | ActorCriticRecurrent | PMC = actor_critic_class(
-            num_obs, num_critic_obs, self.env.num_actions,**self.policy_cfg
+        actor_critic: ActorCritic | ActorCriticRecurrent = actor_critic_class(
+            num_obs, num_critic_obs, self.env.num_actions, **self.policy_cfg
         ).to(self.device)
         alg_class = eval(self.alg_cfg.pop("class_name"))  # PPO
         self.alg: PPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)
@@ -44,8 +45,8 @@ class EPmcOnPolicyRunner:
             self.obs_normalizer = EmpiricalNormalization(shape=[num_obs], until=1.0e8).to(self.device)
             self.critic_obs_normalizer = EmpiricalNormalization(shape=[num_critic_obs], until=1.0e8).to(self.device)
         else:
-            self.obs_normalizer = torch.nn.Identity()  # no normalization
-            self.critic_obs_normalizer = torch.nn.Identity()  # no normalization
+            self.obs_normalizer = torch.nn.Identity().to(self.device)  # no normalization
+            self.critic_obs_normalizer = torch.nn.Identity().to(self.device)  # no normalization
         # init storage and model
         self.alg.init_storage(
             self.env.num_envs,
@@ -107,19 +108,22 @@ class EPmcOnPolicyRunner:
             # Rollout
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
-                    actions = self.alg.act(obs,self.env.unwrapped,critic_obs)
-                    obs, rewards, dones, infos = self.env.step(actions)
-                    obs = self.obs_normalizer(obs)
-                    if "critic" in infos["observations"]:
-                        critic_obs = self.critic_obs_normalizer(infos["observations"]["critic"])
-                    else:
-                        critic_obs = obs
+                    actions = self.alg.act(obs, critic_obs)
+                    obs, rewards, dones, infos = self.env.step(actions.to(self.env.device))
+                    # move to the right device
                     obs, critic_obs, rewards, dones = (
                         obs.to(self.device),
                         critic_obs.to(self.device),
                         rewards.to(self.device),
                         dones.to(self.device),
                     )
+                    # perform normalization
+                    obs = self.obs_normalizer(obs)
+                    if "critic" in infos["observations"]:
+                        critic_obs = self.critic_obs_normalizer(infos["observations"]["critic"])
+                    else:
+                        critic_obs = obs
+                    # process the step
                     self.alg.process_env_step(rewards, dones, infos)
 
                     if self.log_dir is not None:
@@ -145,7 +149,7 @@ class EPmcOnPolicyRunner:
                 start = stop
                 self.alg.compute_returns(critic_obs)
 
-            mean_value_loss, mean_surrogate_loss,vqvae_loss,perplexity_loss = self.alg.update(self.env.unwrapped)
+            mean_value_loss, mean_surrogate_loss = self.alg.update()
             stop = time.time()
             learn_time = stop - start
             self.current_learning_iteration = it
@@ -218,8 +222,6 @@ class EPmcOnPolicyRunner:
                 f"""{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs[
                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
                 f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
-                f"""{'VQVAE loss:':>{pad}} {locs['vqvae_loss']:.4f}\n"""
-                f"""{'perplexity:':>{pad}} {locs['perplexity_loss']:.4f}\n"""
                 f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
                 f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
                 f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""

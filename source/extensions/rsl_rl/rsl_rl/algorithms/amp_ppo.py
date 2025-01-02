@@ -36,7 +36,7 @@ from ..modules import ActorCritic
 from ..storage import RolloutStorage
 from ..storage.replay_buffer import ReplayBuffer
 from .amp_discriminator import AMPDiscriminator
-from ...assets.loder_for_algs import AmpMotion
+from rl_lab.assets.loder_for_algs import AmpMotion
 class AMPPPO:
     actor_critic: ActorCritic
 

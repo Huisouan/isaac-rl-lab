@@ -6,11 +6,11 @@ from omni.isaac.lab.assets import Articulation, RigidObject
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.utils.math import quat_rotate
 
-from .manager_based_rl_amp_env import ManagerBasedRLAmpEnv
+from .manager_based_rl_amp_env import ManagerBasedRLASEEnv
 
 
 def reset_amp(
-    env: ManagerBasedRLAmpEnv,
+    env: ManagerBasedRLASEEnv,
     env_ids: torch.Tensor,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ):

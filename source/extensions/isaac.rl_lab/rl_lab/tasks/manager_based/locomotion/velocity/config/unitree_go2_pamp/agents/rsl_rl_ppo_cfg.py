@@ -20,7 +20,7 @@ class UnitreeA1AmpRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
-        class_name="AMPPPO",
+        class_name="PAMPPPO",
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
@@ -39,7 +39,7 @@ class UnitreeA1AmpRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     amp_task_reward_lerp = 0.3
     amp_discr_hidden_dims = [1024, 512]
     min_normalized_std = [0.01, 0.01, 0.01] * 4
-    runner_name = "AmpOnPolicyRunner"
+    runner_name = "PAmpOnPolicyRunnerl"
 
 @configclass
 class UnitreeA1AmpFlatPPORunnerCfg(UnitreeA1AmpRoughPPORunnerCfg):

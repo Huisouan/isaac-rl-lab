@@ -56,7 +56,7 @@ import os
 import torch
 from datetime import datetime
 
-from rl_lab.rsl_rl.runners import *
+from rsl_rl.runners import *
 
 from omni.isaac.lab.envs import (
     DirectMARLEnv,

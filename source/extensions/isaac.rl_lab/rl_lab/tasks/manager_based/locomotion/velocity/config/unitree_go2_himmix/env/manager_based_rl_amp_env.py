@@ -14,7 +14,7 @@ from omni.isaac.lab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from omni.isaac.lab.envs.manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
 
 
-from rl_lab.rsl_rl.utils.kinematics import urdf
+from rsl_rl.utils.kinematics import urdf
 from rl_lab.assets.motion_loader import AMPLoader
 
 class ManagerBasedRLAmpEnv(ManagerBasedRLEnv, gym.Env):

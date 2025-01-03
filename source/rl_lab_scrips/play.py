@@ -42,7 +42,7 @@ import gymnasium as gym
 import os
 import torch
 
-from rl_lab.rsl_rl.runners import *
+from rsl_rl.runners import *
 
 from omni.isaac.lab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from omni.isaac.lab.utils.dict import print_dict

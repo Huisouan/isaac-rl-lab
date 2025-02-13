@@ -387,7 +387,6 @@ def load_ref_data(JOINT_POS_FILENAME, FRAME_START, FRAME_END):
 
     return joint_pos_data
 
-
 def retarget_motion(robot, joint_pos_data):
     num_frames = joint_pos_data.shape[0]
 

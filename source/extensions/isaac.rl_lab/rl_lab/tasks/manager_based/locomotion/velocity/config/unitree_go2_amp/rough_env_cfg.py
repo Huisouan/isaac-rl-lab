@@ -58,7 +58,7 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.physics_material = None
         self.events.randomize_actuator_gains = None
         self.events.randomize_joint_parameters = None
-        #self.events.push_robot = None   
+        self.events.push_robot = None   
         self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
         self.events.add_base_mass.params["asset_cfg"].body_names = "base"
         self.events.base_external_force_torque.params["asset_cfg"].body_names = "base"
@@ -77,8 +77,8 @@ class UnitreeA1AmpRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # ------------------------------Rewards------------------------------
 
         # Velocity-tracking rewards
-        self.rewards.track_lin_vel_xy_exp.weight = 1.5 *30
-        self.rewards.track_ang_vel_z_exp.weight = 0.75 *30
+        self.rewards.track_lin_vel_xy_exp.weight = 1.5 * 1.0 / (0.005 * 6)
+        self.rewards.track_ang_vel_z_exp.weight = 0.5 * 1.0 / (0.005 * 6)
 
 
 
